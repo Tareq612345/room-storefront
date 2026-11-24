@@ -7,6 +7,12 @@ import {
 } from "@modules/universes";
 import { listProductsByUniverse, ProductCard } from "@modules/catalog";
 
+export async function generateStaticParams() {
+  const store = await getActiveStoreConfig();
+  const universes = await listStoreUniverses(store.id);
+  return universes.map((u) => ({ slug: u.slug }));
+}
+
 export default async function UniversePage({
   params,
 }: {
