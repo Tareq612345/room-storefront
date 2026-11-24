@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/cart-checkout/schema.ts
+ * @purpose Cart-Checkout Schemas: Zod validation for items inside the My Room bag.
+ */
+
 import { z } from "zod";
 
 export const RoomBagItemSchema = z.object({

@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/store-config/service.ts
+ * @purpose Store-Config Service: Resolves active storefront config by slug with local fallback when DB is unseeded.
+ */
+
 import {
   StoreConfigSchema,
   StoreThemeTokensSchema,

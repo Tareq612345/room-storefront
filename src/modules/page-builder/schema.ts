@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/page-builder/schema.ts
+ * @purpose Page-Builder Schemas: Zod validation for dynamic homepage PageSection types and JSON configs.
+ */
+
 import { z } from "zod";
 
 export const PageSectionTypeSchema = z.enum([

@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/page-builder/index.ts
+ * @purpose Page-Builder Public API: Exports PageSection schemas, service, and DynamicPageRenderer.
+ */
+
 export {
   PageSectionSchema,
   PageSectionTypeSchema,

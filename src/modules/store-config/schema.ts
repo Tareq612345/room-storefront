@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/store-config/schema.ts
+ * @purpose Store-Config Schemas: Zod validation for multi-tenant StoreConfig and theme tokens.
+ */
+
 import { z } from "zod";
 
 export const StoreThemeTokensSchema = z.object({

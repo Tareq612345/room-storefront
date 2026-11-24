@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/cart-checkout/store.ts
+ * @purpose My Room Zustand Store: Persistent client-side state for adding, removing, and updating Room bag items.
+ */
+
 "use client";
 
 import { create } from "zustand";

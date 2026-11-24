@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/catalog/components/ProductCard.tsx
+ * @purpose Product Card UI: Displays product mockup, 1-line subtitle, EGP pricing, Vaulted/Fresh Drop badge, and 'Claim Yours' My Room action.
+ */
+
 "use client";
 
 import { useRoomBagStore } from "@modules/cart-checkout";

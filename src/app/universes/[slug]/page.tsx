@@ -1,3 +1,8 @@
+/**
+ * @file src/app/universes/[slug]/page.tsx
+ * @purpose Universe Detail Page: Dynamic static-exported route (/universes/cars, /gaming, /anime) with Universe accent theme and filtered products.
+ */
+
 import { notFound } from "next/navigation";
 import { getActiveStoreConfig } from "@modules/store-config";
 import {

@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/adapters/whatsapp.adapter.ts
+ * @purpose WhatsApp Adapter: Interface and console mock implementation for order confirmation and status notifications.
+ */
+
 export interface WhatsAppMessageInput {
   storeId: string;
   toPhone: string;

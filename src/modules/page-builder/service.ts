@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/page-builder/service.ts
+ * @purpose Page-Builder Service: Fetches store homepage layout sections with default fallback.
+ */
+
 import { PageSectionSchema, type PageSectionDTO } from "./schema";
 import { findVisiblePageSections } from "./repository";
 

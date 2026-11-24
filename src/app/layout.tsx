@@ -1,3 +1,8 @@
+/**
+ * @file src/app/layout.tsx
+ * @purpose Root App Layout: Loads Cinzel & Plus Jakarta Sans fonts, AmbientBackground, and floating My Room bag trigger/drawer.
+ */
+
 import type { Metadata } from "next";
 import { Cinzel, Plus_Jakarta_Sans } from "next/font/google";
 import { MyRoomTriggerAndDrawer } from "@modules/cart-checkout";

@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/catalog/service.ts
+ * @purpose Catalog Service: Computes stock/Vaulted status and maps products with mockup fallbacks.
+ */
+
 import { ProductSummarySchema, type ProductSummaryDTO } from "./schema";
 import {
   findNewArrivalProducts,

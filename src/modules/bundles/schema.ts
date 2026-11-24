@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/bundles/schema.ts
+ * @purpose Bundles Schemas: Zod validation for Loadout pricing types and BundleSummaryDTO.
+ */
+
 import { z } from "zod";
 
 export const BundlePricingTypeSchema = z.enum([

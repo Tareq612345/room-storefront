@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/page-builder/repository.ts
+ * @purpose Page-Builder Repository: Prisma queries for visible PageSections ordered by sortOrder.
+ */
+
 import { prisma } from "@shared/db/prisma";
 
 export async function findVisiblePageSections(

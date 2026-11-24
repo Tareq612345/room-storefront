@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/universes/components/UniverseShowcaseGrid.tsx
+ * @purpose Universe Showcase Grid: 3-card Crimson/Midnight/Orchid display with bedroom mockups, frosted bottom badges, and hover sheen motion.
+ */
+
 import { getAssetPath } from "@shared/utils/asset-path";
 import Link from "next/link";
 import type { UniverseDTO } from "../schema";

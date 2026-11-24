@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/universes/repository.ts
+ * @purpose Universes Repository: Prisma queries for active Universes scoped by storeId.
+ */
+
 import { prisma } from "@shared/db/prisma";
 
 export async function findActiveUniverses(storeId: string) {

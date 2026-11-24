@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/catalog/schema.ts
+ * @purpose Catalog Schemas: Zod validation for ProductSummaryDTO and ProductVariantDTO.
+ */
+
 import { z } from "zod";
 
 export const ProductVariantSchema = z.object({

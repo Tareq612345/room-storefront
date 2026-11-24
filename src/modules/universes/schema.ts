@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/universes/schema.ts
+ * @purpose Universes Schemas: Zod validation for UniverseDTO (slug, accentColor, bannerUrl, tagline).
+ */
+
 import { z } from "zod";
 
 export const UniverseSchema = z.object({

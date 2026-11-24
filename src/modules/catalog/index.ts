@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/catalog/index.ts
+ * @purpose Catalog Public API: Exports Product schemas, services, ProductCard, and FreshDropsSection.
+ */
+
 export {
   ProductSummarySchema,
   ProductVariantSchema,

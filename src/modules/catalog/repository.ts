@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/catalog/repository.ts
+ * @purpose Catalog Repository: Prisma queries for Fresh Drops and Universe-filtered products.
+ */
+
 import { prisma } from "@shared/db/prisma";
 
 export async function findNewArrivalProducts(storeId: string, limit = 4) {

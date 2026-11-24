@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/types/common.ts
+ * @purpose Shared Types & Formatters: StoreContext, ActionResult<T>, and EGP currency formatter.
+ */
+
 export interface StoreContext {
   storeId: string;
   slug: string;

@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/page-builder/components/DynamicPageRenderer.tsx
+ * @purpose Dynamic Page Renderer: Resolves and renders registered PageSection components from sectionRegistry.
+ */
+
 import { sectionRegistry } from "@shared/registry/section-registry";
 import type { PageSectionDTO } from "../schema";
 

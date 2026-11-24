@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/bundles/repository.ts
+ * @purpose Bundles Repository: Prisma queries for featured Loadouts and their items.
+ */
+
 import { prisma } from "@shared/db/prisma";
 
 export async function findFeaturedBundles(storeId: string, limit = 3) {

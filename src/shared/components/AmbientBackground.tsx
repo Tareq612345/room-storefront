@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/components/AmbientBackground.tsx
+ * @purpose Ambient Background Layer: Fixed subtle drifting nebula glows and slow-moving starlight particles behind the storefront.
+ */
+
 "use client";
 
 export function AmbientBackground() {

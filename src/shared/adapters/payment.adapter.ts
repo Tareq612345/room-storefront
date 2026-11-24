@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/adapters/payment.adapter.ts
+ * @purpose Payment Adapter: Interface and default gateway implementation supporting COD, Online Card, Wallet, and InstaPay.
+ */
+
 export type SupportedPaymentMethod =
   | "COD"
   | "ONLINE_CARD"

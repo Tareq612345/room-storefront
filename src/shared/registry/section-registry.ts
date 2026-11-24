@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/registry/section-registry.ts
+ * @purpose Dynamic Section Registry: Plug-and-play registry mapping PageSectionType keys to homepage section React components.
+ */
+
 import type { ComponentType } from "react";
 
 export type PageSectionTypeKey =

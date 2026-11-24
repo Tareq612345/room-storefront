@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/db/prisma.ts
+ * @purpose Database Singleton: Exports the single PrismaClient instance (strictly for module repository.ts files only).
+ */
+
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {

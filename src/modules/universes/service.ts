@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/universes/service.ts
+ * @purpose Universes Service: Lists store Universes (Cars, Gaming, Anime) and resolves by slug with mockup fallbacks.
+ */
+
 import { UniverseSchema, type UniverseDTO } from "./schema";
 import { findActiveUniverses, findUniverseBySlug } from "./repository";
 

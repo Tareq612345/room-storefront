@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/universes/components/UniverseStarHeader.tsx
+ * @purpose Morphing Star Header: Primary sticky navigation with RM 4-point star emblem, Universe star nodes, full-bleed crisp dash tracks, and scroll-shrink animation.
+ */
+
 "use client";
 
 import Link from "next/link";

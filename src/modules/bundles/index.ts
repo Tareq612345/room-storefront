@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/bundles/index.ts
+ * @purpose Bundles (Loadouts) Public API: Exports Bundle schemas, pricing calculator, service, and LoadoutsSection.
+ */
+
 export {
   BundlePricingTypeSchema,
   BundleSummarySchema,

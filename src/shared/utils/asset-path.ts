@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/utils/asset-path.ts
+ * @purpose Asset Path Helper: Resolves public image/SVG URLs cleanly for both localhost and GitHub Pages basePath.
+ */
+
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 /**

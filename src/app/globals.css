@@ -1,3 +1,8 @@
+/*
+ * @file src/app/globals.css
+ * @purpose Global Styles & Animations: Tailwind v4 entry, ambient nebula drift, starlight field, card reveal, and hover sheen keyframes.
+ */
+
 @import "tailwindcss";
 @import "../styles/tokens.css";
 

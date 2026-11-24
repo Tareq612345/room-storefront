@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/catalog/components/FreshDropsSection.tsx
+ * @purpose Fresh Drops Section: Homepage grid showcasing latest New Arrival products.
+ */
+
 import type { ProductSummaryDTO } from "../schema";
 import { ProductCard } from "./ProductCard";
 

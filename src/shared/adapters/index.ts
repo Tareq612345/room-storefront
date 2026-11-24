@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/adapters/index.ts
+ * @purpose External Adapters Container: Central provider registry for WhatsApp, Payment, and Shipping adapters.
+ */
+
 import { DefaultPaymentAdapter, type PaymentAdapter } from "./payment.adapter";
 import {
   CairoLocalShippingAdapter,

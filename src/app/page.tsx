@@ -1,3 +1,8 @@
+/**
+ * @file src/app/page.tsx
+ * @purpose Storefront Homepage: Renders the sticky Morphing Star Header, 3-card Universe Showcase, Fresh Drops, and Signature Loadouts.
+ */
+
 import { getActiveStoreConfig } from "@modules/store-config";
 import {
   listStoreUniverses,

@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/store-config/index.ts
+ * @purpose Store-Config Public API: Exports store configuration types and service.
+ */
+
 export {
   StoreConfigSchema,
   StoreThemeTokensSchema,

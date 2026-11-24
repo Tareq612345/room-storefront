@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/bundles/service.ts
+ * @purpose Bundles Service: Computes fixed/percentage/amount Loadout discounts and savings.
+ */
+
 import { BundleSummarySchema, type BundleSummaryDTO } from "./schema";
 import { findFeaturedBundles } from "./repository";
 

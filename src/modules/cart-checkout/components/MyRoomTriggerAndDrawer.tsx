@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/cart-checkout/components/MyRoomTriggerAndDrawer.tsx
+ * @purpose My Room Floating Button & Drawer: Top-right glass pill button and slide-over bag drawer with quantity controls and subtotal.
+ */
+
 "use client";
 
 import { formatEgp } from "@shared/types/common";

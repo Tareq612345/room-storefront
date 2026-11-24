@@ -1,4 +1,9 @@
 /**
+ * @file src/shared/events/event-bus.ts
+ * @purpose Domain Event Bus: Typed in-process pub/sub for decoupled cross-module communication (orders, stock, loyalty, store config).
+ */
+
+/**
  * Typed Domain Event Bus for cross-module communication.
  * Modules emit and subscribe to events without importing each other's internals.
  */

@@ -1,3 +1,8 @@
+/**
+ * @file src/shared/adapters/shipping.adapter.ts
+ * @purpose Shipping Adapter: Interface and Cairo/New Cairo express dispatch implementation.
+ */
+
 export interface ShippingDispatchInput {
   storeId: string;
   orderId: string;

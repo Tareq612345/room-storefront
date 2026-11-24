@@ -1,3 +1,8 @@
+/**
+ * @file src/modules/bundles/components/LoadoutsSection.tsx
+ * @purpose Loadouts Section UI: Displays bundled room setups with savings badge and 'Add to Room' action.
+ */
+
 "use client";
 
 import { useRoomBagStore } from "@modules/cart-checkout";

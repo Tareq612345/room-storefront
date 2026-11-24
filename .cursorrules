@@ -76,3 +76,10 @@ Every module in `src/modules/[module-name]/` MUST follow this exact internal sep
   - Use **"Loadouts"** instead of "Bundles"
   - Use **"Vaulted"** instead of "Out of Stock"
   - Use **"Fresh Drops"** instead of "New Arrivals"
+
+---
+
+## 7. Mandatory File Header Documentation & Versioning
+- **File Header Comment**: Every code file (`*.ts`, `*.tsx`, `*.css`) MUST start with a concise header comment (`/** ... */` or `/* ... */`) describing what site features, UI sections, or domain logic live in that file.
+- **Keep Headers Updated**: Whenever any file is modified, its top header comment MUST be updated to reflect the latest behavior.
+- **GitHub Backup Tags**: Tag major milestones (`v0.x.0`) and push commits + tags to GitHub so any prior version can be restored.
