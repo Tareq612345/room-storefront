@@ -40,11 +40,11 @@ export function MyRoomTriggerAndDrawer() {
       <button
         type="button"
         onClick={openBag}
-        className="fixed right-4 top-4 z-50 flex items-center gap-2.5 rounded-full border border-white/20 bg-black/75 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white shadow-[0_8px_28px_rgba(0,0,0,0.65)] backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-white/45 hover:bg-black/90 md:right-6 md:top-6"
+        className="fixed right-4 top-4 z-50 flex items-center gap-2.5 rounded-full border border-[var(--color-accent)]/35 bg-black/75 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-accent)] shadow-[0_8px_28px_rgba(0,0,0,0.65)] backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-[var(--color-accent)]/70 hover:bg-black/90 md:right-6 md:top-6"
       >
         <Sparkles className="h-3.5 w-3.5 text-[var(--color-accent)]" />
         <span>My Room</span>
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-[11px] font-bold text-white">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent)]/20 px-1.5 text-[11px] font-bold text-[var(--color-accent)]">
           {totalCount}
         </span>
       </button>
@@ -181,7 +181,7 @@ export function MyRoomTriggerAndDrawer() {
                   </button>
                   <button
                     type="button"
-                    className="flex-1 rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
+                    className="flex-1 rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--color-accent-foreground)] transition-opacity hover:opacity-90"
                   >
                     Checkout (COD / Online)
                   </button>

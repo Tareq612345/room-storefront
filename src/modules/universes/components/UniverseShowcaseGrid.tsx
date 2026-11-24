@@ -1,6 +1,6 @@
 /**
  * @file src/modules/universes/components/UniverseShowcaseGrid.tsx
- * @purpose 3-card Crimson/Midnight/Orchid Universe showcase with bedroom mockups and frosted bottom badges (steady cards, no flashy entrance/sheen animations).
+ * @purpose 3-card Crimson/Midnight/Orchid Universe showcase with bedroom mockups, frosted bottom badges, and simple hover lift matching Fresh Drops cards.
  */
 
 import { getAssetPath } from "@shared/utils/asset-path";
@@ -29,7 +29,7 @@ export function UniverseShowcaseGrid({ universes }: UniverseShowcaseGridProps) {
             <Link
               key={universe.id}
               href={`/universes/${universe.slug}`}
-              className="group relative flex h-[420px] flex-col justify-between overflow-hidden rounded-[22px] border border-[var(--color-border-subtle)] p-6 transition-colors duration-300 hover:border-[var(--color-border-strong)]"
+              className="group relative flex h-[420px] flex-col justify-between overflow-hidden rounded-[22px] border border-[var(--color-border-subtle)] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-strong)]"
               style={{
                 background: gradient,
                 boxShadow: "var(--shadow-card)",
@@ -40,7 +40,7 @@ export function UniverseShowcaseGrid({ universes }: UniverseShowcaseGridProps) {
                 <img
                   src={getAssetPath(universe.bannerUrl)}
                   alt={universe.name}
-                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45 mix-blend-luminosity"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45 mix-blend-luminosity transition-transform duration-500 group-hover:scale-105"
                 />
               ) : null}
 

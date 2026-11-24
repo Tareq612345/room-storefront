@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { Cinzel, Plus_Jakarta_Sans } from "next/font/google";
 import { MyRoomTriggerAndDrawer } from "@modules/cart-checkout";
 import { AmbientBackground } from "@shared/components/AmbientBackground";
+import { UniverseThemeSync } from "@shared/components/UniverseThemeSync";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -34,7 +35,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${plusJakarta.variable} ${cinzel.variable} dark`}>
-      <body className="relative min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] selection:bg-[var(--color-accent)] selection:text-white">
+      <body className="relative min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] selection:bg-[var(--color-accent)] selection:text-[var(--color-accent-foreground)]">
+        <UniverseThemeSync />
         <AmbientBackground />
         <MyRoomTriggerAndDrawer />
 
