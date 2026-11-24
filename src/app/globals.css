@@ -47,3 +47,13 @@ body {
 .animate-nebula-reverse {
   animation: nebulaDriftReverse 22s ease-in-out infinite;
 }
+
+@keyframes schemaCableFlow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+.animate-schema-cable {
+  animation: schemaCableFlow 1.2s linear infinite;
+}

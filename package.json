@@ -3,6 +3,7 @@
   "version": "0.5.1",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/generate-schema-meta.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

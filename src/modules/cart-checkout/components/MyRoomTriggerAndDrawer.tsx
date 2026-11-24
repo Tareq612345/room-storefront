@@ -8,10 +8,12 @@
 import { formatEgp } from "@shared/types/common";
 import { getAssetPath } from "@shared/utils/asset-path";
 import { Minus, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useRoomBagStore } from "../store";
 
 export function MyRoomTriggerAndDrawer() {
+  const pathname = usePathname();
   const {
     items,
     isOpen,
@@ -26,6 +28,10 @@ export function MyRoomTriggerAndDrawer() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  if (pathname?.includes("/schema")) {
+    return null;
+  }
 
   const totalCount = mounted
     ? items.reduce((sum, item) => sum + item.quantity, 0)
