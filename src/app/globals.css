@@ -1,6 +1,6 @@
 /*
  * @file src/app/globals.css
- * @purpose Global Styles & Animations: Tailwind v4 entry, ambient nebula drift, starlight field, card reveal, and hover sheen keyframes.
+ * @purpose Global Styles & Live Wallpaper Background Keyframes: Tailwind v4 entry and continuous calm nebula drift.
  */
 
 @import "tailwindcss";
@@ -20,17 +20,13 @@ body {
   font-family: var(--font-serif), Georgia, serif;
 }
 
-/* ==========================================================================
-   ROOM — Subtle Ambient Background & Signature Motion
-   ========================================================================== */
-
 @keyframes nebulaDrift {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(36px, -24px, 0) scale(1.08);
+    transform: translate3d(40px, -28px, 0) scale(1.08);
   }
 }
 
@@ -40,36 +36,7 @@ body {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(-32px, 28px, 0) scale(1.06);
-  }
-}
-
-@keyframes starsDrift {
-  0% {
-    background-position: 0 0, 40px 60px;
-  }
-  100% {
-    background-position: 120px 180px, 160px 240px;
-  }
-}
-
-@keyframes fadeUpReveal {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes sheenSweep {
-  0% {
-    transform: translateX(-140%) skewX(-18deg);
-  }
-  100% {
-    transform: translateX(240%) skewX(-18deg);
+    transform: translate3d(-36px, 32px, 0) scale(1.06);
   }
 }
 
@@ -79,20 +46,4 @@ body {
 
 .animate-nebula-reverse {
   animation: nebulaDriftReverse 22s ease-in-out infinite;
-}
-
-.ambient-stars-layer {
-  background-image:
-    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.55), transparent),
-    radial-gradient(1.2px 1.2px at 90px 110px, rgba(255, 255, 255, 0.35), transparent);
-  background-size: 140px 140px, 210px 210px;
-  animation: starsDrift 60s linear infinite;
-}
-
-.animate-fade-up {
-  animation: fadeUpReveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.group:hover .animate-card-sheen {
-  animation: sheenSweep 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
