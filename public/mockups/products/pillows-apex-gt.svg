@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <defs>
+    <radialGradient id="pillowBg" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#D92323" stop-opacity="0.34"/>
+      <stop offset="65%" stop-color="#28070B" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#05030A" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="pillowFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1821"/>
+      <stop offset="100%" stop-color="#0A080D"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#060409"/>
+  <rect width="800" height="600" fill="url(#pillowBg)"/>
+  <!-- Back Pillow -->
+  <rect x="175" y="145" width="450" height="215" rx="28" fill="#120E15" stroke="#D92323" stroke-opacity="0.5" stroke-width="2"/>
+  <rect x="195" y="165" width="410" height="175" rx="20" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="1" stroke-dasharray="6 6"/>
+  <!-- Front Overlapping Pillow -->
+  <rect x="145" y="255" width="510" height="225" rx="30" fill="url(#pillowFill)" stroke="#D92323" stroke-opacity="0.85" stroke-width="2.5"/>
+  <rect x="167" y="277" width="466" height="181" rx="22" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="1.2"/>
+  <!-- GT Racing Piping & Crest -->
+  <path d="M235 255 V480 M255 255 V480" stroke="#D92323" stroke-width="4" stroke-opacity="0.85"/>
+  <circle cx="515" cy="368" r="28" fill="#0A070D" stroke="#D92323" stroke-width="2"/>
+  <path d="M502 368 L515 354 L528 368 L515 382 Z" stroke="#FFFFFF" stroke-width="1.8" fill="none"/>
+</svg>

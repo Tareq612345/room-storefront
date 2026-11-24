@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <defs>
+    <radialGradient id="animeBg" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#C94B99" stop-opacity="0.36"/>
+      <stop offset="65%" stop-color="#3D1234" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#05030A" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="orchidSheet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1023"/>
+      <stop offset="100%" stop-color="#08040C"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#06030A"/>
+  <rect width="800" height="600" fill="url(#animeBg)"/>
+  <!-- Draped Sateen Bedsheet -->
+  <path d="M135 220 L665 220 L710 475 C712 490, 698 502, 682 502 L118 502 C102 502, 88 490, 90 475 Z" fill="url(#orchidSheet)" stroke="#C94B99" stroke-opacity="0.3" stroke-width="2"/>
+  <!-- Folded Top Layer -->
+  <path d="M148 215 L652 215 L678 355 L122 355 Z" fill="#170C1C" stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="1.5"/>
+  <!-- Neo-Tokyo Sash & Eclipse Crest -->
+  <path d="M122 355 H678" stroke="#C94B99" stroke-width="3" stroke-opacity="0.85"/>
+  <circle cx="400" cy="422" r="40" fill="#0D0612" stroke="#F472B6" stroke-opacity="0.85" stroke-width="2"/>
+  <path d="M400 388 C402 411, 411 420, 434 422 C411 424, 402 433, 400 456 C398 433, 389 424, 366 422 C389 420, 398 411, 400 388 Z" stroke="#FFFFFF" stroke-width="1.8" fill="none"/>
+  <!-- Twin Embroidered Pillows -->
+  <rect x="195" y="135" width="190" height="82" rx="16" fill="#190D1F" stroke="#C94B99" stroke-opacity="0.72" stroke-width="2"/>
+  <rect x="415" y="135" width="190" height="82" rx="16" fill="#190D1F" stroke="#C94B99" stroke-opacity="0.72" stroke-width="2"/>
+  <circle cx="290" cy="176" r="14" stroke="#F472B6" stroke-opacity="0.65" stroke-width="1.5"/>
+  <circle cx="510" cy="176" r="14" stroke="#F472B6" stroke-opacity="0.65" stroke-width="1.5"/>
+</svg>

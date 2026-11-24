@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <defs>
+    <radialGradient id="gamingBg" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.35"/>
+      <stop offset="65%" stop-color="#1A1440" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#05030A" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="indigoSheet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#17162E"/>
+      <stop offset="100%" stop-color="#080712"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#05030B"/>
+  <rect width="800" height="600" fill="url(#gamingBg)"/>
+  <!-- Draped Bedsheet Base -->
+  <path d="M135 220 L665 220 L710 475 C712 490, 698 502, 682 502 L118 502 C102 502, 88 490, 90 475 Z" fill="url(#indigoSheet)" stroke="#818CF8" stroke-opacity="0.28" stroke-width="2"/>
+  <!-- Folded Top Layer -->
+  <path d="M148 215 L652 215 L678 358 L122 358 Z" fill="#131227" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="1.5"/>
+  <!-- Cyber HUD Circuit Stitching -->
+  <path d="M180 285 H320 L350 315 H450 L480 285 H620" stroke="#6366F1" stroke-width="2.5" stroke-opacity="0.85" fill="none"/>
+  <path d="M140 415 H660" stroke="#818CF8" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="12 8"/>
+  <!-- Center Geometric Diamond Stitch -->
+  <polygon points="400,375 432,415 400,455 368,415" fill="#0B0A18" stroke="#818CF8" stroke-width="2"/>
+  <circle cx="400" cy="415" r="7" fill="#6366F1"/>
+  <!-- Twin Gaming Pillows -->
+  <rect x="195" y="135" width="190" height="82" rx="16" fill="#131229" stroke="#6366F1" stroke-opacity="0.7" stroke-width="2"/>
+  <rect x="415" y="135" width="190" height="82" rx="16" fill="#131229" stroke="#6366F1" stroke-opacity="0.7" stroke-width="2"/>
+  <path d="M225 162 L245 176 L225 190 M575 162 L555 176 L575 190" stroke="#818CF8" stroke-width="2" stroke-linecap="round"/>
+</svg>
