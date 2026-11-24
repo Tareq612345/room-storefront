@@ -1,0 +1,454 @@
+// ============================================================================
+// ROOM — D2C E-Commerce & Dynamic Storefront Engine
+// Multi-tenant (storeId) PostgreSQL Schema
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum StoryBlockLayout {
+  FULL_BLEED
+  SPLIT_LEFT
+  SPLIT_RIGHT
+  SPEC_GRID
+  VIDEO_BANNER
+}
+
+enum BundlePricingType {
+  FIXED_PRICE
+  PERCENTAGE_DISCOUNT
+  AMOUNT_DISCOUNT
+}
+
+enum PageSectionType {
+  HERO_SLIDER
+  UNIVERSE_QUICK_BAR
+  TRENDING_CAROUSEL
+  FEATURED_BUNDLES
+  FLASH_DEALS
+  CATEGORY_SPOTLIGHT
+  BEST_SELLERS
+  NEW_ARRIVALS
+  CUSTOMER_SETUPS
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PACKING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentMethod {
+  COD
+  ONLINE_CARD
+  WALLET
+  INSTAPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  COD_COLLECTED
+}
+
+enum OrderItemType {
+  PRODUCT
+  BUNDLE
+}
+
+enum LoyaltyTier {
+  ROOKIE
+  PRO
+  ELITE
+  LEGEND
+}
+
+// ============================================================================
+// 1. STORE CONFIG (Multi-Storefront & Zero-Code Theme Tokens)
+// ============================================================================
+
+model StoreConfig {
+  id                 String   @id @default(cuid())
+  slug               String   @unique
+  name               String
+  domain             String?  @unique
+  currency           String   @default("EGP")
+  defaultAccentColor String   @default("#7C3AED")
+  themeTokens        Json     @default("{}")
+  whatsappNumber     String?
+  supportEmail       String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  users            User[]
+  universes        Universe[]
+  products         Product[]
+  productVariants  ProductVariant[]
+  storyBlocks      ProductStoryBlock[]
+  bundles          Bundle[]
+  bundleItems      BundleItem[]
+  pageSections     PageSection[]
+  shippingZones    ShippingZone[]
+  orders           Order[]
+  orderItems       OrderItem[]
+  loyaltyAccounts  LoyaltyAccount[]
+
+  @@index([isActive])
+  @@map("store_configs")
+}
+
+// ============================================================================
+// 2. USERS
+// ============================================================================
+
+model User {
+  id           String   @id @default(cuid())
+  storeId      String
+  email        String?
+  phone        String?
+  name         String
+  passwordHash String?
+  role         UserRole @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  store          StoreConfig     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders         Order[]
+  loyaltyAccount LoyaltyAccount?
+
+  @@unique([storeId, email])
+  @@unique([storeId, phone])
+  @@index([storeId, role])
+  @@map("users")
+}
+
+// ============================================================================
+// 3. UNIVERSES (Themed Categories with Dynamic Accent Colors)
+// ============================================================================
+
+model Universe {
+  id          String   @id @default(cuid())
+  storeId     String
+  slug        String
+  name        String
+  tagline     String?
+  description String?
+  accentColor String   @default("#7C3AED")
+  iconUrl     String?
+  bannerUrl   String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store    StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+  bundles  Bundle[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, isActive, sortOrder])
+  @@map("universes")
+}
+
+// ============================================================================
+// 4. CATALOG (Products, Variants, Oraimo-Style A+ Story Blocks)
+// ============================================================================
+
+model Product {
+  id             String   @id @default(cuid())
+  storeId        String
+  universeId     String
+  slug           String
+  name           String
+  subtitle       String?
+  description    String?
+  basePrice      Decimal  @db.Decimal(10, 2)
+  compareAtPrice Decimal? @db.Decimal(10, 2)
+  thumbnailUrl   String
+  images         String[] @default([])
+  isFeatured     Boolean  @default(false)
+  isNewArrival   Boolean  @default(false)
+  isBestSeller   Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store       StoreConfig         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  universe    Universe            @relation(fields: [universeId], references: [id], onDelete: Restrict)
+  variants    ProductVariant[]
+  storyBlocks ProductStoryBlock[]
+  bundleItems BundleItem[]
+  orderItems  OrderItem[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, universeId, isActive])
+  @@index([storeId, isFeatured, isActive])
+  @@index([storeId, isNewArrival, isActive])
+  @@index([storeId, isBestSeller, isActive])
+  @@map("products")
+}
+
+model ProductVariant {
+  id             String   @id @default(cuid())
+  storeId        String
+  productId      String
+  sku            String
+  name           String
+  size           String?
+  colorName      String?
+  colorHex       String?
+  price          Decimal  @db.Decimal(10, 2)
+  compareAtPrice Decimal? @db.Decimal(10, 2)
+  stock          Int      @default(0)
+  isDefault      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store       StoreConfig  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  bundleItems BundleItem[]
+  orderItems  OrderItem[]
+
+  @@unique([storeId, sku])
+  @@index([storeId, productId, isActive])
+  @@index([productId, stock])
+  @@map("product_variants")
+}
+
+model ProductStoryBlock {
+  id             String           @id @default(cuid())
+  storeId        String
+  productId      String
+  sortOrder      Int              @default(0)
+  layoutType     StoryBlockLayout @default(FULL_BLEED)
+  eyebrow        String?
+  title          String
+  body           String?
+  mediaUrl       String
+  mobileMediaUrl String?
+  ctaLabel       String?
+  ctaUrl         String?
+  metadata       Json             @default("{}")
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  store   StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, productId, isActive, sortOrder])
+  @@map("product_story_blocks")
+}
+
+// ============================================================================
+// 5. BUNDLES / LOADOUTS
+// ============================================================================
+
+model Bundle {
+  id              String            @id @default(cuid())
+  storeId         String
+  universeId      String?
+  slug            String
+  name            String
+  tagline         String?
+  description     String?
+  thumbnailUrl    String
+  bannerUrl       String?
+  pricingType     BundlePricingType @default(FIXED_PRICE)
+  fixedPrice      Decimal?          @db.Decimal(10, 2)
+  discountPercent Int?
+  discountAmount  Decimal?          @db.Decimal(10, 2)
+  isFeatured      Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  store      StoreConfig  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  universe   Universe?    @relation(fields: [universeId], references: [id], onDelete: SetNull)
+  items      BundleItem[]
+  orderItems OrderItem[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, universeId, isActive])
+  @@index([storeId, isFeatured, isActive])
+  @@map("bundles")
+}
+
+model BundleItem {
+  id         String  @id @default(cuid())
+  storeId    String
+  bundleId   String
+  productId  String
+  variantId  String?
+  quantity   Int     @default(1)
+  sortOrder  Int     @default(0)
+  isRequired Boolean @default(true)
+
+  store   StoreConfig     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  bundle  Bundle          @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, bundleId, sortOrder])
+  @@index([productId])
+  @@map("bundle_items")
+}
+
+// ============================================================================
+// 6. DYNAMIC PAGE BUILDER
+// ============================================================================
+
+model PageSection {
+  id        String          @id @default(cuid())
+  storeId   String
+  pageKey   String          @default("home")
+  type      PageSectionType
+  title     String?
+  subtitle  String?
+  sortOrder Int             @default(0)
+  isVisible Boolean         @default(true)
+  config    Json            @default("{}")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, pageKey, isVisible, sortOrder])
+  @@map("page_sections")
+}
+
+// ============================================================================
+// 7. SHIPPING ZONES (Cairo / New Cairo)
+// ============================================================================
+
+model ShippingZone {
+  id                    String   @id @default(cuid())
+  storeId               String
+  name                  String
+  city                  String   @default("Cairo")
+  fee                   Decimal  @db.Decimal(10, 2)
+  freeShippingThreshold Decimal? @db.Decimal(10, 2)
+  estimatedDays         String   @default("1-2 Days")
+  sortOrder             Int      @default(0)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  store  StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([storeId, name])
+  @@index([storeId, isActive, sortOrder])
+  @@map("shipping_zones")
+}
+
+// ============================================================================
+// 8. ORDERS & CHECKOUT (COD + Online Payments)
+// ============================================================================
+
+model Order {
+  id               String        @id @default(cuid())
+  storeId          String
+  orderNumber      String
+  userId           String?
+  shippingZoneId   String
+  customerName     String
+  customerPhone    String
+  customerWhatsapp String?
+  customerEmail    String?
+  shippingAddress  String
+  city             String        @default("Cairo")
+  notes            String?
+  status           OrderStatus   @default(PENDING)
+  paymentMethod    PaymentMethod @default(COD)
+  paymentStatus    PaymentStatus @default(PENDING)
+  paymentReference String?
+  subtotal         Decimal       @db.Decimal(10, 2)
+  shippingFee      Decimal       @db.Decimal(10, 2)
+  discountAmount   Decimal       @default(0) @db.Decimal(10, 2)
+  total            Decimal       @db.Decimal(10, 2)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  store        StoreConfig  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shippingZone ShippingZone @relation(fields: [shippingZoneId], references: [id], onDelete: Restrict)
+  items        OrderItem[]
+
+  @@unique([storeId, orderNumber])
+  @@index([storeId, status, createdAt])
+  @@index([storeId, userId])
+  @@index([storeId, customerPhone])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String        @id @default(cuid())
+  storeId         String
+  orderId         String
+  itemType        OrderItemType @default(PRODUCT)
+  productId       String?
+  variantId       String?
+  bundleId        String?
+  titleSnapshot   String
+  variantSnapshot String?
+  unitPrice       Decimal       @db.Decimal(10, 2)
+  quantity        Int
+  lineTotal       Decimal       @db.Decimal(10, 2)
+
+  store   StoreConfig     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  bundle  Bundle?         @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, orderId])
+  @@map("order_items")
+}
+
+// ============================================================================
+// 9. LOYALTY & REWARDS (Placeholder Foundation)
+// ============================================================================
+
+model LoyaltyAccount {
+  id             String      @id @default(cuid())
+  storeId        String
+  userId         String      @unique
+  pointsBalance  Int         @default(0)
+  lifetimePoints Int         @default(0)
+  tier           LoyaltyTier @default(ROOKIE)
+  referralCode   String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, referralCode])
+  @@index([storeId, tier])
+  @@map("loyalty_accounts")
+}

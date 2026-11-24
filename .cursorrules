@@ -1,0 +1,78 @@
+# ROOM — AI Engineering & Architecture Rules
+
+You are building **Room**, a premium Direct-to-Consumer (D2C) E-commerce & Dynamic Storefront Engine targeting Gen Z (13–19) in Cairo & New Cairo (Anime, Gaming, and Car bedroom setups / Loadouts).
+
+These rules are **mandatory** and must never be violated.
+
+---
+
+## 1. Tech Stack & TypeScript Discipline
+- **Framework**: Next.js (App Router)
+- **Language**: TypeScript with `"strict": true`. **ZERO `any`** allowed anywhere in the codebase. Use `unknown` with Zod parsing or explicit discriminated unions.
+- **Styling**: Tailwind CSS + semantic CSS Custom Properties defined in `src/styles/tokens.css`.
+- **Database**: PostgreSQL via Prisma ORM (`prisma/schema.prisma`).
+- **Validation**: Zod for all external inputs, API payloads, form data, and database JSON configs.
+- **Client State**: Zustand for client-side UI/cart state.
+
+---
+
+## 2. Modular Monolith Architecture
+Every business domain MUST live strictly isolated inside `src/modules/[module-name]/`:
+- `store-config` — Storefront identity, theme tokens, multi-tenant config
+- `page-builder` — Dynamic homepage sections (`PageSection`) & layout orchestration
+- `universes` — Themed categories (Anime, Gaming, Cars) & dynamic accent colors
+- `catalog` — Products, variants, stock ("Vaulted" state), and A+ `ProductStoryBlock`s
+- `bundles` — "Loadouts" (curated room setups & bundle pricing rules)
+- `cart-checkout` — Cart state, Cairo/New Cairo `ShippingZone` calculation, checkout flow
+- `orders` — Order lifecycle, COD & Online payment states, fulfillment
+- `loyalty-rewards` — Points, tiers, and referral rewards (`LoyaltyAccount`)
+
+### Strict Module Anatomy
+Every module in `src/modules/[module-name]/` MUST follow this exact internal separation:
+1. `schema.ts` — Zod schemas and inferred TypeScript types (`z.infer<typeof ...>`).
+2. `repository.ts` — **THE ONLY FILE** allowed to import and call Prisma (`@shared/db/prisma`). Returns raw/typed data models; contains zero business logic.
+3. `service.ts` — Pure business logic, calculations, validations, and event emission. Calls `repository.ts` and never imports Prisma directly.
+4. `components/` — Module-owned React Server/Client UI components.
+5. `index.ts` — **Public API Barrel**. Exports only the public service functions, public types/schemas, and public UI components.
+
+### Cross-Module Isolation Rules
+- Modules MUST NEVER import from another module's internal files (`repository.ts`, `service.ts`, `schema.ts`, or internal helpers).
+- Cross-module communication is allowed **ONLY** through:
+  1. Another module's `index.ts` (`@modules/[module-name]`), OR
+  2. The typed domain event bus (`@shared/events/event-bus`).
+- Circular dependencies between modules are strictly forbidden.
+
+---
+
+## 3. Thin App Router Layer (`src/app/`)
+- Files inside `src/app/` (Pages, Layouts, Route Handlers, Server Actions) MUST remain thin orchestration layers.
+- `src/app/` files MUST NEVER import Prisma or call `repository.ts` directly.
+- `src/app/` files ONLY call module public APIs via `@modules/[module-name]` (`index.ts`), validate inputs with module schemas, and map results to HTTP responses or UI props.
+
+---
+
+## 4. External Adapters Pattern (`src/shared/adapters/`)
+- All third-party integrations MUST be isolated behind interfaces in `src/shared/adapters/`:
+  - WhatsApp notifications (order confirmation, status updates)
+  - Payment gateways (COD + Online card/wallet/InstaPay)
+  - Shipping & courier exports (Cairo / New Cairo dispatch)
+- Business logic in `service.ts` depends on adapter interfaces, never on vendor SDKs directly, so providers can be swapped without touching domain logic.
+
+---
+
+## 5. Multi-Storefront & Zero-Code Admin Readiness
+- **Multi-Tenancy**: Every core database model and repository query MUST be scoped by `storeId`. Never query core domain tables without a `storeId` filter.
+- **Zero-Code Customization**: Theme tokens, Universe accent colors, and Home Page layouts (`PageSection`) live in PostgreSQL. Never hardcode store-specific branding, section order, or universe colors in components.
+- **Plug-and-Play Section Registry**: All homepage sections register in `src/shared/registry/section-registry.ts` so new `PageSectionType` blocks can be added without rewriting the page renderer.
+
+---
+
+## 6. Visual Identity, Design Tokens & Copywriting
+- **Dark Mode First**: High-contrast obsidian backgrounds (`--color-bg-primary`), elevated dark cards (`--color-surface-card`), subtle borders (`--color-border-subtle`), and dynamic Universe accents (`--color-accent`).
+- **No Hardcoded Colors**: Always reference semantic CSS variables from `src/styles/tokens.css` (or Tailwind utilities mapped to them). Never hardcode hex values in feature components.
+- **Storefront Language & Microcopy (English ONLY)**:
+  - Use **"Claim Yours"** or **"Add to Room"** instead of "Add to Cart"
+  - Use **"Universes"** instead of "Categories"
+  - Use **"Loadouts"** instead of "Bundles"
+  - Use **"Vaulted"** instead of "Out of Stock"
+  - Use **"Fresh Drops"** instead of "New Arrivals"

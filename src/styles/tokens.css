@@ -1,0 +1,78 @@
+/* ==========================================================================
+   ROOM — Semantic Design Tokens (Dark Mode First)
+   Inspired by the RM Star Emblem & Midnight-Obsidian Universe Cards:
+   - Pure black (#000000) to deep midnight violet (#140B29) canvas
+   - Crisp white (#FFFFFF) star-emblem contrast
+   - Crimson (#D92323), Midnight Indigo (#4338CA), and Orchid Magenta (#C94B99)
+   ========================================================================== */
+
+:root {
+  /* Core Backgrounds (Obsidian -> Deep Midnight Violet) */
+  --color-bg-primary: #05030a;
+  --color-bg-secondary: #0b0617;
+  --color-bg-elevated: #140b29;
+  --color-bg-canvas-gradient: linear-gradient(180deg, #000000 0%, #070410 45%, #140b29 100%);
+
+  /* Surfaces & Cards */
+  --color-surface-card: #0e0a1a;
+  --color-surface-card-hover: #17112b;
+  --color-surface-glass: rgba(10, 8, 18, 0.72);
+  --color-surface-badge: rgba(0, 0, 0, 0.55);
+
+  /* Borders & Dividers */
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
+
+  /* Typography */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #c4bfd4;
+  --color-text-muted: #7c7594;
+
+  /* Dynamic Universe Accent Hooks (Default: Midnight Violet / Orchid) */
+  --color-accent: #c94b99;
+  --color-accent-rgb: 201, 75, 153;
+  --color-accent-hover: #db62ad;
+  --color-accent-soft: rgba(var(--color-accent-rgb), 0.16);
+  --color-accent-glow: rgba(var(--color-accent-rgb), 0.38);
+  --color-accent-foreground: #ffffff;
+
+  /* Universe Card Gradients (Derived from Reference UI) */
+  --gradient-universe-crimson: linear-gradient(180deg, #030305 0%, #5c0e12 58%, #d92323 100%);
+  --gradient-universe-midnight: linear-gradient(180deg, #030305 0%, #0f0b24 58%, #22194d 100%);
+  --gradient-universe-orchid: linear-gradient(180deg, #030305 0%, #4d1943 58%, #c94b99 100%);
+
+  /* Semantic Status */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #d92323;
+  --color-vaulted: #4b465c;
+
+  /* Radius & Elevation */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 14px 36px rgba(0, 0, 0, 0.6);
+  --shadow-accent-glow: 0 0 32px var(--color-accent-glow);
+}
+
+/* Universe Presets (Matches the 3 signature Universe palettes) */
+[data-universe="anime"] {
+  --color-accent: #c94b99;
+  --color-accent-rgb: 201, 75, 153;
+  --color-accent-hover: #db62ad;
+}
+
+[data-universe="gaming"] {
+  --color-accent: #6366f1;
+  --color-accent-rgb: 99, 102, 241;
+  --color-accent-hover: #818cf8;
+}
+
+[data-universe="cars"] {
+  --color-accent: #d92323;
+  --color-accent-rgb: 217, 35, 35;
+  --color-accent-hover: #ef3b3b;
+}
