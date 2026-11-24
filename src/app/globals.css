@@ -8,8 +8,99 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 .font-serif {
   font-family: var(--font-serif), Georgia, serif;
+}
+
+/* ==========================================================================
+   ROOM — Signature Motion & Star-Track Animations (60fps GPU-accelerated)
+   ========================================================================== */
+
+@keyframes trackPulseOutRight {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  80% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+@keyframes trackPulseOutLeft {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  80% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+}
+
+@keyframes starBreathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.22));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(201, 75, 153, 0.45));
+    transform: scale(1.025);
+  }
+}
+
+@keyframes fadeUpReveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheenSweep {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(240%) skewX(-18deg);
+  }
+}
+
+.animate-track-right {
+  animation: trackPulseOutRight 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-track-left {
+  animation: trackPulseOutLeft 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-star-breathe {
+  animation: starBreathe 4.5s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fadeUpReveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.group:hover .animate-card-sheen {
+  animation: sheenSweep 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
