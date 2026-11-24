@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <defs>
+    <radialGradient id="glowRed" cx="50%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#D92323" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#5C0E12" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#05030A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sheetRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#171219"/>
+      <stop offset="100%" stop-color="#09070C"/>
+    </linearGradient>
+    <linearGradient id="accentStripe" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D92323" stop-opacity="0.2"/>
+      <stop offset="50%" stop-color="#FF3B3B" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#D92323" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#06040A"/>
+  <rect width="800" height="600" fill="url(#glowRed)"/>
+  <!-- Subtle Carbon Grid -->
+  <path d="M0 120 H800 M0 240 H800 M0 360 H800 M0 480 H800" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <path d="M160 0 V600 M320 0 V600 M480 0 V600 M640 0 V600" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  <!-- Headboard & LED Underglow -->
+  <rect x="130" y="130" width="540" height="140" rx="18" fill="#0E0B12" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
+  <rect x="150" y="124" width="500" height="4" rx="2" fill="url(#accentStripe)"/>
+  <!-- Pillows -->
+  <rect x="180" y="175" width="205" height="90" rx="16" fill="#141018" stroke="#D92323" stroke-opacity="0.55" stroke-width="2"/>
+  <rect x="415" y="175" width="205" height="90" rx="16" fill="#141018" stroke="#D92323" stroke-opacity="0.55" stroke-width="2"/>
+  <!-- Mattress & Bedsheet -->
+  <rect x="115" y="250" width="570" height="245" rx="24" fill="url(#sheetRed)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2"/>
+  <!-- Racing Stripe Stitching -->
+  <path d="M115 335 H685" stroke="#D92323" stroke-width="3" stroke-opacity="0.85"/>
+  <path d="M115 348 H685" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.25" stroke-dasharray="10 8"/>
+  <!-- Pit-Lane Emblem -->
+  <circle cx="400" cy="415" r="34" fill="#0A070D" stroke="#D92323" stroke-opacity="0.7" stroke-width="2"/>
+  <path d="M385 415 L400 398 L415 415 L400 432 Z" stroke="#FFFFFF" stroke-width="1.8" fill="none"/>
+  <!-- Floor LED -->
+  <rect x="160" y="510" width="480" height="5" rx="2.5" fill="url(#accentStripe)"/>
+</svg>

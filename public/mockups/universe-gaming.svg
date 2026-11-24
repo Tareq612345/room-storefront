@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <defs>
+    <radialGradient id="glowIndigo" cx="50%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.48"/>
+      <stop offset="60%" stop-color="#22194D" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#05030A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sheetIndigo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111022"/>
+      <stop offset="100%" stop-color="#070610"/>
+    </linearGradient>
+    <linearGradient id="rgbBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.2"/>
+      <stop offset="50%" stop-color="#818CF8" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#05030B"/>
+  <rect width="800" height="600" fill="url(#glowIndigo)"/>
+  <!-- Cyber Perspective Lines -->
+  <path d="M80 80 L240 200 M720 80 L560 200" stroke="#6366F1" stroke-opacity="0.22" stroke-width="1.5"/>
+  <!-- Headboard & Monitor Silhouette -->
+  <rect x="130" y="130" width="540" height="140" rx="18" fill="#0B091A" stroke="#6366F1" stroke-opacity="0.3" stroke-width="2"/>
+  <rect x="170" y="122" width="460" height="4" rx="2" fill="url(#rgbBar)"/>
+  <!-- Pillows -->
+  <rect x="180" y="175" width="205" height="90" rx="16" fill="#131129" stroke="#818CF8" stroke-opacity="0.55" stroke-width="2"/>
+  <rect x="415" y="175" width="205" height="90" rx="16" fill="#131129" stroke="#818CF8" stroke-opacity="0.55" stroke-width="2"/>
+  <!-- Mattress & Bedsheet -->
+  <rect x="115" y="250" width="570" height="245" rx="24" fill="url(#sheetIndigo)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2"/>
+  <!-- Geometric Matrix Stitch -->
+  <path d="M115 340 H685" stroke="#6366F1" stroke-width="2.5" stroke-opacity="0.8"/>
+  <path d="M250 250 V495 M550 250 V495" stroke="#818CF8" stroke-opacity="0.18" stroke-width="1.5" stroke-dasharray="6 8"/>
+  <!-- Center Arena Crest -->
+  <polygon points="400,378 426,412 400,446 374,412" fill="#0A0817" stroke="#818CF8" stroke-width="2"/>
+  <circle cx="400" cy="412" r="6" fill="#818CF8"/>
+  <!-- Floor RGB Glow -->
+  <rect x="160" y="510" width="480" height="5" rx="2.5" fill="url(#rgbBar)"/>
+</svg>

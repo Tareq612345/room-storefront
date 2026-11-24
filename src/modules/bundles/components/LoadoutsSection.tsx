@@ -1,3 +1,6 @@
+"use client";
+
+import { useRoomBagStore } from "@modules/cart-checkout";
 import { formatEgp } from "@shared/types/common";
 import type { BundleSummaryDTO } from "../schema";
 
@@ -12,6 +15,8 @@ export function LoadoutsSection({
   subtitle = "Full room setups bundled for maximum drip & instant savings",
   loadouts,
 }: LoadoutsSectionProps) {
+  const addItem = useRoomBagStore((s) => s.addItem);
+
   if (loadouts.length === 0) return null;
 
   return (
@@ -58,7 +63,7 @@ export function LoadoutsSection({
                 {loadout.name}
               </h3>
               {loadout.tagline ? (
-                <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                <p className="mt-2 line-clamp-1 text-xs text-[var(--color-text-secondary)]">
                   {loadout.tagline}
                 </p>
               ) : null}
@@ -78,6 +83,16 @@ export function LoadoutsSection({
 
               <button
                 type="button"
+                onClick={() =>
+                  addItem({
+                    id: loadout.id,
+                    itemType: "BUNDLE",
+                    title: loadout.name,
+                    subtitle: loadout.tagline,
+                    unitPrice: loadout.finalPrice,
+                    accentColor: loadout.universeAccentColor,
+                  })
+                }
                 className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
                 style={{ backgroundColor: loadout.universeAccentColor }}
               >
