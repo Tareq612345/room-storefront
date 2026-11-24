@@ -29,7 +29,7 @@ export function MyRoomTriggerAndDrawer() {
     setMounted(true);
   }, []);
 
-  if (pathname?.includes("/schema")) {
+  if (pathname?.includes("/schema") || pathname?.includes("/admin")) {
     return null;
   }
 

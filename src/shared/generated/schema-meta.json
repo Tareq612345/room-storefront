@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-24T23:41:31.859Z",
+  "generatedAt": "2026-11-24T23:56:52.045Z",
   "provider": "PostgreSQL (Supabase)",
   "stats": {
-    "modelsCount": 13,
+    "modelsCount": 14,
     "enumsCount": 9,
-    "edgesCount": 26,
-    "fieldsCount": 224
+    "edgesCount": 27,
+    "fieldsCount": 240
   },
   "enums": [
     {
@@ -13,7 +13,8 @@
       "values": [
         "CUSTOMER",
         "STAFF",
-        "ADMIN"
+        "ADMIN",
+        "OWNER"
       ]
     },
     {
@@ -465,6 +466,21 @@
           "relationFields": [],
           "isModelRelation": true,
           "isEnum": false
+        },
+        {
+          "name": "adminInvites",
+          "type": "AdminInvite",
+          "rawType": "AdminInvite[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
         }
       ],
       "indexes": [
@@ -527,6 +543,21 @@
           "isEnum": false
         },
         {
+          "name": "username",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
           "name": "phone",
           "type": "String",
           "rawType": "String?",
@@ -547,6 +578,21 @@
           "rawType": "String",
           "isList": false,
           "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "avatarUrl",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
           "isId": false,
           "isUnique": false,
           "isForeignKey": false,
@@ -585,6 +631,21 @@
           "relationFields": [],
           "isModelRelation": false,
           "isEnum": true
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "rawType": "Boolean",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "true",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
         },
         {
           "name": "createdAt",
@@ -662,6 +723,21 @@
           "relationFields": [],
           "isModelRelation": true,
           "isEnum": false
+        },
+        {
+          "name": "sentInvites",
+          "type": "AdminInvite",
+          "rawType": "AdminInvite[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
         }
       ],
       "indexes": [
@@ -669,8 +745,192 @@
       ],
       "uniques": [
         "storeId, email",
+        "storeId, username",
         "storeId, phone"
       ]
+    },
+    {
+      "name": "AdminInvite",
+      "tableName": "admin_invites",
+      "domain": "Domain",
+      "position": {
+        "x": 460,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "role",
+          "type": "UserRole",
+          "rawType": "UserRole",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "ADMIN",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": true
+        },
+        {
+          "name": "token",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": true,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "invitedById",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "usedAt",
+          "type": "DateTime",
+          "rawType": "DateTime?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "invitedBy",
+          "type": "User",
+          "rawType": "User?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, email",
+        "token"
+      ],
+      "uniques": []
     },
     {
       "name": "Universe",
@@ -3734,6 +3994,15 @@
     {
       "id": "User->StoreConfig:store",
       "from": "User",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "AdminInvite->StoreConfig:store",
+      "from": "AdminInvite",
       "to": "StoreConfig",
       "field": "store",
       "fkFields": [

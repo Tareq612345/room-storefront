@@ -4,8 +4,15 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { randomBytes, scryptSync } from "node:crypto";
 
 const prisma = new PrismaClient();
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 async function main() {
   console.log("Seeding ROOM database...");
@@ -30,6 +37,38 @@ async function main() {
       },
     },
   });
+
+  // 1b. Seed Owners (tareq612345@gmail.com & adegddn@gmail.com)
+  const owners = [
+    {
+      email: "tareq612345@gmail.com",
+      username: "tareq",
+      name: "Tareq (Owner)",
+      defaultPass: "RoomOwner#2026",
+    },
+    {
+      email: "adegddn@gmail.com",
+      username: "adegddn",
+      name: "Partner (Owner)",
+      defaultPass: "RoomOwner#2026",
+    },
+  ];
+
+  for (const owner of owners) {
+    await prisma.user.upsert({
+      where: { storeId_email: { storeId: store.id, email: owner.email } },
+      update: { role: "OWNER" },
+      create: {
+        storeId: store.id,
+        email: owner.email,
+        username: owner.username,
+        name: owner.name,
+        role: "OWNER",
+        passwordHash: hashPassword(owner.defaultPass),
+        isActive: true,
+      },
+    });
+  }
 
   // 2. Universes
   const cars = await prisma.universe.upsert({

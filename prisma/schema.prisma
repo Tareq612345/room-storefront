@@ -21,6 +21,7 @@ enum UserRole {
   CUSTOMER
   STAFF
   ADMIN
+  OWNER
 }
 
 enum StoryBlockLayout {
@@ -116,34 +117,59 @@ model StoreConfig {
   orders           Order[]
   orderItems       OrderItem[]
   loyaltyAccounts  LoyaltyAccount[]
+  adminInvites     AdminInvite[]
 
   @@index([isActive])
   @@map("store_configs")
 }
 
 // ============================================================================
-// 2. USERS
+// 2. USERS & ADMIN INVITES (Owners, Admins, Username Login, 48h Single-Use Invites)
 // ============================================================================
 
 model User {
   id           String   @id @default(cuid())
   storeId      String
   email        String?
+  username     String?
   phone        String?
   name         String
+  avatarUrl    String?
   passwordHash String?
   role         UserRole @default(CUSTOMER)
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   store          StoreConfig     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
+  sentInvites    AdminInvite[]   @relation("InvitedBy")
 
   @@unique([storeId, email])
+  @@unique([storeId, username])
   @@unique([storeId, phone])
   @@index([storeId, role])
   @@map("users")
+}
+
+model AdminInvite {
+  id          String    @id @default(cuid())
+  storeId     String
+  email       String
+  role        UserRole  @default(ADMIN)
+  token       String    @unique
+  invitedById String?
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  store     StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  invitedBy User?       @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([storeId, email])
+  @@index([token])
+  @@map("admin_invites")
 }
 
 // ============================================================================
