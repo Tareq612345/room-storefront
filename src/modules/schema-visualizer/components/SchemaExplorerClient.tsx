@@ -1,6 +1,6 @@
 /**
  * @file src/modules/schema-visualizer/components/SchemaExplorerClient.tsx
- * @purpose Futuristic interactive Database Schema Visualizer with draggable model nodes, animated SVG relation cables, domain filters, enum vault, and live field inspector.
+ * @purpose Futuristic interactive Database Schema Visualizer with AR/EN toggle, draggable model nodes, animated SVG relation cables, domain filters, enum vault, and live field inspector.
  */
 
 "use client";
@@ -11,6 +11,7 @@ import {
   Database,
   GitBranch,
   Key,
+  Languages,
   Layers,
   Link2,
   RotateCcw,
@@ -27,6 +28,8 @@ interface SchemaExplorerClientProps {
   meta: SchemaMeta;
 }
 
+type Lang = "en" | "ar";
+
 const DOMAIN_COLORS: Record<string, string> = {
   "Core & Multi-Tenant": "#38bdf8",
   Universes: "#c94b99",
@@ -37,11 +40,80 @@ const DOMAIN_COLORS: Record<string, string> = {
   "Loyalty & Rewards": "#22c55e",
 };
 
+const DOMAIN_LABELS_AR: Record<string, string> = {
+  ALL: "الكل",
+  "Core & Multi-Tenant": "الأساس وتعدد المتاجر",
+  Universes: "الأقسام (Universes)",
+  "Dynamic Page Builder": "بناء الصفحة الرئيسية",
+  "Catalog & A+ Story": "الكتالوج وقصة المنتج",
+  "Loadouts (Bundles)": "الباقات (Loadouts)",
+  "Orders & Cairo Shipping": "الطلبات وشحن القاهرة",
+  "Loyalty & Rewards": "نقاط الولاء",
+};
+
+const MODEL_PURPOSE_AR: Record<string, string> = {
+  StoreConfig: "إعدادات المتجر والألوان والعملة وتعدد المتاجر (storeId)",
+  User: "بيانات العملاء والموظفين والمديرين",
+  Universe: "الأقسام الرئيسية (Cars, Gaming, Anime) بألوانها وصورها",
+  Product: "المنتجات الأساسية وأسعارها وحالتها",
+  ProductVariant: "المقاسات والألوان والمخزون والسعر لكل نسخة",
+  ProductStoryBlock: "بلوكات القصة المتسلسلة للمنتج بنظام Oraimo A+",
+  Bundle: "باقات الغرفة الكاملة (Loadouts) ونوع الخصم",
+  BundleItem: "المنتجات المكونة لكل باقة وكمياتها",
+  PageSection: "أقسام الصفحة الرئيسية الديناميكية القابلة للترتيب",
+  ShippingZone: "مناطق الشحن في القاهرة والقاهرة الجديدة وتكلفتها",
+  Order: "الطلبات وحالات الدفع (COD / أونلاين) وحالة التوصيل",
+  OrderItem: "تفاصيل المنتجات والباقات داخل كل طلب",
+  LoyaltyAccount: "حساب نقاط الولاء والمستويات وكود الإحالة",
+};
+
+const COPY = {
+  en: {
+    title: "ROOM // DB SCHEMA",
+    liveSynced: "Live Synced",
+    tables: "Tables",
+    relations: "Relations",
+    fields: "Fields",
+    searchPlaceholder: "Search model, field, table...",
+    enums: "Enums",
+    reset: "Reset",
+    storefront: "Storefront",
+    moreFields: (n: number) => `+${n} more fields (click to inspect)`,
+    pgTable: "PostgreSQL Table",
+    columns: "Columns",
+    relationsTitle: "Relations",
+    indexesTitle: "Performance Indexes",
+    enumsTitle: "PostgreSQL Enums",
+    copyTooltip: "Copy Prisma model snippet",
+  },
+  ar: {
+    title: "ROOM // هيكل قاعدة البيانات",
+    liveSynced: "مزامنة حية",
+    tables: "جداول",
+    relations: "علاقات",
+    fields: "حقول",
+    searchPlaceholder: "ابحث عن جدول أو حقل...",
+    enums: "التعدادات",
+    reset: "إعادة ضبط",
+    storefront: "المتجر",
+    moreFields: (n: number) => `+${n} حقول إضافية (اضغط للتفاصيل)`,
+    pgTable: "اسم الجدول في PostgreSQL",
+    columns: "الأعمدة",
+    relationsTitle: "العلاقات المرتبطة",
+    indexesTitle: "فهارس الأداء",
+    enumsTitle: "التعدادات (PostgreSQL Enums)",
+    copyTooltip: "نسخ كود الجدول",
+  },
+} as const;
+
 function getDomainColor(domain: string): string {
   return DOMAIN_COLORS[domain] ?? "#38bdf8";
 }
 
 export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
+  const [lang, setLang] = useState<Lang>("ar");
+  const t = COPY[lang];
+
   const [positions, setPositions] = useState<
     Record<string, { x: number; y: number }>
   >(() =>
@@ -162,8 +234,14 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
     setTimeout(() => setCopiedModel(null), 1800);
   };
 
+  const formatDomainLabel = (domain: string) =>
+    lang === "ar" ? DOMAIN_LABELS_AR[domain] ?? domain : domain;
+
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#040308] text-white">
+    <div
+      dir={lang === "ar" ? "rtl" : "ltr"}
+      className="relative flex min-h-screen flex-col bg-[#040308] text-white"
+    >
       {/* Top Cyber-Tech HUD Header */}
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070510]/85 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
@@ -173,34 +251,44 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-serif text-base font-semibold tracking-[0.18em] text-white">
-                  ROOM // DB SCHEMA
+                <h1 className="font-serif text-base font-semibold tracking-[0.12em] text-white">
+                  {t.title}
                 </h1>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
                   <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400" />
-                  Live Synced
+                  {t.liveSynced}
                 </span>
               </div>
               <p className="text-[11px] text-white/55">
-                {meta.provider} • {meta.stats.modelsCount} Tables •{" "}
-                {meta.stats.edgesCount} Relations • {meta.stats.fieldsCount}{" "}
-                Fields
+                {meta.provider} • {meta.stats.modelsCount} {t.tables} •{" "}
+                {meta.stats.edgesCount} {t.relations} • {meta.stats.fieldsCount}{" "}
+                {t.fields}
               </p>
             </div>
           </div>
 
           {/* Search & Controls */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/45" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search model, field, table..."
+                placeholder={t.searchPlaceholder}
                 className="h-9 w-56 rounded-full border border-white/15 bg-black/60 pl-9 pr-4 text-xs text-white placeholder:text-white/40 focus:border-cyan-400/60 focus:outline-none"
               />
             </div>
+
+            {/* AR / EN Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setLang((prev) => (prev === "ar" ? "en" : "ar"))}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3.5 text-xs font-bold text-cyan-200 transition-colors hover:bg-cyan-500/25"
+            >
+              <Languages className="h-3.5 w-3.5" />
+              {lang === "ar" ? "English" : "عربي"}
+            </button>
 
             <button
               type="button"
@@ -212,17 +300,16 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               }`}
             >
               <Layers className="h-3.5 w-3.5" />
-              Enums ({meta.stats.enumsCount})
+              {t.enums} ({meta.stats.enumsCount})
             </button>
 
             <button
               type="button"
               onClick={handleResetLayout}
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 text-xs font-semibold text-white/80 transition-colors hover:border-white/35"
-              title="Reset node positions"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Reset
+              {t.reset}
             </button>
 
             <Link
@@ -230,7 +317,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/20"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Storefront
+              {t.storefront}
             </Link>
           </div>
         </div>
@@ -253,10 +340,10 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                 }`}
               >
                 <span
-                  className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full"
+                  className="mx-1.5 inline-block h-1.5 w-1.5 rounded-full"
                   style={{ backgroundColor: color }}
                 />
-                {domain}
+                {formatDomainLabel(domain)}
               </button>
             );
           })}
@@ -265,8 +352,9 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
 
       {/* Main Interactive Workspace */}
       <div className="relative flex flex-1 overflow-hidden">
-        {/* Draggable Node Graph Canvas */}
+        {/* Draggable Node Graph Canvas (always LTR for coordinate math) */}
         <div
+          dir="ltr"
           className="relative flex-1 overflow-auto"
           style={{
             backgroundImage:
@@ -406,7 +494,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                     ))}
                     {scalarFields.length > 6 ? (
                       <div className="py-1 text-center text-[10px] font-medium text-white/45">
-                        +{scalarFields.length - 6} more fields (click to inspect)
+                        {t.moreFields(scalarFields.length - 6)}
                       </div>
                     ) : null}
                   </div>
@@ -416,9 +504,9 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
           </div>
         </div>
 
-        {/* Right Side Tech Inspector Panel */}
+        {/* Right/Left Side Tech Inspector Panel */}
         {selectedModel ? (
-          <aside className="z-30 flex w-full max-w-sm shrink-0 flex-col border-l border-white/10 bg-[#080611]/95 backdrop-blur-xl">
+          <aside className="z-30 flex w-full max-w-sm shrink-0 flex-col border-s border-white/10 bg-[#080611]/95 backdrop-blur-xl">
             <div className="flex items-start justify-between border-b border-white/10 p-5">
               <div>
                 <span
@@ -427,13 +515,19 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                     backgroundColor: getDomainColor(selectedModel.domain),
                   }}
                 >
-                  {selectedModel.domain}
+                  {formatDomainLabel(selectedModel.domain)}
                 </span>
                 <h2 className="mt-2 font-serif text-xl font-semibold text-white">
                   {selectedModel.name}
                 </h2>
-                <p className="mt-0.5 font-mono text-xs text-white/55">
-                  PostgreSQL: <span className="text-cyan-300">{selectedModel.tableName}</span>
+                {lang === "ar" && MODEL_PURPOSE_AR[selectedModel.name] ? (
+                  <p className="mt-1 text-xs leading-relaxed text-white/75">
+                    {MODEL_PURPOSE_AR[selectedModel.name]}
+                  </p>
+                ) : null}
+                <p className="mt-1 font-mono text-xs text-white/55">
+                  {t.pgTable}:{" "}
+                  <span className="text-cyan-300">{selectedModel.tableName}</span>
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -441,7 +535,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                   type="button"
                   onClick={() => handleCopyModelSummary(selectedModel)}
                   className="rounded-lg border border-white/15 p-2 text-white/70 hover:border-white/35 hover:text-white"
-                  title="Copy Prisma model snippet"
+                  title={t.copyTooltip}
                 >
                   {copiedModel === selectedModel.name ? (
                     <Check className="h-4 w-4 text-emerald-400" />
@@ -464,7 +558,12 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               {/* All Fields */}
               <div>
                 <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">
-                  Columns ({selectedModel.fields.filter((f) => !f.isModelRelation).length})
+                  {t.columns} (
+                  {
+                    selectedModel.fields.filter((f) => !f.isModelRelation)
+                      .length
+                  }
+                  )
                 </h3>
                 <div className="space-y-1.5">
                   {selectedModel.fields
@@ -472,6 +571,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                     .map((field) => (
                       <div
                         key={field.name}
+                        dir="ltr"
                         className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs"
                       >
                         <div className="flex items-center gap-2 min-w-0">
@@ -505,9 +605,9 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               <div>
                 <h3 className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">
                   <GitBranch className="h-3.5 w-3.5" />
-                  Relations
+                  {t.relationsTitle}
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" dir="ltr">
                   {meta.edges
                     .filter(
                       (e) =>
@@ -537,9 +637,9 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               {selectedModel.indexes.length > 0 ? (
                 <div>
                   <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">
-                    Performance Indexes
+                    {t.indexesTitle}
                   </h3>
-                  <div className="space-y-1">
+                  <div className="space-y-1" dir="ltr">
                     {selectedModel.indexes.map((idx) => (
                       <div
                         key={idx}
@@ -561,7 +661,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
             <div className="mx-auto max-w-[1500px]">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-serif text-lg font-semibold text-white">
-                  PostgreSQL Enums ({meta.enums.length})
+                  {t.enumsTitle} ({meta.enums.length})
                 </h2>
                 <button
                   type="button"
@@ -571,7 +671,10 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                dir="ltr"
+                className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                 {meta.enums.map((en) => (
                   <div
                     key={en.name}
