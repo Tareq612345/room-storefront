@@ -16,52 +16,35 @@ body {
 }
 
 /* ==========================================================================
-   ROOM — Signature Motion & Star-Track Animations (60fps GPU-accelerated)
+   ROOM — Subtle Ambient Background & Signature Motion
    ========================================================================== */
 
-@keyframes trackPulseOutRight {
-  0% {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.95;
-  }
-  80% {
-    opacity: 0.95;
-  }
-  100% {
-    transform: translateX(120%);
-    opacity: 0;
-  }
-}
-
-@keyframes trackPulseOutLeft {
-  0% {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.95;
-  }
-  80% {
-    opacity: 0.95;
-  }
-  100% {
-    transform: translateX(-120%);
-    opacity: 0;
-  }
-}
-
-@keyframes starBreathe {
+@keyframes nebulaDrift {
   0%,
   100% {
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.22));
-    transform: scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 20px rgba(201, 75, 153, 0.45));
-    transform: scale(1.025);
+    transform: translate3d(36px, -24px, 0) scale(1.08);
+  }
+}
+
+@keyframes nebulaDriftReverse {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-32px, 28px, 0) scale(1.06);
+  }
+}
+
+@keyframes starsDrift {
+  0% {
+    background-position: 0 0, 40px 60px;
+  }
+  100% {
+    background-position: 120px 180px, 160px 240px;
   }
 }
 
@@ -85,16 +68,20 @@ body {
   }
 }
 
-.animate-track-right {
-  animation: trackPulseOutRight 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+.animate-nebula-slow {
+  animation: nebulaDrift 18s ease-in-out infinite;
 }
 
-.animate-track-left {
-  animation: trackPulseOutLeft 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+.animate-nebula-reverse {
+  animation: nebulaDriftReverse 22s ease-in-out infinite;
 }
 
-.animate-star-breathe {
-  animation: starBreathe 4.5s ease-in-out infinite;
+.ambient-stars-layer {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.2px 1.2px at 90px 110px, rgba(255, 255, 255, 0.35), transparent);
+  background-size: 140px 140px, 210px 210px;
+  animation: starsDrift 60s linear infinite;
 }
 
 .animate-fade-up {
