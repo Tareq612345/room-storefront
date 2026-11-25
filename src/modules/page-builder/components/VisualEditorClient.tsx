@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  Info,
   Languages,
   Layers,
   Monitor,
@@ -274,6 +275,7 @@ export function VisualEditorClient({
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [openHintId, setOpenHintId] = useState<string | null>(null);
 
   // Live Theme & Universe Colors
   const [universes, setUniverses] = useState<UniverseDTO[]>(initialUniverses);
@@ -387,7 +389,129 @@ export function VisualEditorClient({
         // Keep initial props
       }
     })();
-    return () => {
+    const InfoHint = ({
+    id,
+    ar,
+    en,
+  }: {
+    id: string;
+    ar: string;
+    en: string;
+  }) => {
+    const isOpen = openHintId === id;
+    return (
+      <span className="relative inline-flex items-center align-middle">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpenHintId((prev) => (prev === id ? null : id));
+          }}
+          className={`mx-1 inline-flex h-4 w-4 items-center justify-center rounded-full border transition-colors ${
+            isOpen
+              ? "border-cyan-400 bg-cyan-500/25 text-cyan-200"
+              : "border-white/25 bg-white/5 text-white/60 hover:border-cyan-400/60 hover:text-cyan-200"
+          }`}
+          aria-label="Info"
+        >
+          <Info className="h-2.5 w-2.5" />
+        </button>
+        {isOpen ? (
+          <span className="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-xl border border-cyan-400/35 bg-[#090714] p-2.5 text-[11px] font-normal leading-relaxed text-white/95 shadow-2xl">
+            {lang === "ar" ? ar : en}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
+  const renderWidgetPreview = (kind: WidgetKind) => {
+    if (kind === "UNIVERSE_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {["#d92323", "#6366f1", "#c94b99"].map((c) => (
+            <div
+              key={c}
+              className="flex h-11 items-end rounded-md p-1"
+              style={{ background: `linear-gradient(180deg, #07050c 0%, ${c} 100%)` }}
+            >
+              <div className="h-2 w-full rounded-sm bg-black/65" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PRODUCT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1">
+              <div className="h-5 rounded-sm bg-white/10" />
+              <div className="mt-1 h-1.5 w-3/4 rounded bg-white/30" />
+              <div className="mt-1 flex justify-between">
+                <div className="h-1.5 w-1/3 rounded bg-white/50" />
+                <div className="h-1.5 w-1/3 rounded bg-cyan-400/70" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "LOADOUT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1.5">
+              <div className="flex justify-between">
+                <div className="h-1.5 w-6 rounded bg-white/25" />
+                <div className="h-1.5 w-6 rounded bg-pink-500/70" />
+              </div>
+              <div className="mt-1.5 h-2 w-4/5 rounded bg-white/40" />
+              <div className="mt-2 h-2 w-1/2 rounded-full bg-white/70" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PROMO_BANNER") {
+      return (
+        <div className="mt-2 flex items-center justify-between rounded-lg border border-white/10 bg-gradient-to-r from-[#090612] to-[#c94b99]/35 px-2.5 py-2.5">
+          <div className="space-y-1">
+            <div className="h-2 w-20 rounded bg-white/70" />
+            <div className="h-1.5 w-28 rounded bg-white/30" />
+          </div>
+          <div className="h-4 w-12 rounded-full bg-[#c94b99]" />
+        </div>
+      );
+    }
+    if (kind === "TEXT_BLOCK") {
+      return (
+        <div className="mt-2 flex flex-col items-center rounded-lg border border-white/10 bg-black/50 px-3 py-2.5">
+          <div className="h-2 w-24 rounded bg-white/70" />
+          <div className="mt-1.5 h-1.5 w-36 rounded bg-white/30" />
+        </div>
+      );
+    }
+    if (kind === "FEATURE_PILLS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex h-5 items-center justify-center rounded border border-white/10 bg-[#120e1c]">
+              <div className="h-1.5 w-8 rounded bg-white/45" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="mt-2 flex h-6 items-center rounded-lg bg-black/50 px-3">
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+      </div>
+    );
+  };
+
+  return () => {
       active = false;
     };
   }, []);
@@ -658,6 +782,128 @@ export function VisualEditorClient({
     }
   };
 
+  const InfoHint = ({
+    id,
+    ar,
+    en,
+  }: {
+    id: string;
+    ar: string;
+    en: string;
+  }) => {
+    const isOpen = openHintId === id;
+    return (
+      <span className="relative inline-flex items-center align-middle">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpenHintId((prev) => (prev === id ? null : id));
+          }}
+          className={`mx-1 inline-flex h-4 w-4 items-center justify-center rounded-full border transition-colors ${
+            isOpen
+              ? "border-cyan-400 bg-cyan-500/25 text-cyan-200"
+              : "border-white/25 bg-white/5 text-white/60 hover:border-cyan-400/60 hover:text-cyan-200"
+          }`}
+          aria-label="Info"
+        >
+          <Info className="h-2.5 w-2.5" />
+        </button>
+        {isOpen ? (
+          <span className="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-xl border border-cyan-400/35 bg-[#090714] p-2.5 text-[11px] font-normal leading-relaxed text-white/95 shadow-2xl">
+            {lang === "ar" ? ar : en}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
+  const renderWidgetPreview = (kind: WidgetKind) => {
+    if (kind === "UNIVERSE_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {["#d92323", "#6366f1", "#c94b99"].map((c) => (
+            <div
+              key={c}
+              className="flex h-11 items-end rounded-md p-1"
+              style={{ background: `linear-gradient(180deg, #07050c 0%, ${c} 100%)` }}
+            >
+              <div className="h-2 w-full rounded-sm bg-black/65" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PRODUCT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1">
+              <div className="h-5 rounded-sm bg-white/10" />
+              <div className="mt-1 h-1.5 w-3/4 rounded bg-white/30" />
+              <div className="mt-1 flex justify-between">
+                <div className="h-1.5 w-1/3 rounded bg-white/50" />
+                <div className="h-1.5 w-1/3 rounded bg-cyan-400/70" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "LOADOUT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1.5">
+              <div className="flex justify-between">
+                <div className="h-1.5 w-6 rounded bg-white/25" />
+                <div className="h-1.5 w-6 rounded bg-pink-500/70" />
+              </div>
+              <div className="mt-1.5 h-2 w-4/5 rounded bg-white/40" />
+              <div className="mt-2 h-2 w-1/2 rounded-full bg-white/70" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PROMO_BANNER") {
+      return (
+        <div className="mt-2 flex items-center justify-between rounded-lg border border-white/10 bg-gradient-to-r from-[#090612] to-[#c94b99]/35 px-2.5 py-2.5">
+          <div className="space-y-1">
+            <div className="h-2 w-20 rounded bg-white/70" />
+            <div className="h-1.5 w-28 rounded bg-white/30" />
+          </div>
+          <div className="h-4 w-12 rounded-full bg-[#c94b99]" />
+        </div>
+      );
+    }
+    if (kind === "TEXT_BLOCK") {
+      return (
+        <div className="mt-2 flex flex-col items-center rounded-lg border border-white/10 bg-black/50 px-3 py-2.5">
+          <div className="h-2 w-24 rounded bg-white/70" />
+          <div className="mt-1.5 h-1.5 w-36 rounded bg-white/30" />
+        </div>
+      );
+    }
+    if (kind === "FEATURE_PILLS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex h-5 items-center justify-center rounded border border-white/10 bg-[#120e1c]">
+              <div className="h-1.5 w-8 rounded bg-white/45" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="mt-2 flex h-6 items-center rounded-lg bg-black/50 px-3">
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+      </div>
+    );
+  };
+
   return (
     <div
       dir={lang === "ar" ? "rtl" : "ltr"}
@@ -781,7 +1027,129 @@ export function VisualEditorClient({
                 <div className="space-y-2">
                   {blocks.map((blk, idx) => {
                     const isSelected = blk.id === selectedBlock?.id;
-                    return (
+                    const InfoHint = ({
+    id,
+    ar,
+    en,
+  }: {
+    id: string;
+    ar: string;
+    en: string;
+  }) => {
+    const isOpen = openHintId === id;
+    return (
+      <span className="relative inline-flex items-center align-middle">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpenHintId((prev) => (prev === id ? null : id));
+          }}
+          className={`mx-1 inline-flex h-4 w-4 items-center justify-center rounded-full border transition-colors ${
+            isOpen
+              ? "border-cyan-400 bg-cyan-500/25 text-cyan-200"
+              : "border-white/25 bg-white/5 text-white/60 hover:border-cyan-400/60 hover:text-cyan-200"
+          }`}
+          aria-label="Info"
+        >
+          <Info className="h-2.5 w-2.5" />
+        </button>
+        {isOpen ? (
+          <span className="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-xl border border-cyan-400/35 bg-[#090714] p-2.5 text-[11px] font-normal leading-relaxed text-white/95 shadow-2xl">
+            {lang === "ar" ? ar : en}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
+  const renderWidgetPreview = (kind: WidgetKind) => {
+    if (kind === "UNIVERSE_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {["#d92323", "#6366f1", "#c94b99"].map((c) => (
+            <div
+              key={c}
+              className="flex h-11 items-end rounded-md p-1"
+              style={{ background: `linear-gradient(180deg, #07050c 0%, ${c} 100%)` }}
+            >
+              <div className="h-2 w-full rounded-sm bg-black/65" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PRODUCT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1">
+              <div className="h-5 rounded-sm bg-white/10" />
+              <div className="mt-1 h-1.5 w-3/4 rounded bg-white/30" />
+              <div className="mt-1 flex justify-between">
+                <div className="h-1.5 w-1/3 rounded bg-white/50" />
+                <div className="h-1.5 w-1/3 rounded bg-cyan-400/70" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "LOADOUT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1.5">
+              <div className="flex justify-between">
+                <div className="h-1.5 w-6 rounded bg-white/25" />
+                <div className="h-1.5 w-6 rounded bg-pink-500/70" />
+              </div>
+              <div className="mt-1.5 h-2 w-4/5 rounded bg-white/40" />
+              <div className="mt-2 h-2 w-1/2 rounded-full bg-white/70" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PROMO_BANNER") {
+      return (
+        <div className="mt-2 flex items-center justify-between rounded-lg border border-white/10 bg-gradient-to-r from-[#090612] to-[#c94b99]/35 px-2.5 py-2.5">
+          <div className="space-y-1">
+            <div className="h-2 w-20 rounded bg-white/70" />
+            <div className="h-1.5 w-28 rounded bg-white/30" />
+          </div>
+          <div className="h-4 w-12 rounded-full bg-[#c94b99]" />
+        </div>
+      );
+    }
+    if (kind === "TEXT_BLOCK") {
+      return (
+        <div className="mt-2 flex flex-col items-center rounded-lg border border-white/10 bg-black/50 px-3 py-2.5">
+          <div className="h-2 w-24 rounded bg-white/70" />
+          <div className="mt-1.5 h-1.5 w-36 rounded bg-white/30" />
+        </div>
+      );
+    }
+    if (kind === "FEATURE_PILLS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex h-5 items-center justify-center rounded border border-white/10 bg-[#120e1c]">
+              <div className="h-1.5 w-8 rounded bg-white/45" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="mt-2 flex h-6 items-center rounded-lg bg-black/50 px-3">
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+      </div>
+    );
+  };
+
+  return (
                       <div
                         key={blk.id}
                         draggable
@@ -851,6 +1219,11 @@ export function VisualEditorClient({
                     <div>
                       <label className="mb-1 block text-[11px] text-white/65">
                         {t.eyebrowLabel}
+                        <InfoHint
+                          id="ed-eyebrow"
+                          ar="النص الصغير الملون الذي يظهر أعلى عنوان القسم في الرئيسية (مثل New Arrivals)."
+                          en="Small accent label shown directly above the section heading."
+                        />
                       </label>
                       <input
                         value={selectedBlock.config.eyebrow ?? ""}
@@ -865,6 +1238,11 @@ export function VisualEditorClient({
                     <div>
                       <label className="mb-1 block text-[11px] text-white/65">
                         {t.titleLabel}
+                        <InfoHint
+                          id="ed-title"
+                          ar="العنوان الرئيسي الكبير للقسم على الصفحة الرئيسية."
+                          en="Main display heading for this block on the Homepage."
+                        />
                       </label>
                       <input
                         value={selectedBlock.title}
@@ -878,6 +1256,11 @@ export function VisualEditorClient({
                     <div>
                       <label className="mb-1 block text-[11px] text-white/65">
                         {t.subtitleLabel}
+                        <InfoHint
+                          id="ed-sub"
+                          ar="الوصف القصير الذي يظهر بجانب أو أسفل عنوان القسم."
+                          en="Short supporting description displayed next to the block title."
+                        />
                       </label>
                       <input
                         value={selectedBlock.subtitle}
@@ -892,6 +1275,11 @@ export function VisualEditorClient({
                     <div>
                       <label className="mb-1 block text-[11px] text-white/65">
                         {t.columnsLabel}
+                        <InfoHint
+                          id="ed-cols"
+                          ar="يحدد عدد البطاقات في كل صف (مثلاً 2 يجعل 4 منتجات تظهر في صفّين)."
+                          en="Sets cards per row (e.g. choosing 2 arranges 4 products into 2 rows)."
+                        />
                       </label>
                       <div className="grid grid-cols-4 gap-1.5">
                         {([1, 2, 3, 4] as const).map((col) => (
@@ -1076,7 +1464,7 @@ export function VisualEditorClient({
               </>
             ) : null}
 
-            {/* TAB 2: WIDGET PALETTE (Drag into any Block) */}
+            {/* TAB 2: WIDGET PALETTE (Live Visual Thumbnails + Drag into any Block) */}
             {sidebarTab === "widgets" ? (
               <div className="space-y-3">
                 <p className="text-[11px] leading-relaxed text-white/60">
@@ -1088,25 +1476,30 @@ export function VisualEditorClient({
                     draggable
                     onDragStart={() => setDragWidgetKind(item.kind)}
                     onDragEnd={() => setDragWidgetKind(null)}
-                    className="flex cursor-grab active:cursor-grabbing items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 hover:border-cyan-400/50"
+                    className="cursor-grab active:cursor-grabbing rounded-xl border border-white/10 bg-white/[0.03] p-3 hover:border-cyan-400/50"
                   >
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-white">
-                        {lang === "ar" ? item.arLabel : item.enLabel}
-                      </p>
-                      <p className="text-[10px] text-white/50">
-                        {lang === "ar" ? item.arDesc : item.enDesc}
-                      </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white">
+                          {lang === "ar" ? item.arLabel : item.enLabel}
+                          <InfoHint
+                            id={`w-hint-${item.kind}`}
+                            ar={item.arDesc}
+                            en={item.enDesc}
+                          />
+                        </p>
+                      </div>
+                      {selectedBlock ? (
+                        <button
+                          type="button"
+                          onClick={() => addWidgetToBlock(selectedBlock.id, item.kind)}
+                          className="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-2.5 py-1 text-[10px] font-bold text-cyan-200 hover:bg-cyan-500/25"
+                        >
+                          {t.addToSelected}
+                        </button>
+                      ) : null}
                     </div>
-                    {selectedBlock ? (
-                      <button
-                        type="button"
-                        onClick={() => addWidgetToBlock(selectedBlock.id, item.kind)}
-                        className="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-2.5 py-1 text-[10px] font-bold text-cyan-200 hover:bg-cyan-500/25"
-                      >
-                        {t.addToSelected}
-                      </button>
-                    ) : null}
+                    {renderWidgetPreview(item.kind)}
                   </div>
                 ))}
               </div>
@@ -1116,7 +1509,14 @@ export function VisualEditorClient({
             {sidebarTab === "colors" ? (
               <div className="space-y-5">
                 <div className="space-y-3 rounded-2xl border border-white/10 bg-black/40 p-4">
-                  <p className="text-xs font-bold text-white">{t.siteColorsTitle}</p>
+                  <p className="text-xs font-bold text-white">
+                    {t.siteColorsTitle}
+                    <InfoHint
+                      id="ed-site-colors"
+                      ar="تغيّر خلفية الموقع بالكامل ولون التمييز في الرئيسية فوراً عند النشر."
+                      en="Controls the full site canvas gradient and Home accent color."
+                    />
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { label: "Home Accent", val: defaultAccent, set: setDefaultAccent },
@@ -1145,7 +1545,14 @@ export function VisualEditorClient({
                 </div>
 
                 <div className="space-y-3 rounded-2xl border border-white/10 bg-black/40 p-4">
-                  <p className="text-xs font-bold text-white">{t.universeColorsTitle}</p>
+                  <p className="text-xs font-bold text-white">
+                    {t.universeColorsTitle}
+                    <InfoHint
+                      id="ed-univ-colors"
+                      ar="تغيّر ألوان كل قسم على البطاقات الثلاث وصفحات الأقسام والمنتجات ونجمة MY ROOM."
+                      en="Updates each Universe's card gradient, page header, products, and MY ROOM star."
+                    />
+                  </p>
                   {universes.map((u) => (
                     <div key={u.id} className="flex items-center justify-between">
                       <span className="text-xs font-semibold">{u.name}</span>
@@ -1235,7 +1642,129 @@ export function VisualEditorClient({
             <div className="space-y-2 pb-12">
               {blocks.map((blk, idx) => {
                 const isSelected = blk.id === selectedBlock?.id;
-                return (
+                const InfoHint = ({
+    id,
+    ar,
+    en,
+  }: {
+    id: string;
+    ar: string;
+    en: string;
+  }) => {
+    const isOpen = openHintId === id;
+    return (
+      <span className="relative inline-flex items-center align-middle">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpenHintId((prev) => (prev === id ? null : id));
+          }}
+          className={`mx-1 inline-flex h-4 w-4 items-center justify-center rounded-full border transition-colors ${
+            isOpen
+              ? "border-cyan-400 bg-cyan-500/25 text-cyan-200"
+              : "border-white/25 bg-white/5 text-white/60 hover:border-cyan-400/60 hover:text-cyan-200"
+          }`}
+          aria-label="Info"
+        >
+          <Info className="h-2.5 w-2.5" />
+        </button>
+        {isOpen ? (
+          <span className="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-xl border border-cyan-400/35 bg-[#090714] p-2.5 text-[11px] font-normal leading-relaxed text-white/95 shadow-2xl">
+            {lang === "ar" ? ar : en}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
+  const renderWidgetPreview = (kind: WidgetKind) => {
+    if (kind === "UNIVERSE_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {["#d92323", "#6366f1", "#c94b99"].map((c) => (
+            <div
+              key={c}
+              className="flex h-11 items-end rounded-md p-1"
+              style={{ background: `linear-gradient(180deg, #07050c 0%, ${c} 100%)` }}
+            >
+              <div className="h-2 w-full rounded-sm bg-black/65" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PRODUCT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1">
+              <div className="h-5 rounded-sm bg-white/10" />
+              <div className="mt-1 h-1.5 w-3/4 rounded bg-white/30" />
+              <div className="mt-1 flex justify-between">
+                <div className="h-1.5 w-1/3 rounded bg-white/50" />
+                <div className="h-1.5 w-1/3 rounded bg-cyan-400/70" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "LOADOUT_CARDS") {
+      return (
+        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1.5">
+              <div className="flex justify-between">
+                <div className="h-1.5 w-6 rounded bg-white/25" />
+                <div className="h-1.5 w-6 rounded bg-pink-500/70" />
+              </div>
+              <div className="mt-1.5 h-2 w-4/5 rounded bg-white/40" />
+              <div className="mt-2 h-2 w-1/2 rounded-full bg-white/70" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (kind === "PROMO_BANNER") {
+      return (
+        <div className="mt-2 flex items-center justify-between rounded-lg border border-white/10 bg-gradient-to-r from-[#090612] to-[#c94b99]/35 px-2.5 py-2.5">
+          <div className="space-y-1">
+            <div className="h-2 w-20 rounded bg-white/70" />
+            <div className="h-1.5 w-28 rounded bg-white/30" />
+          </div>
+          <div className="h-4 w-12 rounded-full bg-[#c94b99]" />
+        </div>
+      );
+    }
+    if (kind === "TEXT_BLOCK") {
+      return (
+        <div className="mt-2 flex flex-col items-center rounded-lg border border-white/10 bg-black/50 px-3 py-2.5">
+          <div className="h-2 w-24 rounded bg-white/70" />
+          <div className="mt-1.5 h-1.5 w-36 rounded bg-white/30" />
+        </div>
+      );
+    }
+    if (kind === "FEATURE_PILLS") {
+      return (
+        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex h-5 items-center justify-center rounded border border-white/10 bg-[#120e1c]">
+              <div className="h-1.5 w-8 rounded bg-white/45" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="mt-2 flex h-6 items-center rounded-lg bg-black/50 px-3">
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+      </div>
+    );
+  };
+
+  return (
                   <div
                     key={blk.id}
                     draggable
