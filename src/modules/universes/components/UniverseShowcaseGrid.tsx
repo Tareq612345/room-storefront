@@ -1,6 +1,6 @@
 /**
  * @file src/modules/universes/components/UniverseShowcaseGrid.tsx
- * @purpose 3-card Universe showcase synced live with Supabase PostgreSQL so Admin changes appear immediately for all users.
+ * @purpose 3-card Universe showcase with instant cached hydration + live Supabase PostgreSQL sync (zero refresh flash).
  */
 
 "use client";
@@ -31,8 +31,24 @@ function buildUniverseGradient(accentColor: string): string {
 
 export function UniverseShowcaseGrid({ universes }: UniverseShowcaseGridProps) {
   const [items, setItems] = useState<UniverseDTO[]>(universes);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // 1. Instant local snapshot read to avoid flash
+    try {
+      const cached = localStorage.getItem("room_live_universes_v1");
+      if (cached) {
+        const parsed = JSON.parse(cached) as UniverseDTO[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    setReady(true);
+
+    // 2. Live Supabase sync
     let active = true;
     (async () => {
       try {
@@ -42,32 +58,37 @@ export function UniverseShowcaseGrid({ universes }: UniverseShowcaseGridProps) {
         );
         if (!active || rows.length === 0) return;
 
-        setItems((prev) =>
-          prev
-            .map((u) => {
-              const match = rows.find((r) => r.slug === u.slug || r.id === u.id);
-              if (!match) return u;
-              return {
-                ...u,
-                name: match.name,
-                tagline: match.tagline,
-                accentColor: match.accentColor,
-                isActive: match.isActive,
-              };
-            })
-            .filter((u) => u.isActive)
-        );
+        const merged = universes
+          .map((u) => {
+            const match = rows.find((r) => r.slug === u.slug || r.id === u.id);
+            if (!match) return u;
+            return {
+              ...u,
+              name: match.name,
+              tagline: match.tagline,
+              accentColor: match.accentColor,
+              isActive: match.isActive,
+            };
+          })
+          .filter((u) => u.isActive);
+
+        setItems(merged);
+        localStorage.setItem("room_live_universes_v1", JSON.stringify(merged));
       } catch {
-        // Keep SSR props on offline/error
+        // Keep cached/SSR props
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [universes]);
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">
+    <section
+      className={`mx-auto w-full max-w-6xl px-4 py-6 md:py-10 transition-opacity duration-200 ${
+        ready ? "opacity-100" : "opacity-95"
+      }`}
+    >
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
         {items.map((universe) => {
           const gradient = buildUniverseGradient(universe.accentColor);

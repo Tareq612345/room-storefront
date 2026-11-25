@@ -64,3 +64,16 @@ export async function sbInsert<T>(
   }
   return (await res.json()) as T[];
 }
+
+export async function sbDelete(
+  table: string,
+  filterQuery: string
+): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filterQuery}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error(`Supabase delete ${table} failed: ${res.status}`);
+  }
+}

@@ -1,6 +1,6 @@
 /**
  * @file src/modules/catalog/components/FreshDropsSection.tsx
- * @purpose Homepage Fresh Drops grid synced live with Supabase products, variants stock, and Universe accent colors.
+ * @purpose Homepage Fresh Drops grid synced live with Supabase products (including newly added products in Admin), variants stock, and Universe accent colors.
  */
 
 "use client";
@@ -18,16 +18,29 @@ interface FreshDropsSectionProps {
 
 interface SbProductRow {
   id: string;
+  storeId: string;
+  universeId: string;
   slug: string;
+  name: string;
+  subtitle: string | null;
   basePrice: number | string;
+  compareAtPrice: number | string | null;
+  thumbnailUrl: string;
+  isFeatured: boolean;
+  isNewArrival: boolean;
+  isBestSeller: boolean;
+  isActive: boolean;
 }
 
 interface SbVariantRow {
+  id: string;
   productId: string;
   stock: number;
+  isDefault: boolean;
 }
 
 interface SbUniverseRow {
+  id: string;
   slug: string;
   accentColor: string;
 }
@@ -40,47 +53,70 @@ export function FreshDropsSection({
   const [items, setItems] = useState<ProductSummaryDTO[]>(products);
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem("room_live_products_v1");
+      if (cached) {
+        const parsed = JSON.parse(cached) as ProductSummaryDTO[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
     let active = true;
     (async () => {
       try {
         const [prodRows, varRows, univRows] = await Promise.all([
-          sbSelect<SbProductRow>("products", "select=id,slug,basePrice"),
-          sbSelect<SbVariantRow>("product_variants", "select=productId,stock"),
-          sbSelect<SbUniverseRow>("universes", "select=slug,accentColor"),
+          sbSelect<SbProductRow>(
+            "products",
+            "select=id,storeId,universeId,slug,name,subtitle,basePrice,compareAtPrice,thumbnailUrl,isFeatured,isNewArrival,isBestSeller,isActive&isActive=eq.true&isNewArrival=eq.true&order=createdAt.desc"
+          ),
+          sbSelect<SbVariantRow>("product_variants", "select=id,productId,stock,isDefault"),
+          sbSelect<SbUniverseRow>("universes", "select=id,slug,accentColor"),
         ]);
-        if (!active) return;
+        if (!active || prodRows.length === 0) return;
 
-        setItems(
-          products.map((p) => {
-            const pRow = prodRows.find((r) => r.slug === p.slug || r.id === p.id);
-            const uRow = univRows.find((u) => u.slug === p.universeSlug);
-            const pVars = varRows.filter(
-              (v) => v.productId === (pRow?.id ?? p.id)
-            );
-            const totalStock =
-              pVars.length > 0
-                ? pVars.reduce((sum, v) => sum + Number(v.stock), 0)
-                : p.totalStock;
+        const mapped: ProductSummaryDTO[] = prodRows.map((pRow) => {
+          const uRow = univRows.find((u) => u.id === pRow.universeId);
+          const pVars = varRows.filter((v) => v.productId === pRow.id);
+          const totalStock = pVars.reduce((sum, v) => sum + Number(v.stock), 0);
+          const defaultVar = pVars.find((v) => v.isDefault) ?? pVars[0] ?? null;
 
-            return {
-              ...p,
-              basePrice: pRow ? Number(pRow.basePrice) : p.basePrice,
-              totalStock,
-              isVaulted: totalStock <= 0,
-              universeAccentColor: uRow
-                ? uRow.accentColor
-                : p.universeAccentColor,
-            };
-          })
-        );
+          return {
+            id: pRow.id,
+            storeId: pRow.storeId,
+            universeId: pRow.universeId,
+            universeSlug: uRow?.slug ?? "cars",
+            universeAccentColor: uRow?.accentColor ?? "#ffffff",
+            slug: pRow.slug,
+            name: pRow.name,
+            subtitle: pRow.subtitle,
+            basePrice: Number(pRow.basePrice),
+            compareAtPrice: pRow.compareAtPrice
+              ? Number(pRow.compareAtPrice)
+              : null,
+            thumbnailUrl: pRow.thumbnailUrl,
+            isFeatured: pRow.isFeatured,
+            isNewArrival: pRow.isNewArrival,
+            isBestSeller: pRow.isBestSeller,
+            totalStock,
+            isVaulted: totalStock <= 0,
+            defaultVariantId: defaultVar?.id ?? null,
+          };
+        });
+
+        setItems(mapped);
+        localStorage.setItem("room_live_products_v1", JSON.stringify(mapped));
       } catch {
-        // Keep initial props
+        // Keep cached/initial props
       }
     })();
     return () => {
       active = false;
     };
-  }, [products]);
+  }, []);
 
   if (items.length === 0) return null;
 

@@ -1,11 +1,11 @@
 /**
  * @file src/modules/admin/components/AdminPortalClient.tsx
- * @purpose Dedicated ROOM Admin & Owner Portal with AR/EN toggle, login by username/email, persistent Save actions across all tabs, 48h single-use invites, and profile editor.
+ * @purpose Full-featured ROOM Admin & Owner Portal: Event Theme Presets + Default Theme Restore, Add/Edit/Delete Products, Orders Manager, Home Builder, Cairo Shipping, 48h Invites, and AR/EN toggle.
  */
 
 "use client";
 
-import { sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
+import { sbDelete, sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
 import {
   generateClientId,
   hashPasswordWeb,
@@ -14,6 +14,7 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  BookmarkPlus,
   Check,
   Copy,
   KeyRound,
@@ -24,10 +25,14 @@ import {
   MapPin,
   Package,
   Palette,
+  Plus,
+  RotateCcw,
   Save,
   Settings,
   ShieldCheck,
+  ShoppingBag,
   Sparkles,
+  Trash2,
   Truck,
   UserCheck,
   UserPlus,
@@ -43,6 +48,7 @@ type AdminTab =
   | "store"
   | "universes"
   | "catalog"
+  | "orders"
   | "sections"
   | "shipping"
   | "team"
@@ -65,6 +71,43 @@ interface LocalInvite {
   expiresAt: string;
   usedAt: string | null;
 }
+
+interface ThemePreset {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+  bgPrimary: string;
+  bgSecondary: string;
+  bgElevated: string;
+  defaultAccent: string;
+  universeColors: Record<string, string>;
+}
+
+interface AdminOrderRow {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  status: string;
+  paymentMethod: string;
+  total: number;
+  createdAt: string;
+}
+
+const ROOM_DEFAULT_PRESET: ThemePreset = {
+  id: "preset_room_default",
+  name: "ROOM Default (Original)",
+  isDefault: true,
+  bgPrimary: "#05030a",
+  bgSecondary: "#0b0617",
+  bgElevated: "#140b29",
+  defaultAccent: "#ffffff",
+  universeColors: {
+    cars: "#d92323",
+    gaming: "#6366f1",
+    anime: "#c94b99",
+  },
+};
 
 const INITIAL_OWNERS: LocalAdminAccount[] = [
   {
@@ -92,10 +135,10 @@ const INITIAL_UNIVERSES = [
 ];
 
 const INITIAL_PRODUCTS = [
-  { id: "prod_touge", name: "Midnight Touge Carbon Bedsheet", universe: "cars", price: 1450, stock: 18, isFreshDrop: true },
-  { id: "prod_ranked", name: "Obsidian Ranked Arena Bedsheet", universe: "gaming", price: 1390, stock: 12, isFreshDrop: true },
-  { id: "prod_eclipse", name: "Neo-Tokyo Eclipse Bedsheet", universe: "anime", price: 1550, stock: 9, isFreshDrop: true },
-  { id: "prod_apex", name: "Apex GT Twin Pillowcase Pair", universe: "cars", price: 590, stock: 0, isFreshDrop: true },
+  { id: "prod_touge", name: "Midnight Touge Carbon Bedsheet", subtitle: "300TC Matte Obsidian Cotton • Pit-Lane Red Piping", universeId: "univ_cars", universe: "cars", price: 1450, stock: 18, thumbnailUrl: "/mockups/products/sheet-midnight-touge.svg", isFreshDrop: true },
+  { id: "prod_ranked", name: "Obsidian Ranked Arena Bedsheet", subtitle: "Stealth Micro-Weave • Indigo Stitch Matrix", universeId: "univ_gaming", universe: "gaming", price: 1390, stock: 12, thumbnailUrl: "/mockups/products/sheet-obsidian-ranked.svg", isFreshDrop: true },
+  { id: "prod_eclipse", name: "Neo-Tokyo Eclipse Bedsheet", subtitle: "Brushed Dark Sateen • Orchid Embroidered Crest", universeId: "univ_anime", universe: "anime", price: 1550, stock: 9, thumbnailUrl: "/mockups/products/sheet-neo-tokyo.svg", isFreshDrop: true },
+  { id: "prod_apex", name: "Apex GT Twin Pillowcase Pair", subtitle: "Limited Cairo Drop • Heavyweight Weave", universeId: "univ_cars", universe: "cars", price: 590, stock: 0, thumbnailUrl: "/mockups/products/pillows-apex-gt.svg", isFreshDrop: true },
 ];
 
 const INITIAL_ZONES = [
@@ -113,16 +156,14 @@ const INITIAL_SECTIONS = [
   { id: "s5", type: "CUSTOMER_SETUPS", title: "Cairo Room Setups", visible: false },
 ];
 
-const KEYS = {
-  accounts: "room_admin_accounts_v1",
-  invites: "room_admin_invites_v1",
-  session: "room_admin_session_v1",
-  store: "room_admin_store_v1",
-  universes: "room_admin_universes_v1",
-  products: "room_admin_products_v1",
-  sections: "room_admin_sections_v1",
-  zones: "room_admin_zones_v1",
-} as const;
+const MOCKUP_OPTIONS = [
+  { label: "Cars Bedsheet (Midnight Touge)", value: "/mockups/products/sheet-midnight-touge.svg" },
+  { label: "Gaming Bedsheet (Obsidian Ranked)", value: "/mockups/products/sheet-obsidian-ranked.svg" },
+  { label: "Anime Bedsheet (Neo-Tokyo)", value: "/mockups/products/sheet-neo-tokyo.svg" },
+  { label: "Pillowcase Pair (Apex GT)", value: "/mockups/products/pillows-apex-gt.svg" },
+];
+
+const SESSION_KEY = "room_admin_session_v1";
 
 const I18N = {
   en: {
@@ -138,9 +179,10 @@ const I18N = {
     changeInProfile: "(change in Profile)",
     tabs: {
       overview: "Overview",
-      store: "Store & Theme",
+      store: "Store & Themes",
       universes: "Universes",
-      catalog: "Catalog & Stock",
+      catalog: "Catalog & Products",
+      orders: "Orders",
       sections: "Home Builder",
       shipping: "Cairo Shipping",
       team: "Owners & Invites",
@@ -157,24 +199,40 @@ const I18N = {
       zones: "Cairo Shipping Zones",
       team: "Owners & Admins",
     },
-    storeTitle: "Store & Theme Tokens",
+    storeTitle: "Store & Event Theme Presets",
     storeName: "Store Name",
     whatsapp: "WhatsApp Order Number",
     homeAccent: "Home Default Accent",
+    bgPrimary: "Canvas Top (Primary)",
+    bgSecondary: "Canvas Mid (Secondary)",
+    bgElevated: "Canvas Bottom (Elevated)",
+    presetsTitle: "Saved Event Themes & Default Restore",
+    presetPlaceholder: "Event name (e.g. Ramadan Nights, Black Friday)",
+    savePresetBtn: "Save Current Theme as Preset",
+    applyTheme: "Apply Theme",
+    restoreDefault: "Restore ROOM Default",
     universesTitle: "Universes Control",
     active: "Active",
     hidden: "Hidden",
     visible: "Visible",
-    catalogTitle: "Catalog & Vaulted Stock",
+    catalogTitle: "Catalog & Product Management",
+    addProductTitle: "Add New Product",
+    prodName: "Product Name",
+    prodSub: "1-Line Subtitle",
+    prodPrice: "Price (EGP)",
+    prodStock: "Initial Stock",
+    prodMockup: "Mockup Visual",
+    addProdBtn: "Add Product",
     egp: "EGP",
     stock: "Stock",
     vaulted: "Vaulted",
     inStock: "In Stock",
+    ordersTitle: "Customer Orders",
+    noOrders: "No orders placed yet. Orders from checkout will appear here live.",
     sectionsTitle: "Homepage Section Builder",
     shippingTitle: "Cairo & New Cairo Shipping Zones",
     fee: "Fee (EGP)",
     freeAbove: "Free Above",
-    days: "Est. Days",
     teamTitle: "Owners & Admin Team",
     teamSub: "Invite a new admin by email to generate a 48-hour single-use onboarding link.",
     adminEmail: "Admin Email",
@@ -209,9 +267,10 @@ const I18N = {
     changeInProfile: "(يمكن تغييرها من الملف الشخصي)",
     tabs: {
       overview: "نظرة عامة",
-      store: "المتجر والألوان",
+      store: "المتجر والثيمات",
       universes: "الأقسام (Universes)",
       catalog: "المنتجات والمخزون",
+      orders: "الطلبات",
       sections: "بناء الرئيسية",
       shipping: "شحن القاهرة",
       team: "المالكون والدعوات",
@@ -228,24 +287,40 @@ const I18N = {
       zones: "مناطق شحن القاهرة",
       team: "المالكون والأدمن",
     },
-    storeTitle: "إعدادات المتجر والألوان",
+    storeTitle: "إعدادات المتجر وثيمات الإيفنتات",
     storeName: "اسم المتجر",
     whatsapp: "رقم واتساب الطلبات",
     homeAccent: "اللون الأساسي للرئيسية",
+    bgPrimary: "لون الخلفية العلوي",
+    bgSecondary: "لون الخلفية الأوسط",
+    bgElevated: "لون الخلفية السفلي",
+    presetsTitle: "الثيمات المحفوظة (الإيفنتات) والثيم الأساسي",
+    presetPlaceholder: "اسم الإيفنت (مثال: رمضان، بلاك فرايداي)",
+    savePresetBtn: "حفظ الثيم الحالي كقالب",
+    applyTheme: "تطبيق الثيم",
+    restoreDefault: "استرجاع ثيم ROOM الأساسي",
     universesTitle: "التحكم في الأقسام (Universes)",
     active: "مفعل",
     hidden: "مخفي",
     visible: "ظاهر",
-    catalogTitle: "المنتجات والمخزون (Vaulted)",
+    catalogTitle: "إدارة المنتجات والمخزون",
+    addProductTitle: "إضافة منتج جديد",
+    prodName: "اسم المنتج",
+    prodSub: "وصف سطر واحد",
+    prodPrice: "السعر (ج.م)",
+    prodStock: "المخزون",
+    prodMockup: "صورة الموكاب",
+    addProdBtn: "إضافة المنتج",
     egp: "ج.م",
     stock: "المخزون",
     vaulted: "نفد (Vaulted)",
     inStock: "متاح",
+    ordersTitle: "طلبات العملاء",
+    noOrders: "لا توجد طلبات مسجلة بعد. أي طلب جديد سيظهر هنا مباشرة.",
     sectionsTitle: "ترتيب وإظهار أقسام الرئيسية",
     shippingTitle: "مناطق الشحن (القاهرة والقاهرة الجديدة)",
     fee: "تكلفة الشحن (ج.م)",
     freeAbove: "شحن مجاني فوق",
-    days: "مدة التوصيل",
     teamTitle: "المالكون وفريق الإدارة",
     teamSub: "أضف إيميل أدمن جديد لتوليد رابط دعوة صالح ليومين (48 ساعة) للاستخدام مرة واحدة فقط.",
     adminEmail: "البريد الإلكتروني للأدمن",
@@ -285,15 +360,32 @@ export function AdminPortalClient() {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [savedSection, setSavedSection] = useState<AdminTab | null>(null);
 
+  // Store & Theme state
   const [storeName, setStoreName] = useState("ROOM");
   const [whatsapp, setWhatsapp] = useState("+201000000000");
   const [defaultAccent, setDefaultAccent] = useState("#ffffff");
+  const [bgPrimary, setBgPrimary] = useState("#05030a");
+  const [bgSecondary, setBgSecondary] = useState("#0b0617");
+  const [bgElevated, setBgElevated] = useState("#140b29");
+  const [presets, setPresets] = useState<ThemePreset[]>([ROOM_DEFAULT_PRESET]);
+  const [newPresetName, setNewPresetName] = useState("");
 
+  // Universes, Catalog, Orders, Sections, Zones
   const [universes, setUniverses] = useState(INITIAL_UNIVERSES);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [zones, setZones] = useState(INITIAL_ZONES);
   const [sections, setSections] = useState(INITIAL_SECTIONS);
 
+  // Add Product form
+  const [newProdName, setNewProdName] = useState("");
+  const [newProdSub, setNewProdSub] = useState("");
+  const [newProdUnivSlug, setNewProdUnivSlug] = useState("cars");
+  const [newProdPrice, setNewProdPrice] = useState(1490);
+  const [newProdStock, setNewProdStock] = useState(15);
+  const [newProdThumb, setNewProdThumb] = useState(MOCKUP_OPTIONS[0]?.value ?? "");
+
+  // Invite & Profile
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"ADMIN" | "STAFF">("ADMIN");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -305,28 +397,38 @@ export function AdminPortalClient() {
 
   useEffect(() => {
     try {
-      const savedSession = localStorage.getItem(KEYS.session);
+      const savedSession = localStorage.getItem(SESSION_KEY);
       if (savedSession) setCurrentUserId(savedSession);
     } catch {
-      // Ignore storage errors
+      // Ignore
     }
 
-    // Load 100% of Admin & Store state directly from Supabase PostgreSQL
     (async () => {
       try {
-        const [sbStores, sbUnivs, sbProds, sbVars, sbZones, sbUsers, sbInvites, sbSections] =
+        const [sbStores, sbUnivs, sbProds, sbVars, sbZones, sbUsers, sbInvites, sbSections, sbOrders] =
           await Promise.all([
-            sbSelect<{ id: string; name: string; whatsappNumber: string | null; defaultAccentColor: string }>(
+            sbSelect<{
+              id: string;
+              name: string;
+              whatsappNumber: string | null;
+              defaultAccentColor: string;
+              themeTokens: {
+                bgPrimary?: string;
+                bgSecondary?: string;
+                bgElevated?: string;
+                presets?: ThemePreset[];
+              };
+            }>(
               "store_configs",
-              "select=id,name,whatsappNumber,defaultAccentColor&slug=eq.room-egypt"
+              "select=id,name,whatsappNumber,defaultAccentColor,themeTokens&slug=eq.room-egypt"
             ),
             sbSelect<{ id: string; slug: string; name: string; tagline: string | null; accentColor: string; isActive: boolean }>(
               "universes",
               "select=id,slug,name,tagline,accentColor,isActive&order=sortOrder.asc"
             ),
-            sbSelect<{ id: string; slug: string; name: string; basePrice: number | string; isNewArrival: boolean }>(
+            sbSelect<{ id: string; universeId: string; slug: string; name: string; subtitle: string | null; basePrice: number | string; thumbnailUrl: string; isNewArrival: boolean }>(
               "products",
-              "select=id,slug,name,basePrice,isNewArrival&order=createdAt.asc"
+              "select=id,universeId,slug,name,subtitle,basePrice,thumbnailUrl,isNewArrival&isActive=eq.true&order=createdAt.asc"
             ),
             sbSelect<{ id: string; productId: string; stock: number }>(
               "product_variants",
@@ -348,13 +450,26 @@ export function AdminPortalClient() {
               "page_sections",
               "select=id,type,title,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
             ),
+            sbSelect<AdminOrderRow>(
+              "orders",
+              "select=id,orderNumber,customerName,customerPhone,status,paymentMethod,total,createdAt&order=createdAt.desc&limit=30"
+            ),
           ]);
 
         if (sbStores[0]) {
-          setStoreId(sbStores[0].id);
-          setStoreName(sbStores[0].name);
-          if (sbStores[0].whatsappNumber) setWhatsapp(sbStores[0].whatsappNumber);
-          setDefaultAccent(sbStores[0].defaultAccentColor);
+          const st = sbStores[0];
+          setStoreId(st.id);
+          setStoreName(st.name);
+          if (st.whatsappNumber) setWhatsapp(st.whatsappNumber);
+          setDefaultAccent(st.defaultAccentColor);
+          if (st.themeTokens?.bgPrimary) setBgPrimary(st.themeTokens.bgPrimary);
+          if (st.themeTokens?.bgSecondary) setBgSecondary(st.themeTokens.bgSecondary);
+          if (st.themeTokens?.bgElevated) setBgElevated(st.themeTokens.bgElevated);
+          const savedPresets = st.themeTokens?.presets ?? [];
+          setPresets([
+            ROOM_DEFAULT_PRESET,
+            ...savedPresets.filter((p) => p.id !== ROOM_DEFAULT_PRESET.id),
+          ]);
         }
 
         if (sbUnivs.length > 0) {
@@ -375,16 +490,16 @@ export function AdminPortalClient() {
             sbProds.map((p) => {
               const pVars = sbVars.filter((v) => v.productId === p.id);
               const totalStock = pVars.reduce((sum, v) => sum + Number(v.stock), 0);
+              const matchedUniv = sbUnivs.find((u) => u.id === p.universeId);
               return {
                 id: p.id,
                 name: p.name,
-                universe: p.slug.includes("ranked")
-                  ? "gaming"
-                  : p.slug.includes("eclipse")
-                    ? "anime"
-                    : "cars",
+                subtitle: p.subtitle ?? "",
+                universeId: p.universeId,
+                universe: matchedUniv?.slug ?? "cars",
                 price: Number(p.basePrice),
                 stock: totalStock,
+                thumbnailUrl: p.thumbnailUrl,
                 isFreshDrop: p.isNewArrival,
               };
             })
@@ -417,9 +532,7 @@ export function AdminPortalClient() {
           );
         }
 
-        if (sbInvites.length > 0) {
-          setInvites(sbInvites);
-        }
+        if (sbInvites.length > 0) setInvites(sbInvites);
 
         if (sbSections.length > 0) {
           setSections(
@@ -431,8 +544,12 @@ export function AdminPortalClient() {
             }))
           );
         }
+
+        if (sbOrders.length > 0) {
+          setOrders(sbOrders.map((o) => ({ ...o, total: Number(o.total) })));
+        }
       } catch {
-        // Fallback to initial defaults
+        // Fallback to defaults
       }
     })();
   }, []);
@@ -452,15 +569,114 @@ export function AdminPortalClient() {
     setTimeout(() => setSavedSection(null), 2000);
   };
 
-  const handleSaveStore = async () => {
+  const syncThemeSnapshotLocally = (
+    p: string,
+    s: string,
+    e: string,
+    acc: string,
+    univList: typeof universes
+  ) => {
+    const univMap: Record<string, string> = {};
+    for (const u of univList) univMap[u.slug] = u.accentColor;
+    localStorage.setItem(
+      "room_theme_snapshot_v1",
+      JSON.stringify({
+        bgPrimary: p,
+        bgSecondary: s,
+        bgElevated: e,
+        defaultAccent: acc,
+        universes: univMap,
+      })
+    );
+  };
+
+  const handleSaveStore = async (nextPresets = presets) => {
     try {
       await sbPatch("store_configs", "slug=eq.room-egypt", {
         name: storeName,
         whatsappNumber: whatsapp,
         defaultAccentColor: defaultAccent,
+        themeTokens: {
+          bgPrimary,
+          bgSecondary,
+          bgElevated,
+          defaultAccent,
+          presets: nextPresets.filter((p) => !p.isDefault),
+        },
+        updatedAt: new Date().toISOString(),
       });
+      syncThemeSnapshotLocally(bgPrimary, bgSecondary, bgElevated, defaultAccent, universes);
     } catch {
-      // Ignore network errors
+      // Ignore
+    }
+    markSaved("store");
+  };
+
+  const handleSavePreset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPresetName.trim()) return;
+
+    const univColors: Record<string, string> = {};
+    for (const u of universes) univColors[u.slug] = u.accentColor;
+
+    const created: ThemePreset = {
+      id: generateClientId("preset"),
+      name: newPresetName.trim(),
+      bgPrimary,
+      bgSecondary,
+      bgElevated,
+      defaultAccent,
+      universeColors: univColors,
+    };
+
+    const nextPresets = [...presets, created];
+    setPresets(nextPresets);
+    setNewPresetName("");
+    await handleSaveStore(nextPresets);
+  };
+
+  const handleApplyPreset = async (preset: ThemePreset) => {
+    setBgPrimary(preset.bgPrimary);
+    setBgSecondary(preset.bgSecondary);
+    setBgElevated(preset.bgElevated);
+    setDefaultAccent(preset.defaultAccent);
+
+    const nextUnivs = universes.map((u) => ({
+      ...u,
+      accentColor: preset.universeColors[u.slug] ?? u.accentColor,
+    }));
+    setUniverses(nextUnivs);
+
+    try {
+      await Promise.all([
+        sbPatch("store_configs", "slug=eq.room-egypt", {
+          defaultAccentColor: preset.defaultAccent,
+          themeTokens: {
+            bgPrimary: preset.bgPrimary,
+            bgSecondary: preset.bgSecondary,
+            bgElevated: preset.bgElevated,
+            defaultAccent: preset.defaultAccent,
+            presets: presets.filter((p) => !p.isDefault),
+          },
+          updatedAt: new Date().toISOString(),
+        }),
+        ...nextUnivs.map((u) =>
+          sbPatch("universes", `slug=eq.${encodeURIComponent(u.slug)}`, {
+            accentColor: u.accentColor,
+            updatedAt: new Date().toISOString(),
+          })
+        ),
+      ]);
+      syncThemeSnapshotLocally(
+        preset.bgPrimary,
+        preset.bgSecondary,
+        preset.bgElevated,
+        preset.defaultAccent,
+        nextUnivs
+      );
+      localStorage.removeItem("room_live_universes_v1");
+    } catch {
+      // Ignore
     }
     markSaved("store");
   };
@@ -474,11 +690,14 @@ export function AdminPortalClient() {
             tagline: u.tagline,
             accentColor: u.accentColor,
             isActive: u.isActive,
+            updatedAt: new Date().toISOString(),
           })
         )
       );
+      syncThemeSnapshotLocally(bgPrimary, bgSecondary, bgElevated, defaultAccent, universes);
+      localStorage.removeItem("room_live_universes_v1");
     } catch {
-      // Ignore network errors
+      // Ignore
     }
     markSaved("universes");
   };
@@ -488,19 +707,116 @@ export function AdminPortalClient() {
       await Promise.all(
         products.map(async (p) => {
           await sbPatch("products", `id=eq.${encodeURIComponent(p.id)}`, {
+            name: p.name,
             basePrice: p.price,
+            updatedAt: new Date().toISOString(),
           });
           await sbPatch(
             "product_variants",
             `productId=eq.${encodeURIComponent(p.id)}&isDefault=eq.true`,
-            { stock: p.stock }
+            { stock: p.stock, updatedAt: new Date().toISOString() }
           );
         })
       );
+      localStorage.removeItem("room_live_products_v1");
     } catch {
-      // Ignore network errors
+      // Ignore
     }
     markSaved("catalog");
+  };
+
+  const handleAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProdName.trim()) return;
+
+    const targetUniv =
+      universes.find((u) => u.slug === newProdUnivSlug) ?? universes[0];
+    if (!targetUniv) return;
+
+    const prodId = generateClientId("prod");
+    const varId = generateClientId("var");
+    const slug = `${newProdName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString().slice(-4)}`;
+    const nowIso = new Date().toISOString();
+
+    try {
+      await sbInsert("products", {
+        id: prodId,
+        storeId,
+        universeId: targetUniv.id,
+        slug,
+        name: newProdName.trim(),
+        subtitle: newProdSub.trim() || "Limited Cairo Drop",
+        basePrice: newProdPrice,
+        thumbnailUrl: newProdThumb,
+        images: [newProdThumb],
+        isFeatured: true,
+        isNewArrival: true,
+        isActive: true,
+        updatedAt: nowIso,
+      });
+
+      await sbInsert("product_variants", {
+        id: varId,
+        storeId,
+        productId: prodId,
+        sku: `RM-${Date.now().toString().slice(-6)}`,
+        name: "King / 240x220 cm",
+        size: "King",
+        price: newProdPrice,
+        stock: newProdStock,
+        isDefault: true,
+        isActive: true,
+        updatedAt: nowIso,
+      });
+
+      setProducts((prev) => [
+        ...prev,
+        {
+          id: prodId,
+          name: newProdName.trim(),
+          subtitle: newProdSub.trim() || "Limited Cairo Drop",
+          universeId: targetUniv.id,
+          universe: targetUniv.slug,
+          price: newProdPrice,
+          stock: newProdStock,
+          thumbnailUrl: newProdThumb,
+          isFreshDrop: true,
+        },
+      ]);
+      localStorage.removeItem("room_live_products_v1");
+      setNewProdName("");
+      setNewProdSub("");
+      markSaved("catalog");
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleDeleteProduct = async (prodId: string) => {
+    try {
+      await sbDelete("products", `id=eq.${encodeURIComponent(prodId)}`);
+      setProducts((prev) => prev.filter((p) => p.id !== prodId));
+      localStorage.removeItem("room_live_products_v1");
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      await sbPatch("orders", `id=eq.${encodeURIComponent(orderId)}`, {
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      );
+    } catch {
+      // Ignore
+    }
   };
 
   const handleSaveSections = async () => {
@@ -537,7 +853,7 @@ export function AdminPortalClient() {
         );
       }
     } catch {
-      // Ignore network errors
+      // Ignore
     }
     markSaved("sections");
   };
@@ -550,11 +866,12 @@ export function AdminPortalClient() {
             fee: z.fee,
             freeShippingThreshold: z.freeThreshold,
             isActive: z.active,
+            updatedAt: new Date().toISOString(),
           })
         )
       );
     } catch {
-      // Ignore network errors
+      // Ignore
     }
     markSaved("shipping");
   };
@@ -591,13 +908,13 @@ export function AdminPortalClient() {
     }
 
     setCurrentUserId(found.id);
-    localStorage.setItem(KEYS.session, found.id);
+    localStorage.setItem(SESSION_KEY, found.id);
     setPassword("");
   };
 
   const handleLogout = () => {
     setCurrentUserId(null);
-    localStorage.removeItem(KEYS.session);
+    localStorage.removeItem(SESSION_KEY);
   };
 
   const handleCreateInvite = async (e: React.FormEvent) => {
@@ -628,7 +945,7 @@ export function AdminPortalClient() {
         expiresAt: newInvite.expiresAt,
       });
     } catch {
-      // Ignore network errors
+      // Ignore
     }
 
     setInvites((prev) => [newInvite, ...prev]);
@@ -670,7 +987,7 @@ export function AdminPortalClient() {
         updatedAt: new Date().toISOString(),
       });
     } catch {
-      // Ignore network errors
+      // Ignore
     }
 
     setAccounts((prev) =>
@@ -701,9 +1018,6 @@ export function AdminPortalClient() {
     </button>
   );
 
-  // ============================================================================
-  // LOGIN VIEW
-  // ============================================================================
   if (!currentUser) {
     return (
       <div
@@ -793,14 +1107,12 @@ export function AdminPortalClient() {
     );
   }
 
-  // ============================================================================
-  // ADMIN CONTROL CENTER
-  // ============================================================================
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: t.tabs.overview, icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: "store", label: t.tabs.store, icon: <Palette className="h-4 w-4" /> },
     { id: "universes", label: t.tabs.universes, icon: <Sparkles className="h-4 w-4" /> },
     { id: "catalog", label: t.tabs.catalog, icon: <Package className="h-4 w-4" /> },
+    { id: "orders", label: t.tabs.orders, icon: <ShoppingBag className="h-4 w-4" /> },
     { id: "sections", label: t.tabs.sections, icon: <Layers className="h-4 w-4" /> },
     { id: "shipping", label: t.tabs.shipping, icon: <Truck className="h-4 w-4" /> },
     { id: "team", label: t.tabs.team, icon: <Users className="h-4 w-4" /> },
@@ -895,7 +1207,6 @@ export function AdminPortalClient() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6 md:p-10">
-        {/* Mobile Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 md:hidden">
           <span className="font-serif text-base font-semibold tracking-widest">
             {t.brand}
@@ -919,7 +1230,7 @@ export function AdminPortalClient() {
           </div>
         </div>
 
-        {/* TAB: OVERVIEW */}
+        {/* OVERVIEW */}
         {activeTab === "overview" ? (
           <div className="space-y-6">
             <div>
@@ -953,14 +1264,15 @@ export function AdminPortalClient() {
           </div>
         ) : null}
 
-        {/* TAB: STORE & THEME */}
+        {/* STORE & EVENT THEMES */}
         {activeTab === "store" ? (
-          <div className="max-w-xl space-y-5">
-            <div className="flex items-center justify-between gap-4">
+          <div className="max-w-3xl space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-serif text-2xl font-semibold">{t.storeTitle}</h2>
-              <SaveButton tab="store" onClick={handleSaveStore} />
+              <SaveButton tab="store" onClick={() => void handleSaveStore()} />
             </div>
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6">
+
+            <div className="grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs text-white/65">{t.storeName}</label>
                 <input
@@ -978,30 +1290,103 @@ export function AdminPortalClient() {
                   className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs text-white/65">{t.homeAccent}</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={defaultAccent}
-                    onChange={(e) => setDefaultAccent(e.target.value)}
-                    className="h-10 w-14 rounded-lg border border-white/15 bg-transparent"
-                  />
-                  <span className="font-mono text-xs text-white/75" dir="ltr">
-                    {defaultAccent}
-                  </span>
+              {[
+                { label: t.homeAccent, val: defaultAccent, set: setDefaultAccent },
+                { label: t.bgPrimary, val: bgPrimary, set: setBgPrimary },
+                { label: t.bgSecondary, val: bgSecondary, set: setBgSecondary },
+                { label: t.bgElevated, val: bgElevated, set: setBgElevated },
+              ].map((c) => (
+                <div key={c.label}>
+                  <label className="mb-1 block text-xs text-white/65">{c.label}</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={c.val}
+                      onChange={(e) => c.set(e.target.value)}
+                      className="h-9 w-14 rounded-lg border border-white/15 bg-transparent"
+                    />
+                    <span className="font-mono text-xs text-white/75" dir="ltr">
+                      {c.val}
+                    </span>
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Event Theme Presets */}
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="font-serif text-lg font-semibold">{t.presetsTitle}</h3>
+                <button
+                  type="button"
+                  onClick={() => void handleApplyPreset(ROOM_DEFAULT_PRESET)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {t.restoreDefault}
+                </button>
+              </div>
+
+              <form onSubmit={handleSavePreset} className="flex flex-wrap gap-3">
+                <input
+                  value={newPresetName}
+                  onChange={(e) => setNewPresetName(e.target.value)}
+                  placeholder={t.presetPlaceholder}
+                  required
+                  className="h-10 flex-1 min-w-[220px] rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
+                >
+                  <BookmarkPlus className="h-4 w-4" />
+                  {t.savePresetBtn}
+                </button>
+              </form>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {presets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 p-3.5"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">{preset.name}</p>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        {[
+                          preset.bgPrimary,
+                          preset.bgElevated,
+                          preset.defaultAccent,
+                          ...Object.values(preset.universeColors),
+                        ].map((hex, idx) => (
+                          <span
+                            key={`${preset.id}-c-${idx}`}
+                            className="h-3.5 w-3.5 rounded-full border border-white/20"
+                            style={{ backgroundColor: hex }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleApplyPreset(preset)}
+                      className="rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-black hover:opacity-90"
+                    >
+                      {t.applyTheme}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         ) : null}
 
-        {/* TAB: UNIVERSES */}
+        {/* UNIVERSES */}
         {activeTab === "universes" ? (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-serif text-2xl font-semibold">{t.universesTitle}</h2>
-              <SaveButton tab="universes" onClick={handleSaveUniverses} />
+              <SaveButton tab="universes" onClick={() => void handleSaveUniverses()} />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {universes.map((u) => (
@@ -1073,13 +1458,96 @@ export function AdminPortalClient() {
           </div>
         ) : null}
 
-        {/* TAB: CATALOG & STOCK */}
+        {/* CATALOG & ADD PRODUCT */}
         {activeTab === "catalog" ? (
-          <div className="space-y-5">
+          <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-serif text-2xl font-semibold">{t.catalogTitle}</h2>
-              <SaveButton tab="catalog" onClick={handleSaveCatalog} />
+              <SaveButton tab="catalog" onClick={() => void handleSaveCatalog()} />
             </div>
+
+            {/* Add New Product Form */}
+            <form
+              onSubmit={handleAddProduct}
+              className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5 sm:grid-cols-2 lg:grid-cols-6"
+            >
+              <div className="lg:col-span-2">
+                <label className="mb-1 block text-[11px] text-white/65">{t.prodName}</label>
+                <input
+                  required
+                  value={newProdName}
+                  onChange={(e) => setNewProdName(e.target.value)}
+                  placeholder="e.g. Akatsuki Night Bedsheet"
+                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="mb-1 block text-[11px] text-white/65">{t.prodSub}</label>
+                <input
+                  value={newProdSub}
+                  onChange={(e) => setNewProdSub(e.target.value)}
+                  placeholder="300TC Matte Sateen • Limited"
+                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] text-white/65">Universe</label>
+                <select
+                  value={newProdUnivSlug}
+                  onChange={(e) => setNewProdUnivSlug(e.target.value)}
+                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
+                >
+                  {universes.map((u) => (
+                    <option key={u.id} value={u.slug}>
+                      {u.slug.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] text-white/65">{t.prodPrice}</label>
+                <input
+                  type="number"
+                  value={newProdPrice}
+                  onChange={(e) => setNewProdPrice(Number(e.target.value))}
+                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] text-white/65">{t.prodStock}</label>
+                <input
+                  type="number"
+                  value={newProdStock}
+                  onChange={(e) => setNewProdStock(Number(e.target.value))}
+                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <label className="mb-1 block text-[11px] text-white/65">{t.prodMockup}</label>
+                <select
+                  value={newProdThumb}
+                  onChange={(e) => setNewProdThumb(e.target.value)}
+                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
+                >
+                  {MOCKUP_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end lg:col-span-2">
+                <button
+                  type="submit"
+                  className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-white px-4 text-xs font-bold text-black hover:opacity-90"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t.addProdBtn}
+                </button>
+              </div>
+            </form>
+
+            {/* Product List */}
             <div className="space-y-3">
               {products.map((p) => (
                 <div
@@ -1132,6 +1600,14 @@ export function AdminPortalClient() {
                     >
                       {p.stock <= 0 ? t.vaulted : t.inStock}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteProduct(p.id)}
+                      className="rounded-lg border border-red-500/25 p-1.5 text-red-300 hover:bg-red-500/20"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1139,12 +1615,60 @@ export function AdminPortalClient() {
           </div>
         ) : null}
 
-        {/* TAB: HOME BUILDER */}
+        {/* ORDERS */}
+        {activeTab === "orders" ? (
+          <div className="space-y-5">
+            <h2 className="font-serif text-2xl font-semibold">{t.ordersTitle}</h2>
+            {orders.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-[#0d0a16] p-8 text-center text-xs text-white/55">
+                {t.noOrders}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((ord) => (
+                  <div
+                    key={ord.id}
+                    className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-4"
+                  >
+                    <div>
+                      <p className="font-mono text-sm font-bold text-white">
+                        #{ord.orderNumber} — {ord.customerName}
+                      </p>
+                      <p className="text-xs text-white/55">
+                        {ord.customerPhone} • {ord.paymentMethod} • {ord.total} EGP
+                      </p>
+                    </div>
+                    <select
+                      value={ord.status}
+                      onChange={(e) => void handleUpdateOrderStatus(ord.id, e.target.value)}
+                      className="h-9 rounded-xl border border-white/15 bg-black/60 px-3 text-xs font-semibold text-white"
+                    >
+                      {[
+                        "PENDING",
+                        "CONFIRMED",
+                        "PACKING",
+                        "OUT_FOR_DELIVERY",
+                        "DELIVERED",
+                        "CANCELLED",
+                      ].map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* HOME BUILDER */}
         {activeTab === "sections" ? (
           <div className="max-w-2xl space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-serif text-2xl font-semibold">{t.sectionsTitle}</h2>
-              <SaveButton tab="sections" onClick={handleSaveSections} />
+              <SaveButton tab="sections" onClick={() => void handleSaveSections()} />
             </div>
             <div className="space-y-2.5">
               {sections.map((s, idx) => (
@@ -1199,12 +1723,12 @@ export function AdminPortalClient() {
           </div>
         ) : null}
 
-        {/* TAB: CAIRO SHIPPING */}
+        {/* CAIRO SHIPPING */}
         {activeTab === "shipping" ? (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-serif text-2xl font-semibold">{t.shippingTitle}</h2>
-              <SaveButton tab="shipping" onClick={handleSaveZones} />
+              <SaveButton tab="shipping" onClick={() => void handleSaveZones()} />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {zones.map((z) => (
@@ -1275,7 +1799,7 @@ export function AdminPortalClient() {
           </div>
         ) : null}
 
-        {/* TAB: TEAM, OWNERS & 48H INVITES */}
+        {/* TEAM & INVITES */}
         {activeTab === "team" ? (
           <div className="space-y-8">
             <div>
@@ -1408,7 +1932,7 @@ export function AdminPortalClient() {
           </div>
         ) : null}
 
-        {/* TAB: MY PROFILE */}
+        {/* MY PROFILE */}
         {activeTab === "profile" ? (
           <div className="max-w-xl space-y-5">
             <div>
@@ -1475,7 +1999,7 @@ export function AdminPortalClient() {
                 tab="profile"
                 onClick={() => {
                   const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-                  handleSaveProfile(fakeEvent);
+                  void handleSaveProfile(fakeEvent);
                 }}
               />
             </form>
