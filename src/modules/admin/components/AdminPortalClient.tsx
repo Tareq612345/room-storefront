@@ -1,21 +1,24 @@
 /**
  * @file src/modules/admin/components/AdminPortalClient.tsx
- * @purpose Dedicated ROOM Admin & Owner Portal: Login by username/email, 48h single-use invite generator, profile editor, and detailed controls for Store, Universes, Catalog, Loadouts, PageSections, and Cairo Shipping.
+ * @purpose Dedicated ROOM Admin & Owner Portal with AR/EN toggle, login by username/email, persistent Save actions across all tabs, 48h single-use invites, and profile editor.
  */
 
 "use client";
 
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   Copy,
   KeyRound,
+  Languages,
   LayoutDashboard,
   Layers,
   LogOut,
   MapPin,
   Package,
   Palette,
-  Plus,
+  Save,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -27,12 +30,13 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+type Lang = "ar" | "en";
+
 type AdminTab =
   | "overview"
   | "store"
   | "universes"
   | "catalog"
-  | "loadouts"
   | "sections"
   | "shipping"
   | "team"
@@ -103,22 +107,177 @@ const INITIAL_SECTIONS = [
   { id: "s5", type: "CUSTOMER_SETUPS", title: "Cairo Room Setups", visible: false },
 ];
 
-const STORAGE_ACCOUNTS_KEY = "room_admin_accounts_v1";
-const STORAGE_INVITES_KEY = "room_admin_invites_v1";
-const STORAGE_SESSION_KEY = "room_admin_session_v1";
+const KEYS = {
+  accounts: "room_admin_accounts_v1",
+  invites: "room_admin_invites_v1",
+  session: "room_admin_session_v1",
+  store: "room_admin_store_v1",
+  universes: "room_admin_universes_v1",
+  products: "room_admin_products_v1",
+  sections: "room_admin_sections_v1",
+  zones: "room_admin_zones_v1",
+} as const;
+
+const I18N = {
+  en: {
+    brand: "ROOM ADMIN",
+    loginSub: "Sign in with Username or Email",
+    identifierLabel: "Username or Email",
+    identifierPlaceholder: "tareq or tareq612345@gmail.com",
+    passwordLabel: "Password",
+    loginBtn: "Enter Control Center",
+    loginErr: "Invalid username/email or password",
+    seededTitle: "Seeded Owners:",
+    initialPassNote: "Initial password:",
+    changeInProfile: "(change in Profile)",
+    tabs: {
+      overview: "Overview",
+      store: "Store & Theme",
+      universes: "Universes",
+      catalog: "Catalog & Stock",
+      sections: "Home Builder",
+      shipping: "Cairo Shipping",
+      team: "Owners & Invites",
+      profile: "My Profile",
+    },
+    viewStore: "View Storefront →",
+    viewSchema: "DB Schema Explorer →",
+    signOut: "Sign Out",
+    welcome: "Welcome back",
+    signedInAs: "Signed in as",
+    stats: {
+      universes: "Active Universes",
+      products: "Catalog Products",
+      zones: "Cairo Shipping Zones",
+      team: "Owners & Admins",
+    },
+    storeTitle: "Store & Theme Tokens",
+    storeName: "Store Name",
+    whatsapp: "WhatsApp Order Number",
+    homeAccent: "Home Default Accent",
+    universesTitle: "Universes Control",
+    active: "Active",
+    hidden: "Hidden",
+    visible: "Visible",
+    catalogTitle: "Catalog & Vaulted Stock",
+    egp: "EGP",
+    stock: "Stock",
+    vaulted: "Vaulted",
+    inStock: "In Stock",
+    sectionsTitle: "Homepage Section Builder",
+    shippingTitle: "Cairo & New Cairo Shipping Zones",
+    fee: "Fee (EGP)",
+    freeAbove: "Free Above",
+    days: "Est. Days",
+    teamTitle: "Owners & Admin Team",
+    teamSub: "Invite a new admin by email to generate a 48-hour single-use onboarding link.",
+    adminEmail: "Admin Email",
+    role: "Role",
+    genInvite: "Generate 48h Invite Link",
+    inviteLinksTitle: "Single-Use Invite Links (Valid 48 Hours)",
+    expires: "Expires",
+    used: "Used",
+    expired: "Expired",
+    copyLink: "Copy Invite Link",
+    copied: "Copied Link",
+    activeAccounts: "Active Accounts",
+    profileTitle: "My Profile & Username",
+    profileSub: "Set a custom username so you can sign in with Username + Password without needing your email.",
+    displayName: "Display Name",
+    usernameLabel: "Username (Login without Email)",
+    emailLabel: "Email",
+    newPasswordLabel: "New Password (leave blank to keep current)",
+    saveBtn: "Save Changes",
+    savedBtn: "Saved!",
+  },
+  ar: {
+    brand: "إدارة ROOM",
+    loginSub: "سجّل الدخول باسم المستخدم أو البريد الإلكتروني",
+    identifierLabel: "اسم المستخدم أو البريد الإلكتروني",
+    identifierPlaceholder: "tareq أو tareq612345@gmail.com",
+    passwordLabel: "كلمة المرور",
+    loginBtn: "دخول لوحة التحكم",
+    loginErr: "اسم المستخدم/البريد أو كلمة المرور غير صحيحة",
+    seededTitle: "حسابات المالكين المسجلة:",
+    initialPassNote: "كلمة المرور الأولية:",
+    changeInProfile: "(يمكن تغييرها من الملف الشخصي)",
+    tabs: {
+      overview: "نظرة عامة",
+      store: "المتجر والألوان",
+      universes: "الأقسام (Universes)",
+      catalog: "المنتجات والمخزون",
+      sections: "بناء الرئيسية",
+      shipping: "شحن القاهرة",
+      team: "المالكون والدعوات",
+      profile: "ملفي الشخصي",
+    },
+    viewStore: "عرض المتجر ←",
+    viewSchema: "خريطة قاعدة البيانات ←",
+    signOut: "تسجيل الخروج",
+    welcome: "مرحباً بعودتك",
+    signedInAs: "مسجل باسم",
+    stats: {
+      universes: "الأقسام النشطة",
+      products: "المنتجات بالكتالوج",
+      zones: "مناطق شحن القاهرة",
+      team: "المالكون والأدمن",
+    },
+    storeTitle: "إعدادات المتجر والألوان",
+    storeName: "اسم المتجر",
+    whatsapp: "رقم واتساب الطلبات",
+    homeAccent: "اللون الأساسي للرئيسية",
+    universesTitle: "التحكم في الأقسام (Universes)",
+    active: "مفعل",
+    hidden: "مخفي",
+    visible: "ظاهر",
+    catalogTitle: "المنتجات والمخزون (Vaulted)",
+    egp: "ج.م",
+    stock: "المخزون",
+    vaulted: "نفد (Vaulted)",
+    inStock: "متاح",
+    sectionsTitle: "ترتيب وإظهار أقسام الرئيسية",
+    shippingTitle: "مناطق الشحن (القاهرة والقاهرة الجديدة)",
+    fee: "تكلفة الشحن (ج.م)",
+    freeAbove: "شحن مجاني فوق",
+    days: "مدة التوصيل",
+    teamTitle: "المالكون وفريق الإدارة",
+    teamSub: "أضف إيميل أدمن جديد لتوليد رابط دعوة صالح ليومين (48 ساعة) للاستخدام مرة واحدة فقط.",
+    adminEmail: "البريد الإلكتروني للأدمن",
+    role: "الصلاحية",
+    genInvite: "توليد رابط دعوة (48 ساعة)",
+    inviteLinksTitle: "روابط الدعوة (صالحة 48 ساعة • استخدام مرة واحدة)",
+    expires: "ينتهي في",
+    used: "مُستخدم",
+    expired: "منتهي",
+    copyLink: "نسخ رابط الدعوة",
+    copied: "تم النسخ",
+    activeAccounts: "الحسابات النشطة",
+    profileTitle: "الملف الشخصي واسم المستخدم",
+    profileSub: "حدد اسم مستخدم (Username) لتتمكن من تسجيل الدخول به مع كلمة المرور بدون كتابة الإيميل.",
+    displayName: "الاسم الظاهر",
+    usernameLabel: "اسم المستخدم (للدخول بدون إيميل)",
+    emailLabel: "البريد الإلكتروني",
+    newPasswordLabel: "كلمة مرور جديدة (اتركه فارغاً للإبقاء على الحالية)",
+    saveBtn: "حفظ التغييرات",
+    savedBtn: "تم الحفظ!",
+  },
+} as const;
 
 export function AdminPortalClient() {
+  const [lang, setLang] = useState<Lang>("ar");
+  const t = I18N[lang];
+
   const [accounts, setAccounts] = useState<LocalAdminAccount[]>(INITIAL_OWNERS);
   const [invites, setInvites] = useState<LocalInvite[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Login form
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Dashboard state
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [savedSection, setSavedSection] = useState<AdminTab | null>(null);
+
   const [storeName, setStoreName] = useState("ROOM");
   const [whatsapp, setWhatsapp] = useState("+201000000000");
   const [defaultAccent, setDefaultAccent] = useState("#ffffff");
@@ -128,36 +287,50 @@ export function AdminPortalClient() {
   const [zones, setZones] = useState(INITIAL_ZONES);
   const [sections, setSections] = useState(INITIAL_SECTIONS);
 
-  // Invite form
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"ADMIN" | "STAFF">("ADMIN");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
-  // Profile form
   const [profileName, setProfileName] = useState("");
   const [profileUsername, setProfileUsername] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
   const [profileNewPassword, setProfileNewPassword] = useState("");
-  const [profileSaved, setProfileSaved] = useState(false);
 
   useEffect(() => {
     try {
-      const savedAccounts = localStorage.getItem(STORAGE_ACCOUNTS_KEY);
-      if (savedAccounts) {
-        setAccounts(JSON.parse(savedAccounts) as LocalAdminAccount[]);
-      } else {
-        localStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(INITIAL_OWNERS));
+      const savedAccounts = localStorage.getItem(KEYS.accounts);
+      if (savedAccounts) setAccounts(JSON.parse(savedAccounts) as LocalAdminAccount[]);
+      else localStorage.setItem(KEYS.accounts, JSON.stringify(INITIAL_OWNERS));
+
+      const savedInvites = localStorage.getItem(KEYS.invites);
+      if (savedInvites) setInvites(JSON.parse(savedInvites) as LocalInvite[]);
+
+      const savedSession = localStorage.getItem(KEYS.session);
+      if (savedSession) setCurrentUserId(savedSession);
+
+      const savedStore = localStorage.getItem(KEYS.store);
+      if (savedStore) {
+        const parsed = JSON.parse(savedStore) as {
+          storeName: string;
+          whatsapp: string;
+          defaultAccent: string;
+        };
+        setStoreName(parsed.storeName);
+        setWhatsapp(parsed.whatsapp);
+        setDefaultAccent(parsed.defaultAccent);
       }
 
-      const savedInvites = localStorage.getItem(STORAGE_INVITES_KEY);
-      if (savedInvites) {
-        setInvites(JSON.parse(savedInvites) as LocalInvite[]);
-      }
+      const savedUniv = localStorage.getItem(KEYS.universes);
+      if (savedUniv) setUniverses(JSON.parse(savedUniv) as typeof INITIAL_UNIVERSES);
 
-      const savedSession = localStorage.getItem(STORAGE_SESSION_KEY);
-      if (savedSession) {
-        setCurrentUserId(savedSession);
-      }
+      const savedProd = localStorage.getItem(KEYS.products);
+      if (savedProd) setProducts(JSON.parse(savedProd) as typeof INITIAL_PRODUCTS);
+
+      const savedSec = localStorage.getItem(KEYS.sections);
+      if (savedSec) setSections(JSON.parse(savedSec) as typeof INITIAL_SECTIONS);
+
+      const savedZones = localStorage.getItem(KEYS.zones);
+      if (savedZones) setZones(JSON.parse(savedZones) as typeof INITIAL_ZONES);
     } catch {
       // Ignore storage errors
     }
@@ -173,6 +346,49 @@ export function AdminPortalClient() {
     }
   }, [currentUser]);
 
+  const markSaved = (tab: AdminTab) => {
+    setSavedSection(tab);
+    setTimeout(() => setSavedSection(null), 2000);
+  };
+
+  const handleSaveStore = () => {
+    localStorage.setItem(
+      KEYS.store,
+      JSON.stringify({ storeName, whatsapp, defaultAccent })
+    );
+    markSaved("store");
+  };
+
+  const handleSaveUniverses = () => {
+    localStorage.setItem(KEYS.universes, JSON.stringify(universes));
+    markSaved("universes");
+  };
+
+  const handleSaveCatalog = () => {
+    localStorage.setItem(KEYS.products, JSON.stringify(products));
+    markSaved("catalog");
+  };
+
+  const handleSaveSections = () => {
+    localStorage.setItem(KEYS.sections, JSON.stringify(sections));
+    markSaved("sections");
+  };
+
+  const handleSaveZones = () => {
+    localStorage.setItem(KEYS.zones, JSON.stringify(zones));
+    markSaved("shipping");
+  };
+
+  const moveSection = (index: number, dir: -1 | 1) => {
+    const nextIdx = index + dir;
+    if (nextIdx < 0 || nextIdx >= sections.length) return;
+    const copy = [...sections];
+    const [item] = copy.splice(index, 1);
+    if (!item) return;
+    copy.splice(nextIdx, 0, item);
+    setSections(copy);
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
@@ -185,18 +401,18 @@ export function AdminPortalClient() {
     );
 
     if (!found) {
-      setLoginError("Invalid username/email or password");
+      setLoginError(t.loginErr);
       return;
     }
 
     setCurrentUserId(found.id);
-    localStorage.setItem(STORAGE_SESSION_KEY, found.id);
+    localStorage.setItem(KEYS.session, found.id);
     setPassword("");
   };
 
   const handleLogout = () => {
     setCurrentUserId(null);
-    localStorage.removeItem(STORAGE_SESSION_KEY);
+    localStorage.removeItem(KEYS.session);
   };
 
   const handleCreateInvite = (e: React.FormEvent) => {
@@ -218,7 +434,7 @@ export function AdminPortalClient() {
 
     const next = [newInvite, ...invites];
     setInvites(next);
-    localStorage.setItem(STORAGE_INVITES_KEY, JSON.stringify(next));
+    localStorage.setItem(KEYS.invites, JSON.stringify(next));
     setInviteEmail("");
   };
 
@@ -254,54 +470,71 @@ export function AdminPortalClient() {
     );
 
     setAccounts(updated);
-    localStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+    localStorage.setItem(KEYS.accounts, JSON.stringify(updated));
     setProfileNewPassword("");
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2000);
+    markSaved("profile");
   };
+
+  const LangToggleButton = () => (
+    <button
+      type="button"
+      onClick={() => setLang((prev) => (prev === "ar" ? "en" : "ar"))}
+      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3.5 py-1.5 text-xs font-bold text-cyan-200 transition-colors hover:bg-cyan-500/25"
+    >
+      <Languages className="h-3.5 w-3.5" />
+      <span>{lang === "ar" ? "English" : "عربي"}</span>
+    </button>
+  );
 
   // ============================================================================
   // LOGIN VIEW
   // ============================================================================
   if (!currentUser) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#05030a] px-4 text-white">
+      <div
+        dir={lang === "ar" ? "rtl" : "ltr"}
+        className="flex min-h-screen items-center justify-center bg-[#05030a] px-4 text-white"
+      >
+        <div className="fixed right-5 top-5 z-50">
+          <LangToggleButton />
+        </div>
+
         <div className="w-full max-w-md rounded-3xl border border-white/15 bg-[#0c0916]/95 p-8 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10">
               <ShieldCheck className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="font-serif text-xl font-semibold tracking-[0.16em]">
-                ROOM ADMIN
+              <h1 className="font-serif text-xl font-semibold tracking-[0.12em]">
+                {t.brand}
               </h1>
-              <p className="text-xs text-white/55">
-                Sign in with Username or Email
-              </p>
+              <p className="text-xs text-white/55">{t.loginSub}</p>
             </div>
           </div>
 
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/70">
-                Username or Email
+              <label className="mb-1.5 block text-xs font-semibold text-white/75">
+                {t.identifierLabel}
               </label>
               <input
                 type="text"
+                dir="ltr"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="tareq or tareq612345@gmail.com"
+                placeholder={t.identifierPlaceholder}
                 required
                 className="h-11 w-full rounded-xl border border-white/15 bg-black/60 px-4 text-sm text-white placeholder:text-white/35 focus:border-white/50 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/70">
-                Password
+              <label className="mb-1.5 block text-xs font-semibold text-white/75">
+                {t.passwordLabel}
               </label>
               <input
                 type="password"
+                dir="ltr"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -318,22 +551,26 @@ export function AdminPortalClient() {
 
             <button
               type="submit"
-              className="h-11 w-full rounded-full bg-white text-xs font-bold uppercase tracking-[0.18em] text-black transition-opacity hover:opacity-90"
+              className="h-11 w-full rounded-full bg-white text-xs font-bold uppercase tracking-[0.14em] text-black transition-opacity hover:opacity-90"
             >
-              Enter Control Center
+              {t.loginBtn}
             </button>
           </form>
 
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-[11px] text-white/60">
-            <p className="font-semibold text-white/85">Seeded Owners:</p>
-            <p className="mt-1 font-mono">
+            <p className="font-semibold text-white/85">{t.seededTitle}</p>
+            <p className="mt-1 font-mono" dir="ltr">
               tareq612345@gmail.com (user: <span className="text-white">tareq</span>)
             </p>
-            <p className="font-mono">
+            <p className="font-mono" dir="ltr">
               adegddn@gmail.com (user: <span className="text-white">adegddn</span>)
             </p>
             <p className="mt-1 text-white/45">
-              Initial password: <span className="font-mono text-white/75">RoomOwner#2026</span> (change in Profile)
+              {t.initialPassNote}{" "}
+              <span className="font-mono text-white/75" dir="ltr">
+                RoomOwner#2026
+              </span>{" "}
+              {t.changeInProfile}
             </p>
           </div>
         </div>
@@ -345,30 +582,61 @@ export function AdminPortalClient() {
   // ADMIN CONTROL CENTER
   // ============================================================================
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
-    { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-4 w-4" /> },
-    { id: "store", label: "Store & Theme", icon: <Palette className="h-4 w-4" /> },
-    { id: "universes", label: "Universes", icon: <Sparkles className="h-4 w-4" /> },
-    { id: "catalog", label: "Catalog & Stock", icon: <Package className="h-4 w-4" /> },
-    { id: "sections", label: "Home Builder", icon: <Layers className="h-4 w-4" /> },
-    { id: "shipping", label: "Cairo Shipping", icon: <Truck className="h-4 w-4" /> },
-    { id: "team", label: "Owners & Invites", icon: <Users className="h-4 w-4" /> },
-    { id: "profile", label: "My Profile", icon: <Settings className="h-4 w-4" /> },
+    { id: "overview", label: t.tabs.overview, icon: <LayoutDashboard className="h-4 w-4" /> },
+    { id: "store", label: t.tabs.store, icon: <Palette className="h-4 w-4" /> },
+    { id: "universes", label: t.tabs.universes, icon: <Sparkles className="h-4 w-4" /> },
+    { id: "catalog", label: t.tabs.catalog, icon: <Package className="h-4 w-4" /> },
+    { id: "sections", label: t.tabs.sections, icon: <Layers className="h-4 w-4" /> },
+    { id: "shipping", label: t.tabs.shipping, icon: <Truck className="h-4 w-4" /> },
+    { id: "team", label: t.tabs.team, icon: <Users className="h-4 w-4" /> },
+    { id: "profile", label: t.tabs.profile, icon: <Settings className="h-4 w-4" /> },
   ];
 
+  const SaveButton = ({
+    tab,
+    onClick,
+  }: {
+    tab: AdminTab;
+    onClick: () => void;
+  }) => {
+    const isSaved = savedSection === tab;
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex h-10 items-center gap-2 rounded-full px-6 text-xs font-bold uppercase tracking-wider transition-all ${
+          isSaved
+            ? "bg-emerald-500 text-black"
+            : "bg-white text-black hover:opacity-90"
+        }`}
+      >
+        {isSaved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+        <span>{isSaved ? t.savedBtn : t.saveBtn}</span>
+      </button>
+    );
+  };
+
   return (
-    <div className="flex min-h-screen bg-[#05030a] text-white">
+    <div
+      dir={lang === "ar" ? "rtl" : "ltr"}
+      className="flex min-h-screen bg-[#05030a] text-white"
+    >
       {/* Sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-white/10 bg-[#080611] p-5 md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-e border-white/10 bg-[#080611] p-5 md:flex">
         <div className="flex items-center justify-between">
-          <span className="font-serif text-lg font-semibold tracking-[0.2em]">
-            ROOM ADMIN
+          <span className="font-serif text-base font-semibold tracking-[0.15em]">
+            {t.brand}
           </span>
           <span className="rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
             {currentUser.role}
           </span>
         </div>
 
-        <nav className="mt-8 flex-1 space-y-1.5">
+        <div className="mt-4">
+          <LangToggleButton />
+        </div>
+
+        <nav className="mt-6 flex-1 space-y-1.5">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -386,18 +654,18 @@ export function AdminPortalClient() {
           ))}
         </nav>
 
-        <div className="border-t border-white/10 pt-4 space-y-2">
+        <div className="space-y-2 border-t border-white/10 pt-4">
           <Link
             href="/"
             className="block rounded-xl border border-white/15 px-3 py-2 text-center text-xs font-semibold text-white/80 hover:bg-white/5"
           >
-            View Storefront →
+            {t.viewStore}
           </Link>
           <Link
             href="/schema/"
             className="block rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2 text-center text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
           >
-            DB Schema Explorer →
+            {t.viewSchema}
           </Link>
           <button
             type="button"
@@ -405,19 +673,20 @@ export function AdminPortalClient() {
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/20"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Sign Out
+            <span>{t.signOut}</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6 md:p-10">
-        {/* Top Mobile Nav */}
+        {/* Mobile Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 md:hidden">
           <span className="font-serif text-base font-semibold tracking-widest">
-            ROOM ADMIN
+            {t.brand}
           </span>
-          <div className="flex flex-wrap gap-1.5">
+          <LangToggleButton />
+          <div className="flex w-full flex-wrap gap-1.5">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -440,20 +709,20 @@ export function AdminPortalClient() {
           <div className="space-y-6">
             <div>
               <h2 className="font-serif text-2xl font-semibold">
-                Welcome back, {currentUser.name}
+                {t.welcome}, {currentUser.name}
               </h2>
               <p className="mt-1 text-xs text-white/55">
-                Signed in as @{currentUser.username} ({currentUser.email}) •{" "}
+                {t.signedInAs} <span dir="ltr">@{currentUser.username} ({currentUser.email})</span> •{" "}
                 {currentUser.role}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { label: "Active Universes", value: universes.filter((u) => u.isActive).length },
-                { label: "Catalog Products", value: products.length },
-                { label: "Cairo Shipping Zones", value: zones.filter((z) => z.active).length },
-                { label: "Owners & Admins", value: accounts.length },
+                { label: t.stats.universes, value: universes.filter((u) => u.isActive).length },
+                { label: t.stats.products, value: products.length },
+                { label: t.stats.zones, value: zones.filter((z) => z.active).length },
+                { label: t.stats.team, value: accounts.length },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -472,10 +741,13 @@ export function AdminPortalClient() {
         {/* TAB: STORE & THEME */}
         {activeTab === "store" ? (
           <div className="max-w-xl space-y-5">
-            <h2 className="font-serif text-2xl font-semibold">Store &amp; Theme Tokens</h2>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="font-serif text-2xl font-semibold">{t.storeTitle}</h2>
+              <SaveButton tab="store" onClick={handleSaveStore} />
+            </div>
             <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6">
               <div>
-                <label className="mb-1 block text-xs text-white/65">Store Name</label>
+                <label className="mb-1 block text-xs text-white/65">{t.storeName}</label>
                 <input
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
@@ -483,15 +755,16 @@ export function AdminPortalClient() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-white/65">WhatsApp Order Number</label>
+                <label className="mb-1 block text-xs text-white/65">{t.whatsapp}</label>
                 <input
+                  dir="ltr"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
                   className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-white/65">Home Default Accent</label>
+                <label className="mb-1 block text-xs text-white/65">{t.homeAccent}</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -499,7 +772,9 @@ export function AdminPortalClient() {
                     onChange={(e) => setDefaultAccent(e.target.value)}
                     className="h-10 w-14 rounded-lg border border-white/15 bg-transparent"
                   />
-                  <span className="font-mono text-xs text-white/75">{defaultAccent}</span>
+                  <span className="font-mono text-xs text-white/75" dir="ltr">
+                    {defaultAccent}
+                  </span>
                 </div>
               </div>
             </div>
@@ -509,27 +784,51 @@ export function AdminPortalClient() {
         {/* TAB: UNIVERSES */}
         {activeTab === "universes" ? (
           <div className="space-y-5">
-            <h2 className="font-serif text-2xl font-semibold">Universes Control</h2>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="font-serif text-2xl font-semibold">{t.universesTitle}</h2>
+              <SaveButton tab="universes" onClick={handleSaveUniverses} />
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {universes.map((u) => (
                 <div
                   key={u.id}
-                  className="rounded-2xl border border-white/10 bg-[#0d0a16] p-5 space-y-3"
+                  className="space-y-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-white/55">/{u.slug}</span>
-                    <input
-                      type="color"
-                      value={u.accentColor}
-                      onChange={(e) =>
-                        setUniverses((prev) =>
-                          prev.map((x) =>
-                            x.id === u.id ? { ...x, accentColor: e.target.value } : x
+                    <span className="font-mono text-xs text-white/55" dir="ltr">
+                      /{u.slug}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setUniverses((prev) =>
+                            prev.map((x) =>
+                              x.id === u.id ? { ...x, isActive: !x.isActive } : x
+                            )
                           )
-                        )
-                      }
-                      className="h-7 w-10 rounded border border-white/15 bg-transparent"
-                    />
+                        }
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                          u.isActive
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-white/10 text-white/45"
+                        }`}
+                      >
+                        {u.isActive ? t.active : t.hidden}
+                      </button>
+                      <input
+                        type="color"
+                        value={u.accentColor}
+                        onChange={(e) =>
+                          setUniverses((prev) =>
+                            prev.map((x) =>
+                              x.id === u.id ? { ...x, accentColor: e.target.value } : x
+                            )
+                          )
+                        }
+                        className="h-7 w-10 rounded border border-white/15 bg-transparent"
+                      />
+                    </div>
                   </div>
                   <input
                     value={u.name}
@@ -562,7 +861,10 @@ export function AdminPortalClient() {
         {/* TAB: CATALOG & STOCK */}
         {activeTab === "catalog" ? (
           <div className="space-y-5">
-            <h2 className="font-serif text-2xl font-semibold">Catalog &amp; Vaulted Stock</h2>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="font-serif text-2xl font-semibold">{t.catalogTitle}</h2>
+              <SaveButton tab="catalog" onClick={handleSaveCatalog} />
+            </div>
             <div className="space-y-3">
               {products.map((p) => (
                 <div
@@ -571,11 +873,13 @@ export function AdminPortalClient() {
                 >
                   <div>
                     <h3 className="text-sm font-semibold">{p.name}</h3>
-                    <p className="font-mono text-xs text-white/50">Universe: {p.universe}</p>
+                    <p className="font-mono text-xs text-white/50">
+                      Universe: {p.universe}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <label className="text-xs text-white/60">
-                      EGP
+                      {t.egp}
                       <input
                         type="number"
                         value={p.price}
@@ -586,11 +890,11 @@ export function AdminPortalClient() {
                             )
                           )
                         }
-                        className="ml-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
+                        className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
                       />
                     </label>
                     <label className="text-xs text-white/60">
-                      Stock
+                      {t.stock}
                       <input
                         type="number"
                         value={p.stock}
@@ -601,7 +905,7 @@ export function AdminPortalClient() {
                             )
                           )
                         }
-                        className="ml-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
+                        className="mx-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
                       />
                     </label>
                     <span
@@ -611,7 +915,7 @@ export function AdminPortalClient() {
                           : "bg-emerald-500/20 text-emerald-300"
                       }`}
                     >
-                      {p.stock <= 0 ? "Vaulted" : "In Stock"}
+                      {p.stock <= 0 ? t.vaulted : t.inStock}
                     </span>
                   </div>
                 </div>
@@ -623,34 +927,57 @@ export function AdminPortalClient() {
         {/* TAB: HOME BUILDER */}
         {activeTab === "sections" ? (
           <div className="max-w-2xl space-y-5">
-            <h2 className="font-serif text-2xl font-semibold">Homepage Section Builder</h2>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="font-serif text-2xl font-semibold">{t.sectionsTitle}</h2>
+              <SaveButton tab="sections" onClick={handleSaveSections} />
+            </div>
             <div className="space-y-2.5">
-              {sections.map((s) => (
+              {sections.map((s, idx) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0d0a16] px-5 py-3.5"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] px-5 py-3.5"
                 >
                   <div>
                     <p className="text-sm font-semibold">{s.title}</p>
-                    <p className="font-mono text-[11px] text-white/45">{s.type}</p>
+                    <p className="font-mono text-[11px] text-white/45" dir="ltr">
+                      {s.type}
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSections((prev) =>
-                        prev.map((x) =>
-                          x.id === s.id ? { ...x, visible: !x.visible } : x
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => moveSection(idx, -1)}
+                      disabled={idx === 0}
+                      className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSection(idx, 1)}
+                      disabled={idx === sections.length - 1}
+                      className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSections((prev) =>
+                          prev.map((x) =>
+                            x.id === s.id ? { ...x, visible: !x.visible } : x
+                          )
                         )
-                      )
-                    }
-                    className={`rounded-full px-4 py-1.5 text-xs font-bold ${
-                      s.visible
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "bg-white/10 text-white/50"
-                    }`}
-                  >
-                    {s.visible ? "Visible" : "Hidden"}
-                  </button>
+                      }
+                      className={`rounded-full px-4 py-1.5 text-xs font-bold ${
+                        s.visible
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : "bg-white/10 text-white/50"
+                      }`}
+                    >
+                      {s.visible ? t.visible : t.hidden}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -660,20 +987,42 @@ export function AdminPortalClient() {
         {/* TAB: CAIRO SHIPPING */}
         {activeTab === "shipping" ? (
           <div className="space-y-5">
-            <h2 className="font-serif text-2xl font-semibold">Cairo &amp; New Cairo Shipping Zones</h2>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="font-serif text-2xl font-semibold">{t.shippingTitle}</h2>
+              <SaveButton tab="shipping" onClick={handleSaveZones} />
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {zones.map((z) => (
                 <div
                   key={z.id}
-                  className="rounded-2xl border border-white/10 bg-[#0d0a16] p-5 space-y-3"
+                  className="space-y-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5"
                 >
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-cyan-300" />
-                    <h3 className="text-sm font-semibold">{z.name}</h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-cyan-300" />
+                      <h3 className="text-sm font-semibold">{z.name}</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setZones((prev) =>
+                          prev.map((x) =>
+                            x.id === z.id ? { ...x, active: !x.active } : x
+                          )
+                        )
+                      }
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                        z.active
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : "bg-white/10 text-white/45"
+                      }`}
+                    >
+                      {z.active ? t.active : t.hidden}
+                    </button>
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs">
                     <label className="text-white/60">
-                      Fee (EGP)
+                      {t.fee}
                       <input
                         type="number"
                         value={z.fee}
@@ -684,11 +1033,11 @@ export function AdminPortalClient() {
                             )
                           )
                         }
-                        className="ml-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        className="mx-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
                       />
                     </label>
                     <label className="text-white/60">
-                      Free Above
+                      {t.freeAbove}
                       <input
                         type="number"
                         value={z.freeThreshold}
@@ -701,7 +1050,7 @@ export function AdminPortalClient() {
                             )
                           )
                         }
-                        className="ml-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
                       />
                     </label>
                   </div>
@@ -715,23 +1064,21 @@ export function AdminPortalClient() {
         {activeTab === "team" ? (
           <div className="space-y-8">
             <div>
-              <h2 className="font-serif text-2xl font-semibold">Owners &amp; Admin Team</h2>
-              <p className="mt-1 text-xs text-white/55">
-                Invite a new admin by email to generate a 48-hour single-use onboarding link.
-              </p>
+              <h2 className="font-serif text-2xl font-semibold">{t.teamTitle}</h2>
+              <p className="mt-1 text-xs text-white/55">{t.teamSub}</p>
             </div>
 
-            {/* Invite Form */}
             <form
               onSubmit={handleCreateInvite}
               className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5"
             >
-              <div className="flex-1 min-w-[220px]">
+              <div className="min-w-[220px] flex-1">
                 <label className="mb-1.5 block text-xs font-semibold text-white/70">
-                  Admin Email
+                  {t.adminEmail}
                 </label>
                 <input
                   type="email"
+                  dir="ltr"
                   required
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
@@ -742,7 +1089,7 @@ export function AdminPortalClient() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-white/70">
-                  Role
+                  {t.role}
                 </label>
                 <select
                   value={inviteRole}
@@ -759,15 +1106,14 @@ export function AdminPortalClient() {
                 className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-xs font-bold uppercase tracking-wider text-black hover:opacity-90"
               >
                 <UserPlus className="h-4 w-4" />
-                Generate 48h Invite Link
+                <span>{t.genInvite}</span>
               </button>
             </form>
 
-            {/* Generated Single-Use Links */}
             {invites.length > 0 ? (
               <div className="space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">
-                  Single-Use Invite Links (Valid 48 Hours)
+                  {t.inviteLinksTitle}
                 </h3>
                 {invites.map((inv) => {
                   const expired = new Date(inv.expiresAt).getTime() < Date.now();
@@ -777,20 +1123,22 @@ export function AdminPortalClient() {
                       className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-4"
                     >
                       <div>
-                        <p className="text-sm font-semibold">{inv.email}</p>
+                        <p className="text-sm font-semibold" dir="ltr">
+                          {inv.email}
+                        </p>
                         <p className="text-xs text-white/50">
-                          Role: {inv.role} • Expires:{" "}
+                          {t.role}: {inv.role} • {t.expires}:{" "}
                           {new Date(inv.expiresAt).toLocaleString()}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         {inv.usedAt ? (
                           <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
-                            Used
+                            {t.used}
                           </span>
                         ) : expired ? (
                           <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300">
-                            Expired
+                            {t.expired}
                           </span>
                         ) : (
                           <button
@@ -800,11 +1148,11 @@ export function AdminPortalClient() {
                           >
                             {copiedToken === inv.token ? (
                               <>
-                                <Check className="h-3.5 w-3.5" /> Copied Link
+                                <Check className="h-3.5 w-3.5" /> {t.copied}
                               </>
                             ) : (
                               <>
-                                <Copy className="h-3.5 w-3.5" /> Copy Invite Link
+                                <Copy className="h-3.5 w-3.5" /> {t.copyLink}
                               </>
                             )}
                           </button>
@@ -816,10 +1164,9 @@ export function AdminPortalClient() {
               </div>
             ) : null}
 
-            {/* Active Team List */}
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">
-                Active Accounts ({accounts.length})
+                {t.activeAccounts} ({accounts.length})
               </h3>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {accounts.map((acc) => (
@@ -831,7 +1178,7 @@ export function AdminPortalClient() {
                       <UserCheck className="h-5 w-5 text-white/70" />
                       <div>
                         <p className="text-sm font-semibold">{acc.name}</p>
-                        <p className="font-mono text-xs text-white/55">
+                        <p className="font-mono text-xs text-white/55" dir="ltr">
                           @{acc.username} • {acc.email}
                         </p>
                       </div>
@@ -846,14 +1193,12 @@ export function AdminPortalClient() {
           </div>
         ) : null}
 
-        {/* TAB: MY PROFILE (Set Username, Email, Password) */}
+        {/* TAB: MY PROFILE */}
         {activeTab === "profile" ? (
           <div className="max-w-xl space-y-5">
             <div>
-              <h2 className="font-serif text-2xl font-semibold">My Profile &amp; Username</h2>
-              <p className="mt-1 text-xs text-white/55">
-                Set a custom username so you can sign in with Username + Password without needing your email.
-              </p>
+              <h2 className="font-serif text-2xl font-semibold">{t.profileTitle}</h2>
+              <p className="mt-1 text-xs text-white/55">{t.profileSub}</p>
             </div>
 
             <form
@@ -861,7 +1206,7 @@ export function AdminPortalClient() {
               className="space-y-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6"
             >
               <div>
-                <label className="mb-1 block text-xs text-white/65">Display Name</label>
+                <label className="mb-1 block text-xs text-white/65">{t.displayName}</label>
                 <input
                   value={profileName}
                   onChange={(e) => setProfileName(e.target.value)}
@@ -872,9 +1217,10 @@ export function AdminPortalClient() {
 
               <div>
                 <label className="mb-1 block text-xs text-white/65">
-                  Username (Login without Email)
+                  {t.usernameLabel}
                 </label>
                 <input
+                  dir="ltr"
                   value={profileUsername}
                   onChange={(e) => setProfileUsername(e.target.value)}
                   required
@@ -884,9 +1230,10 @@ export function AdminPortalClient() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs text-white/65">Email</label>
+                <label className="mb-1 block text-xs text-white/65">{t.emailLabel}</label>
                 <input
                   type="email"
+                  dir="ltr"
                   value={profileEmail}
                   onChange={(e) => setProfileEmail(e.target.value)}
                   required
@@ -897,10 +1244,11 @@ export function AdminPortalClient() {
               <div>
                 <label className="mb-1 flex items-center gap-1.5 text-xs text-white/65">
                   <KeyRound className="h-3.5 w-3.5" />
-                  New Password (leave blank to keep current)
+                  <span>{t.newPasswordLabel}</span>
                 </label>
                 <input
                   type="password"
+                  dir="ltr"
                   value={profileNewPassword}
                   onChange={(e) => setProfileNewPassword(e.target.value)}
                   placeholder="Min 6 characters"
@@ -908,20 +1256,13 @@ export function AdminPortalClient() {
                 />
               </div>
 
-              <button
-                type="submit"
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-6 text-xs font-bold uppercase tracking-wider text-black hover:opacity-90"
-              >
-                {profileSaved ? (
-                  <>
-                    <Check className="h-4 w-4" /> Saved
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" /> Save Profile
-                  </>
-                )}
-              </button>
+              <SaveButton
+                tab="profile"
+                onClick={() => {
+                  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+                  handleSaveProfile(fakeEvent);
+                }}
+              />
             </form>
           </div>
         ) : null}
