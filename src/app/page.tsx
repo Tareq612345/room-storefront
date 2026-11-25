@@ -1,16 +1,13 @@
 /**
  * @file src/app/page.tsx
- * @purpose Storefront Homepage: Renders the sticky Morphing Star Header, 3-card Universe Showcase, Fresh Drops, and Signature Loadouts.
+ * @purpose Storefront Homepage: Renders the RM 4-point Star Header and Admin-configurable Homepage sections.
  */
 
+import { listFeaturedLoadouts } from "@modules/bundles";
+import { listFreshDrops } from "@modules/catalog";
+import { HomeSectionsClient } from "@modules/page-builder/components/HomeSectionsClient";
 import { getActiveStoreConfig } from "@modules/store-config";
-import {
-  listStoreUniverses,
-  UniverseShowcaseGrid,
-  UniverseStarHeader,
-} from "@modules/universes";
-import { FreshDropsSection, listFreshDrops } from "@modules/catalog";
-import { listFeaturedLoadouts, LoadoutsSection } from "@modules/bundles";
+import { listStoreUniverses, UniverseStarHeader } from "@modules/universes";
 
 export default async function HomePage() {
   const store = await getActiveStoreConfig();
@@ -23,17 +20,12 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* Signature RM 4-Point Star Header with flanking Universe Nodes */}
       <UniverseStarHeader universes={universes} />
-
-      {/* 3-Card Universe Showcase matching the Midnight-Crimson-Orchid Reference */}
-      <UniverseShowcaseGrid universes={universes} />
-
-      {/* Fresh Drops (New Arrivals) */}
-      <FreshDropsSection products={freshDrops} />
-
-      {/* Signature Loadouts (Room Bundles) */}
-      <LoadoutsSection loadouts={loadouts} />
+      <HomeSectionsClient
+        universes={universes}
+        freshDrops={freshDrops}
+        loadouts={loadouts}
+      />
     </div>
   );
 }

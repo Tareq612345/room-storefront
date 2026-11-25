@@ -1,6 +1,6 @@
 /**
  * @file src/modules/cart-checkout/components/MyRoomTriggerAndDrawer.tsx
- * @purpose My Room Floating Button & Drawer: Top-right glass pill button and slide-over bag drawer with quantity controls and subtotal.
+ * @purpose My Room Floating Button & Drawer synced with Admin-saved Cairo/New Cairo Shipping Zones and free shipping thresholds.
  */
 
 "use client";
@@ -11,6 +11,21 @@ import { Minus, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useRoomBagStore } from "../store";
+
+interface ShippingZoneOption {
+  id: string;
+  name: string;
+  fee: number;
+  freeThreshold: number;
+  active: boolean;
+}
+
+const DEFAULT_ZONES: ShippingZoneOption[] = [
+  { id: "z1", name: "New Cairo (5th Settlement / Rehab)", fee: 65, freeThreshold: 2500, active: true },
+  { id: "z2", name: "Nasr City & Heliopolis", fee: 60, freeThreshold: 2500, active: true },
+  { id: "z3", name: "Maadi & Zamalek", fee: 65, freeThreshold: 2500, active: true },
+  { id: "z4", name: "6th of October & Sheikh Zayed", fee: 85, freeThreshold: 3000, active: true },
+];
 
 export function MyRoomTriggerAndDrawer() {
   const pathname = usePathname();
@@ -25,9 +40,26 @@ export function MyRoomTriggerAndDrawer() {
   } = useRoomBagStore();
 
   const [mounted, setMounted] = useState(false);
+  const [zones, setZones] = useState<ShippingZoneOption[]>(DEFAULT_ZONES);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>("z1");
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+    try {
+      const raw = localStorage.getItem("room_admin_zones_v1");
+      if (raw) {
+        const parsed = (JSON.parse(raw) as ShippingZoneOption[]).filter(
+          (z) => z.active
+        );
+        if (parsed.length > 0) {
+          setZones(parsed);
+          setSelectedZoneId(parsed[0]?.id ?? "z1");
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, [isOpen]);
 
   if (pathname?.includes("/schema") || pathname?.includes("/admin")) {
     return null;
@@ -39,6 +71,16 @@ export function MyRoomTriggerAndDrawer() {
   const subtotal = mounted
     ? items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
     : 0;
+
+  const activeZone =
+    zones.find((z) => z.id === selectedZoneId) ?? zones[0] ?? DEFAULT_ZONES[0];
+  const shippingFee =
+    subtotal === 0
+      ? 0
+      : activeZone && subtotal >= activeZone.freeThreshold
+        ? 0
+        : activeZone?.fee ?? 65;
+  const total = subtotal + shippingFee;
 
   return (
     <>
@@ -108,7 +150,7 @@ export function MyRoomTriggerAndDrawer() {
                         <img
                           src={getAssetPath(item.imageUrl)}
                           alt={item.title}
-                          className="h-16 w-16 shrink-0 rounded-xl object-cover border border-white/10"
+                          className="h-16 w-16 shrink-0 rounded-xl border border-white/10 object-cover"
                         />
                       ) : (
                         <div
@@ -119,7 +161,7 @@ export function MyRoomTriggerAndDrawer() {
                         />
                       )}
 
-                      <div className="flex flex-1 flex-col justify-between min-w-0">
+                      <div className="flex min-w-0 flex-1 flex-col justify-between">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <h3 className="truncate text-sm font-semibold text-white">
@@ -166,18 +208,42 @@ export function MyRoomTriggerAndDrawer() {
             </div>
 
             {items.length > 0 ? (
-              <div className="border-t border-[var(--color-border-subtle)] bg-black/50 p-6">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--color-text-secondary)]">Subtotal</span>
-                  <span className="text-lg font-bold text-white">
-                    {formatEgp(subtotal)}
-                  </span>
+              <div className="space-y-3 border-t border-[var(--color-border-subtle)] bg-black/50 p-6">
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-white/60">
+                    Cairo / New Cairo Zone
+                  </label>
+                  <select
+                    value={selectedZoneId}
+                    onChange={(e) => setSelectedZoneId(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/70 px-3 text-xs text-white"
+                  >
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.name} — {formatEgp(z.fee)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
-                  Cairo &amp; New Cairo Express Delivery calculated at checkout
-                </p>
 
-                <div className="mt-4 flex gap-2.5">
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between text-[var(--color-text-secondary)]">
+                    <span>Subtotal</span>
+                    <span>{formatEgp(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-[var(--color-text-secondary)]">
+                    <span>Shipping</span>
+                    <span>
+                      {shippingFee === 0 ? "FREE" : formatEgp(shippingFee)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-1 text-sm font-bold text-white">
+                    <span>Total</span>
+                    <span>{formatEgp(total)}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-1">
                   <button
                     type="button"
                     onClick={clearBag}
