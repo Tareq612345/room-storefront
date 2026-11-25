@@ -773,15 +773,22 @@ export function AdminPortalClient() {
     setBgElevated(preset.bgElevated);
     setDefaultAccent(preset.defaultAccent);
 
-    const nextUnivs = universes.map((u) => ({
-      ...u,
-      accentColor: preset.universeColors[u.slug] ?? u.accentColor,
-    }));
+    const nextUnivs = preset.isDefault
+      ? INITIAL_UNIVERSES.map((def) => ({ ...def }))
+      : universes.map((u) => ({
+          ...u,
+          accentColor: preset.universeColors[u.slug] ?? u.accentColor,
+        }));
+
+    if (preset.isDefault) {
+      setStoreName("ROOM");
+    }
     setUniverses(nextUnivs);
 
     try {
       await Promise.all([
         sbPatch("store_configs", "slug=eq.room-egypt", {
+          ...(preset.isDefault ? { name: "ROOM" } : {}),
           defaultAccentColor: preset.defaultAccent,
           themeTokens: {
             bgPrimary: preset.bgPrimary,
@@ -794,6 +801,14 @@ export function AdminPortalClient() {
         }),
         ...nextUnivs.map((u) =>
           sbPatch("universes", `slug=eq.${encodeURIComponent(u.slug)}`, {
+            ...(preset.isDefault
+              ? {
+                  name: u.name,
+                  tagline: u.tagline,
+                  description: u.description,
+                  isActive: u.isActive,
+                }
+              : {}),
             accentColor: u.accentColor,
             updatedAt: new Date().toISOString(),
           })
