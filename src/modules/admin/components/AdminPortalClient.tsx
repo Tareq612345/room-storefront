@@ -5,7 +5,12 @@
 
 "use client";
 
-import { sbPatch, sbSelect } from "@shared/db/supabase-rest";
+import { sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
+import {
+  generateClientId,
+  hashPasswordWeb,
+  verifyPasswordWeb,
+} from "@shared/utils/client-auth";
 import {
   ArrowDown,
   ArrowUp,
@@ -49,7 +54,7 @@ interface LocalAdminAccount {
   username: string;
   name: string;
   role: "OWNER" | "ADMIN" | "STAFF";
-  password: string;
+  passwordHash: string;
 }
 
 interface LocalInvite {
@@ -68,7 +73,7 @@ const INITIAL_OWNERS: LocalAdminAccount[] = [
     username: "tareq",
     name: "Tareq (Owner)",
     role: "OWNER",
-    password: "RoomOwner#2026",
+    passwordHash: "",
   },
   {
     id: "owner_adegddn",
@@ -76,7 +81,7 @@ const INITIAL_OWNERS: LocalAdminAccount[] = [
     username: "adegddn",
     name: "Partner (Owner)",
     role: "OWNER",
-    password: "RoomOwner#2026",
+    passwordHash: "",
   },
 ];
 
@@ -268,6 +273,7 @@ export function AdminPortalClient() {
   const [lang, setLang] = useState<Lang>("ar");
   const t = I18N[lang];
 
+  const [storeId, setStoreId] = useState<string>("store_room_egypt");
   const [accounts, setAccounts] = useState<LocalAdminAccount[]>(INITIAL_OWNERS);
   const [invites, setInvites] = useState<LocalInvite[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -299,49 +305,53 @@ export function AdminPortalClient() {
 
   useEffect(() => {
     try {
-      const savedAccounts = localStorage.getItem(KEYS.accounts);
-      if (savedAccounts) setAccounts(JSON.parse(savedAccounts) as LocalAdminAccount[]);
-      else localStorage.setItem(KEYS.accounts, JSON.stringify(INITIAL_OWNERS));
-
-      const savedInvites = localStorage.getItem(KEYS.invites);
-      if (savedInvites) setInvites(JSON.parse(savedInvites) as LocalInvite[]);
-
       const savedSession = localStorage.getItem(KEYS.session);
       if (savedSession) setCurrentUserId(savedSession);
-
-      const savedSec = localStorage.getItem(KEYS.sections);
-      if (savedSec) setSections(JSON.parse(savedSec) as typeof INITIAL_SECTIONS);
     } catch {
       // Ignore storage errors
     }
 
-    // Load live shared data from Supabase so both Owners see the same state
+    // Load 100% of Admin & Store state directly from Supabase PostgreSQL
     (async () => {
       try {
-        const [sbStores, sbUnivs, sbProds, sbVars, sbZones] = await Promise.all([
-          sbSelect<{ id: string; name: string; whatsappNumber: string | null; defaultAccentColor: string }>(
-            "store_configs",
-            "select=id,name,whatsappNumber,defaultAccentColor&slug=eq.room-egypt"
-          ),
-          sbSelect<{ id: string; slug: string; name: string; tagline: string | null; accentColor: string; isActive: boolean }>(
-            "universes",
-            "select=id,slug,name,tagline,accentColor,isActive&order=sortOrder.asc"
-          ),
-          sbSelect<{ id: string; slug: string; name: string; basePrice: number | string; isNewArrival: boolean }>(
-            "products",
-            "select=id,slug,name,basePrice,isNewArrival&order=createdAt.asc"
-          ),
-          sbSelect<{ id: string; productId: string; stock: number }>(
-            "product_variants",
-            "select=id,productId,stock"
-          ),
-          sbSelect<{ id: string; name: string; fee: number | string; freeShippingThreshold: number | string | null; estimatedDays: string; isActive: boolean }>(
-            "shipping_zones",
-            "select=id,name,fee,freeShippingThreshold,estimatedDays,isActive&order=sortOrder.asc"
-          ),
-        ]);
+        const [sbStores, sbUnivs, sbProds, sbVars, sbZones, sbUsers, sbInvites, sbSections] =
+          await Promise.all([
+            sbSelect<{ id: string; name: string; whatsappNumber: string | null; defaultAccentColor: string }>(
+              "store_configs",
+              "select=id,name,whatsappNumber,defaultAccentColor&slug=eq.room-egypt"
+            ),
+            sbSelect<{ id: string; slug: string; name: string; tagline: string | null; accentColor: string; isActive: boolean }>(
+              "universes",
+              "select=id,slug,name,tagline,accentColor,isActive&order=sortOrder.asc"
+            ),
+            sbSelect<{ id: string; slug: string; name: string; basePrice: number | string; isNewArrival: boolean }>(
+              "products",
+              "select=id,slug,name,basePrice,isNewArrival&order=createdAt.asc"
+            ),
+            sbSelect<{ id: string; productId: string; stock: number }>(
+              "product_variants",
+              "select=id,productId,stock"
+            ),
+            sbSelect<{ id: string; name: string; fee: number | string; freeShippingThreshold: number | string | null; estimatedDays: string; isActive: boolean }>(
+              "shipping_zones",
+              "select=id,name,fee,freeShippingThreshold,estimatedDays,isActive&order=sortOrder.asc"
+            ),
+            sbSelect<{ id: string; email: string | null; username: string | null; name: string; role: "OWNER" | "ADMIN" | "STAFF"; passwordHash: string | null }>(
+              "users",
+              "select=id,email,username,name,role,passwordHash&role=in.(OWNER,ADMIN,STAFF)&order=createdAt.asc"
+            ),
+            sbSelect<LocalInvite>(
+              "admin_invites",
+              "select=id,email,role,token,expiresAt,usedAt&order=createdAt.desc"
+            ),
+            sbSelect<{ id: string; type: string; title: string | null; isVisible: boolean; sortOrder: number }>(
+              "page_sections",
+              "select=id,type,title,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
+            ),
+          ]);
 
         if (sbStores[0]) {
+          setStoreId(sbStores[0].id);
           setStoreName(sbStores[0].name);
           if (sbStores[0].whatsappNumber) setWhatsapp(sbStores[0].whatsappNumber);
           setDefaultAccent(sbStores[0].defaultAccentColor);
@@ -393,6 +403,34 @@ export function AdminPortalClient() {
             }))
           );
         }
+
+        if (sbUsers.length > 0) {
+          setAccounts(
+            sbUsers.map((u) => ({
+              id: u.id,
+              email: u.email ?? "",
+              username: u.username ?? "",
+              name: u.name,
+              role: u.role,
+              passwordHash: u.passwordHash ?? "",
+            }))
+          );
+        }
+
+        if (sbInvites.length > 0) {
+          setInvites(sbInvites);
+        }
+
+        if (sbSections.length > 0) {
+          setSections(
+            sbSections.map((s) => ({
+              id: s.id,
+              type: s.type,
+              title: s.title ?? s.type,
+              visible: s.isVisible,
+            }))
+          );
+        }
       } catch {
         // Fallback to initial defaults
       }
@@ -415,10 +453,6 @@ export function AdminPortalClient() {
   };
 
   const handleSaveStore = async () => {
-    localStorage.setItem(
-      KEYS.store,
-      JSON.stringify({ storeName, whatsapp, defaultAccent })
-    );
     try {
       await sbPatch("store_configs", "slug=eq.room-egypt", {
         name: storeName,
@@ -432,7 +466,6 @@ export function AdminPortalClient() {
   };
 
   const handleSaveUniverses = async () => {
-    localStorage.setItem(KEYS.universes, JSON.stringify(universes));
     try {
       await Promise.all(
         universes.map((u) =>
@@ -451,7 +484,6 @@ export function AdminPortalClient() {
   };
 
   const handleSaveCatalog = async () => {
-    localStorage.setItem(KEYS.products, JSON.stringify(products));
     try {
       await Promise.all(
         products.map(async (p) => {
@@ -471,13 +503,46 @@ export function AdminPortalClient() {
     markSaved("catalog");
   };
 
-  const handleSaveSections = () => {
-    localStorage.setItem(KEYS.sections, JSON.stringify(sections));
+  const handleSaveSections = async () => {
+    try {
+      const existing = await sbSelect<{ id: string }>(
+        "page_sections",
+        `select=id&storeId=eq.${encodeURIComponent(storeId)}&pageKey=eq.home`
+      );
+      const nowIso = new Date().toISOString();
+      if (existing.length === 0) {
+        await Promise.all(
+          sections.map((s, idx) =>
+            sbInsert("page_sections", {
+              id: generateClientId("sec"),
+              storeId,
+              pageKey: "home",
+              type: s.type,
+              title: s.title,
+              sortOrder: idx + 1,
+              isVisible: s.visible,
+              updatedAt: nowIso,
+            })
+          )
+        );
+      } else {
+        await Promise.all(
+          sections.map((s, idx) =>
+            sbPatch("page_sections", `id=eq.${encodeURIComponent(s.id)}`, {
+              isVisible: s.visible,
+              sortOrder: idx + 1,
+              updatedAt: nowIso,
+            })
+          )
+        );
+      }
+    } catch {
+      // Ignore network errors
+    }
     markSaved("sections");
   };
 
   const handleSaveZones = async () => {
-    localStorage.setItem(KEYS.zones, JSON.stringify(zones));
     try {
       await Promise.all(
         zones.map((z) =>
@@ -504,18 +569,23 @@ export function AdminPortalClient() {
     setSections(copy);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
     const idClean = identifier.trim().toLowerCase();
     const found = accounts.find(
       (a) =>
-        (a.email.toLowerCase() === idClean ||
-          a.username.toLowerCase() === idClean) &&
-        a.password === password
+        a.email.toLowerCase() === idClean ||
+        a.username.toLowerCase() === idClean
     );
 
     if (!found) {
+      setLoginError(t.loginErr);
+      return;
+    }
+
+    const ok = await verifyPasswordWeb(password, found.passwordHash);
+    if (!ok) {
       setLoginError(t.loginErr);
       return;
     }
@@ -530,7 +600,7 @@ export function AdminPortalClient() {
     localStorage.removeItem(KEYS.session);
   };
 
-  const handleCreateInvite = (e: React.FormEvent) => {
+  const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
 
@@ -539,7 +609,7 @@ export function AdminPortalClient() {
       .join("");
 
     const newInvite: LocalInvite = {
-      id: `inv_${Date.now()}`,
+      id: generateClientId("inv"),
       email: inviteEmail.trim().toLowerCase(),
       role: inviteRole,
       token,
@@ -547,9 +617,21 @@ export function AdminPortalClient() {
       usedAt: null,
     };
 
-    const next = [newInvite, ...invites];
-    setInvites(next);
-    localStorage.setItem(KEYS.invites, JSON.stringify(next));
+    try {
+      await sbInsert("admin_invites", {
+        id: newInvite.id,
+        storeId,
+        email: newInvite.email,
+        role: newInvite.role,
+        token: newInvite.token,
+        invitedById: currentUser?.id ?? null,
+        expiresAt: newInvite.expiresAt,
+      });
+    } catch {
+      // Ignore network errors
+    }
+
+    setInvites((prev) => [newInvite, ...prev]);
     setInviteEmail("");
   };
 
@@ -565,27 +647,45 @@ export function AdminPortalClient() {
     setTimeout(() => setCopiedToken(null), 1800);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
 
-    const updated = accounts.map((acc) =>
-      acc.id === currentUser.id
-        ? {
-            ...acc,
-            name: profileName.trim() || acc.name,
-            username: profileUsername.trim() || acc.username,
-            email: profileEmail.trim().toLowerCase() || acc.email,
-            password:
-              profileNewPassword.trim().length >= 6
-                ? profileNewPassword.trim()
-                : acc.password,
-          }
-        : acc
-    );
+    const nextName = profileName.trim() || currentUser.name;
+    const nextUsername = profileUsername.trim() || currentUser.username;
+    const nextEmail = profileEmail.trim().toLowerCase() || currentUser.email;
+    const nextHash =
+      profileNewPassword.trim().length >= 6
+        ? await hashPasswordWeb(profileNewPassword.trim())
+        : currentUser.passwordHash;
 
-    setAccounts(updated);
-    localStorage.setItem(KEYS.accounts, JSON.stringify(updated));
+    try {
+      await sbPatch("users", `id=eq.${encodeURIComponent(currentUser.id)}`, {
+        name: nextName,
+        username: nextUsername,
+        email: nextEmail,
+        ...(profileNewPassword.trim().length >= 6
+          ? { passwordHash: nextHash }
+          : {}),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {
+      // Ignore network errors
+    }
+
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === currentUser.id
+          ? {
+              ...acc,
+              name: nextName,
+              username: nextUsername,
+              email: nextEmail,
+              passwordHash: nextHash,
+            }
+          : acc
+      )
+    );
     setProfileNewPassword("");
     markSaved("profile");
   };

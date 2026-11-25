@@ -1,6 +1,6 @@
 /**
  * @file src/modules/page-builder/components/HomeSectionsClient.tsx
- * @purpose Dynamically renders and reorders Homepage sections based on Admin Home Builder settings saved in localStorage.
+ * @purpose Dynamically renders and reorders Homepage sections synced live from Supabase page_sections table.
  */
 
 "use client";
@@ -11,6 +11,7 @@ import type { ProductSummaryDTO } from "@modules/catalog";
 import { FreshDropsSection } from "@modules/catalog";
 import type { UniverseDTO } from "@modules/universes";
 import { UniverseShowcaseGrid } from "@modules/universes";
+import { sbSelect } from "@shared/db/supabase-rest";
 import { useEffect, useState } from "react";
 
 interface HomeSectionsClientProps {
@@ -42,16 +43,36 @@ export function HomeSectionsClient({
   );
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("room_admin_sections_v1");
-      if (!raw) return;
-      const saved = JSON.parse(raw) as AdminSectionConfig[];
-      if (Array.isArray(saved) && saved.length > 0) {
-        setSections(saved);
+    let active = true;
+    (async () => {
+      try {
+        const rows = await sbSelect<{
+          id: string;
+          type: string;
+          title: string | null;
+          isVisible: boolean;
+          sortOrder: number;
+        }>(
+          "page_sections",
+          "select=id,type,title,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
+        );
+        if (!active || rows.length === 0) return;
+
+        setSections(
+          rows.map((r) => ({
+            id: r.id,
+            type: r.type,
+            title: r.title ?? r.type,
+            visible: r.isVisible,
+          }))
+        );
+      } catch {
+        // Keep default order
       }
-    } catch {
-      // Ignore storage errors
-    }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
