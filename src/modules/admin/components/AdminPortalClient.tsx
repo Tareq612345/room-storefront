@@ -22,6 +22,7 @@ import {
   Copy,
   Database,
   ExternalLink,
+  Info,
   KeyRound,
   Languages,
   LayoutDashboard,
@@ -392,6 +393,7 @@ export function AdminPortalClient() {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [savedSection, setSavedSection] = useState<AdminTab | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [openHintId, setOpenHintId] = useState<string | null>(null);
 
   // Store & Theme state
   const [storeName, setStoreName] = useState("ROOM");
@@ -1338,6 +1340,73 @@ export function AdminPortalClient() {
     { id: "profile", label: t.tabs.profile, icon: <Settings className="h-4 w-4" /> },
   ];
 
+  const InfoHint = ({
+    id,
+    ar,
+    en,
+  }: {
+    id: string;
+    ar: string;
+    en: string;
+  }) => {
+    const isOpen = openHintId === id;
+    return (
+      <span className="relative inline-flex items-center align-middle">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpenHintId((prev) => (prev === id ? null : id));
+          }}
+          className={`mx-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] transition-colors ${
+            isOpen
+              ? "border-cyan-400 bg-cyan-500/25 text-cyan-200"
+              : "border-white/25 bg-white/5 text-white/60 hover:border-cyan-400/60 hover:text-cyan-200"
+          }`}
+          aria-label="Info"
+        >
+          <Info className="h-2.5 w-2.5" />
+        </button>
+        {isOpen ? (
+          <span className="absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-xl border border-cyan-400/35 bg-[#090714] p-2.5 text-[11px] font-normal leading-relaxed text-white/90 shadow-2xl">
+            {lang === "ar" ? ar : en}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
+  const TabGuideBanner = ({
+    arPoints,
+    enPoints,
+  }: {
+    arPoints: string[];
+    enPoints: string[];
+  }) => {
+    const points = lang === "ar" ? arPoints : enPoints;
+    return (
+      <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.04] p-5">
+        <div className="flex items-center gap-2 text-xs font-bold text-cyan-200">
+          <Info className="h-4 w-4" />
+          <span>
+            {lang === "ar"
+              ? "تعليمات: أين تنعكس تعديلات هذا القسم في الموقع؟"
+              : "Guide: Where do changes in this tab apply?"}
+          </span>
+        </div>
+        <ul className="mt-2.5 space-y-1.5 text-xs text-white/70">
+          {points.map((pt, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400" />
+              <span>{pt}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   const SaveButton = ({
     tab,
     onClick,
@@ -1564,7 +1633,14 @@ export function AdminPortalClient() {
                 <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-400" />
-                    <h2 className="font-serif text-lg font-semibold">{t.vaultedAlerts}</h2>
+                    <h2 className="font-serif text-lg font-semibold">
+                      {t.vaultedAlerts}
+                      <InfoHint
+                        id="overview-restock"
+                        ar="أي منتج مخزونه 5 قطع أو أقل يظهر هنا. الضغط على +10 يزيد المخزون في Supabase فوراً ويزيل علامة Vaulted من المتجر."
+                        en="Products with 5 or fewer units appear here. Clicking +10 updates Supabase stock immediately and removes the Vaulted badge."
+                      />
+                    </h2>
                   </div>
                   <div className="mt-4 space-y-2.5">
                     {lowStockProducts.length === 0 ? (
@@ -1594,6 +1670,19 @@ export function AdminPortalClient() {
                   </div>
                 </div>
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "نظرة عامة تعرض ملخصاً حياً لبيانات Supabase (الأقسام، المنتجات، الطلبات، الفريق).",
+                  "زر (+10 للمخزون) يرفع المخزون في قاعدة البيانات مباشرة ويعيد تفعيل المنتج على المتجر.",
+                  "أزرار الإجراءات السريعة تنقلك مباشرة لتعديل الثيمات أو إضافة منتج أو دعوة أدمن."
+                ]}
+                enPoints={[
+                  "Overview displays live KPIs fetched directly from Supabase.",
+                  "One-click (+10 Restock) updates Supabase inventory immediately and un-vaults sold-out products.",
+                  "Quick Actions jump directly to Themes, Add Product, Orders, or 48h Invites."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -1609,7 +1698,14 @@ export function AdminPortalClient() {
                 {/* Color & Identity Inputs */}
                 <div className="grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6 sm:grid-cols-2 lg:col-span-2">
                   <div>
-                    <label className="mb-1 block text-xs text-white/65">{t.storeName}</label>
+                    <label className="mb-1 block text-xs text-white/65">
+                      {t.storeName}
+                      <InfoHint
+                        id="store-name"
+                        ar="اسم البراند المحفوظ في جدول store_configs ويظهر في المتجر والهوية العامة."
+                        en="Brand name stored in store_configs across the storefront."
+                      />
+                    </label>
                     <input
                       value={storeName}
                       onChange={(e) => setStoreName(e.target.value)}
@@ -1617,7 +1713,14 @@ export function AdminPortalClient() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-white/65">{t.whatsapp}</label>
+                    <label className="mb-1 block text-xs text-white/65">
+                      {t.whatsapp}
+                      <InfoHint
+                        id="store-wa"
+                        ar="رقم واتساب المتجر المستخدم في إشعارات الطلبات والتواصل المباشر مع العملاء."
+                        en="Store WhatsApp number used for order confirmations and customer support."
+                      />
+                    </label>
                     <input
                       dir="ltr"
                       value={whatsapp}
@@ -1626,13 +1729,40 @@ export function AdminPortalClient() {
                     />
                   </div>
                   {[
-                    { label: t.homeAccent, val: defaultAccent, set: setDefaultAccent },
-                    { label: t.bgPrimary, val: bgPrimary, set: setBgPrimary },
-                    { label: t.bgSecondary, val: bgSecondary, set: setBgSecondary },
-                    { label: t.bgElevated, val: bgElevated, set: setBgElevated },
+                    {
+                      label: t.homeAccent,
+                      val: defaultAccent,
+                      set: setDefaultAccent,
+                      ar: "يغيّر لون النصوص التمييزية (New Arrivals / Room Bundles) ولون نجمة MY ROOM في الصفحة الرئيسية فقط.",
+                      en: "Changes accent text (New Arrivals / Room Bundles) and the MY ROOM star icon on the Home page.",
+                    },
+                    {
+                      label: t.bgPrimary,
+                      val: bgPrimary,
+                      set: setBgPrimary,
+                      ar: "يتحكم في لون أعلى خلفية الموقع بالكامل (أول تدرج في الخلفية).",
+                      en: "Controls the top background color of the entire site canvas.",
+                    },
+                    {
+                      label: t.bgSecondary,
+                      val: bgSecondary,
+                      set: setBgSecondary,
+                      ar: "يتحكم في لون منتصف خلفية الموقع بالكامل.",
+                      en: "Controls the middle gradient stop of the site canvas.",
+                    },
+                    {
+                      label: t.bgElevated,
+                      val: bgElevated,
+                      set: setBgElevated,
+                      ar: "يتحكم في لون أسفل خلفية الموقع بالكامل.",
+                      en: "Controls the bottom gradient stop of the site canvas.",
+                    },
                   ].map((c) => (
                     <div key={c.label}>
-                      <label className="mb-1 block text-xs text-white/65">{c.label}</label>
+                      <label className="mb-1 block text-xs text-white/65">
+                        {c.label}
+                        <InfoHint id={`color-${c.label}`} ar={c.ar} en={c.en} />
+                      </label>
                       <div className="flex items-center gap-3">
                         <input
                           type="color"
@@ -1691,7 +1821,14 @@ export function AdminPortalClient() {
               {/* Event Theme Presets */}
               <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="font-serif text-lg font-semibold">{t.presetsTitle}</h3>
+                  <h3 className="font-serif text-lg font-semibold">
+                    {t.presetsTitle}
+                    <InfoHint
+                      id="presets-info"
+                      ar="احفظ ألوان الإيفنت (مثل رمضان أو البلاك فرايداي) في Supabase لتبديل ثيم الموقع بالكامل بضغطة واحدة، ويمكنك استرجاع ثيم ROOM الأساسي في أي وقت."
+                      en="Save full event palettes to Supabase and switch the entire site theme in 1 click, or restore ROOM Default anytime."
+                    />
+                  </h3>
                   <button
                     type="button"
                     onClick={() => void handleApplyPreset(ROOM_DEFAULT_PRESET)}
@@ -1753,6 +1890,19 @@ export function AdminPortalClient() {
                   ))}
                 </div>
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "ألوان الخلفية (علوي / أوسط / سفلي) تغيّر تدرج خلفية الموقع بالكامل فوراً عند الحفظ.",
+                  "لون الرئيسية يغيّر لون النصوص التمييزية ونجمة MY ROOM في الصفحة الرئيسية فقط.",
+                  "قوالب الإيفنتات تحفظ الخلفية + ألوان الأقسام الثلاثة معاً في Supabase، وزر (استرجاع ثيم ROOM الأساسي) يعيد كل الألوان الأصلية."
+                ]}
+                enPoints={[
+                  "Canvas colors (Top / Mid / Bottom) update the full site background gradient immediately on save.",
+                  "Home Accent changes the highlight text and MY ROOM star icon on the Home page only.",
+                  "Event Theme Presets save both the canvas and all 3 Universe colors in Supabase; Restore Default resets back to ROOM's original palette."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -1760,7 +1910,14 @@ export function AdminPortalClient() {
           {activeTab === "universes" ? (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">{t.universesTitle}</h2>
+                <h2 className="font-serif text-2xl font-semibold">
+                  {t.universesTitle}
+                  <InfoHint
+                    id="univ-header"
+                    ar="كل قسم له لون خاص ينعكس على بطاقته في الرئيسية، وعلى صفحة القسم، وعلى منتجاته، وعلى نجمة MY ROOM عند الدخول إليه."
+                    en="Each Universe has its own accent color applied to its Home card, Universe page, products, and the MY ROOM star icon."
+                  />
+                </h2>
                 <SaveButton tab="universes" onClick={() => void handleSaveUniverses()} />
               </div>
               <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -1845,6 +2002,19 @@ export function AdminPortalClient() {
                   </div>
                 ))}
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "لون القسم يغيّر تدرج البطاقة في الرئيسية، وخلفية رأس صفحة القسم، وشارات المنتجات، ولون نجمة MY ROOM عند دخول القسم.",
+                  "الاسم والسطر التعريفي يظهران داخل الكبسولة الزجاجية أسفل بطاقة القسم في الرئيسية.",
+                  "زر (مفعل / مخفي) يتحكم في ظهور القسم أو إخفائه من الصفحة الرئيسية."
+                ]}
+                enPoints={[
+                  "Universe Color updates the Home card gradient, Universe detail banner, product badges, and MY ROOM star icon inside that Universe.",
+                  "Name and Tagline appear inside the frosted pill on the Home Universe card.",
+                  "Active/Hidden toggles whether the Universe appears on the Storefront."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -1852,7 +2022,14 @@ export function AdminPortalClient() {
           {activeTab === "catalog" ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">{t.catalogTitle}</h2>
+                <h2 className="font-serif text-2xl font-semibold">
+                  {t.catalogTitle}
+                  <InfoHint
+                    id="cat-header"
+                    ar="أي منتج تضيفه أو تعدل سعره/مخزونه هنا يُحفظ في Supabase ويظهر في قسم Fresh Drops وصفحة القسم التابع له."
+                    en="Products added or edited here sync to Supabase and appear in Fresh Drops and their Universe page."
+                  />
+                </h2>
                 <SaveButton tab="catalog" onClick={() => void handleSaveCatalog()} />
               </div>
 
@@ -2029,6 +2206,19 @@ export function AdminPortalClient() {
                   </div>
                 ))}
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "نموذج إضافة المنتج ينشئ المنتج مع النسخة الافتراضية والمخزون في جدول products و product_variants مباشرة.",
+                  "تعديل السعر أو الوصف (سطر واحد) ينعكس فوراً في كروت المنتجات وصفحة القسم.",
+                  "تصفير المخزون (0) يحوّل حالة المنتج تلقائياً إلى Vaulted (نفد المخزون) ويعطل زر Claim Yours."
+                ]}
+                enPoints={[
+                  "Add Product inserts both the product and its default variant/stock into Supabase.",
+                  "Editing price or 1-line subtitle updates Fresh Drops and Universe product cards.",
+                  "Setting stock to 0 automatically marks the product as Vaulted and disables Claim Yours."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -2106,6 +2296,17 @@ export function AdminPortalClient() {
                   </div>
                 ))}
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "الباقات (Loadouts) تظهر في قسم Signature Loadouts أسفل الصفحة الرئيسية.",
+                  "تعديل السعر أو الوصف أو إخفاء الباقة ينعكس مباشرة على المتجر وسلة MY ROOM."
+                ]}
+                enPoints={[
+                  "Loadouts appear in the Signature Loadouts section on the Homepage.",
+                  "Editing price, tagline, or visibility updates the Storefront and My Room bag."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -2171,6 +2372,17 @@ export function AdminPortalClient() {
                   })}
                 </div>
               )}
+
+              <TabGuideBanner
+                arPoints={[
+                  "تغيير حالة الطلب (PENDING / CONFIRMED / PACKING / OUT_FOR_DELIVERY / DELIVERED) يُحفظ فوراً في جدول orders بـ Supabase.",
+                  "زر (تحديث واتساب) يفتح محادثة واتساب مع العميل برسالة جاهزة تحتوي على رقم الطلب والإجمالي والحالة."
+                ]}
+                enPoints={[
+                  "Changing order status updates the orders table in Supabase immediately.",
+                  "WhatsApp Update opens a pre-filled WhatsApp message to the customer with order number, total, and status."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -2231,6 +2443,17 @@ export function AdminPortalClient() {
                   </div>
                 ))}
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "الأسهم (أعلى / أسفل) تغيّر ترتيب ظهور الأقسام في الصفحة الرئيسية.",
+                  "زر (ظاهر / مخفي) يتحكم في إظهار أو إخفاء أي قسم بالكامل من الرئيسية ويُحفظ في جدول page_sections."
+                ]}
+                enPoints={[
+                  "Up/Down arrows reorder sections on the Storefront Homepage.",
+                  "Visible/Hidden toggles section visibility in Supabase page_sections."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -2340,6 +2563,17 @@ export function AdminPortalClient() {
                   </div>
                 ))}
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "مناطق الشحن المفعّلة تظهر للعملاء داخل سلة MY ROOM لحساب تكلفة التوصيل في القاهرة والقاهرة الجديدة.",
+                  "إذا وصل إجمالي طلب العميل إلى رقم (مجاني فوق) يصبح الشحن مجانياً (FREE) تلقائياً."
+                ]}
+                enPoints={[
+                  "Active Cairo/New Cairo zones appear inside the My Room bag drawer for live shipping calculation.",
+                  "Orders reaching the Free Above threshold automatically receive FREE shipping."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -2473,6 +2707,17 @@ export function AdminPortalClient() {
                   ))}
                 </div>
               </div>
+
+              <TabGuideBanner
+                arPoints={[
+                  "رابط الدعوة صالح لمدة 48 ساعة فقط ويُستخدم مرة واحدة: بمجرد أن يسجل الأدمن الجديد اسمه وباسورده يتعطل الرابط تلقائياً.",
+                  "جميع حسابات الـ Owners والأدمن محفوظة في جدول users وروابط الدعوة في admin_invites على Supabase."
+                ]}
+                enPoints={[
+                  "Invite links expire after 48 hours and are strictly single-use: once redeemed, the token is marked used.",
+                  "All Owner/Admin accounts and invites are stored in Supabase users & admin_invites tables."
+                ]}
+              />
             </div>
           ) : null}
 
@@ -2547,6 +2792,17 @@ export function AdminPortalClient() {
                   }}
                 />
               </form>
+
+              <TabGuideBanner
+                arPoints={[
+                  "تعديل اسم المستخدم (Username) يتيح لك تسجيل الدخول للوحة التحكم باستخدامه مع كلمة المرور بدون كتابة الإيميل.",
+                  "تعديل كلمة المرور يشفرها فوراً ويحفظها في جدول users على Supabase."
+                ]}
+                enPoints={[
+                  "Updating your Username lets you sign in to Admin with Username + Password without needing your email.",
+                  "Updating your password hashes and stores it securely in Supabase users."
+                ]}
+              />
             </div>
           ) : null}
         </div>
