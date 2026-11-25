@@ -5,6 +5,7 @@
 
 "use client";
 
+import { sbPatch, sbSelect } from "@shared/db/supabase-rest";
 import {
   ArrowDown,
   ArrowUp,
@@ -308,32 +309,94 @@ export function AdminPortalClient() {
       const savedSession = localStorage.getItem(KEYS.session);
       if (savedSession) setCurrentUserId(savedSession);
 
-      const savedStore = localStorage.getItem(KEYS.store);
-      if (savedStore) {
-        const parsed = JSON.parse(savedStore) as {
-          storeName: string;
-          whatsapp: string;
-          defaultAccent: string;
-        };
-        setStoreName(parsed.storeName);
-        setWhatsapp(parsed.whatsapp);
-        setDefaultAccent(parsed.defaultAccent);
-      }
-
-      const savedUniv = localStorage.getItem(KEYS.universes);
-      if (savedUniv) setUniverses(JSON.parse(savedUniv) as typeof INITIAL_UNIVERSES);
-
-      const savedProd = localStorage.getItem(KEYS.products);
-      if (savedProd) setProducts(JSON.parse(savedProd) as typeof INITIAL_PRODUCTS);
-
       const savedSec = localStorage.getItem(KEYS.sections);
       if (savedSec) setSections(JSON.parse(savedSec) as typeof INITIAL_SECTIONS);
-
-      const savedZones = localStorage.getItem(KEYS.zones);
-      if (savedZones) setZones(JSON.parse(savedZones) as typeof INITIAL_ZONES);
     } catch {
       // Ignore storage errors
     }
+
+    // Load live shared data from Supabase so both Owners see the same state
+    (async () => {
+      try {
+        const [sbStores, sbUnivs, sbProds, sbVars, sbZones] = await Promise.all([
+          sbSelect<{ id: string; name: string; whatsappNumber: string | null; defaultAccentColor: string }>(
+            "store_configs",
+            "select=id,name,whatsappNumber,defaultAccentColor&slug=eq.room-egypt"
+          ),
+          sbSelect<{ id: string; slug: string; name: string; tagline: string | null; accentColor: string; isActive: boolean }>(
+            "universes",
+            "select=id,slug,name,tagline,accentColor,isActive&order=sortOrder.asc"
+          ),
+          sbSelect<{ id: string; slug: string; name: string; basePrice: number | string; isNewArrival: boolean }>(
+            "products",
+            "select=id,slug,name,basePrice,isNewArrival&order=createdAt.asc"
+          ),
+          sbSelect<{ id: string; productId: string; stock: number }>(
+            "product_variants",
+            "select=id,productId,stock"
+          ),
+          sbSelect<{ id: string; name: string; fee: number | string; freeShippingThreshold: number | string | null; estimatedDays: string; isActive: boolean }>(
+            "shipping_zones",
+            "select=id,name,fee,freeShippingThreshold,estimatedDays,isActive&order=sortOrder.asc"
+          ),
+        ]);
+
+        if (sbStores[0]) {
+          setStoreName(sbStores[0].name);
+          if (sbStores[0].whatsappNumber) setWhatsapp(sbStores[0].whatsappNumber);
+          setDefaultAccent(sbStores[0].defaultAccentColor);
+        }
+
+        if (sbUnivs.length > 0) {
+          setUniverses(
+            sbUnivs.map((u) => ({
+              id: u.id,
+              slug: u.slug,
+              name: u.name,
+              tagline: u.tagline ?? "",
+              accentColor: u.accentColor,
+              isActive: u.isActive,
+            }))
+          );
+        }
+
+        if (sbProds.length > 0) {
+          setProducts(
+            sbProds.map((p) => {
+              const pVars = sbVars.filter((v) => v.productId === p.id);
+              const totalStock = pVars.reduce((sum, v) => sum + Number(v.stock), 0);
+              return {
+                id: p.id,
+                name: p.name,
+                universe: p.slug.includes("ranked")
+                  ? "gaming"
+                  : p.slug.includes("eclipse")
+                    ? "anime"
+                    : "cars",
+                price: Number(p.basePrice),
+                stock: totalStock,
+                isFreshDrop: p.isNewArrival,
+              };
+            })
+          );
+        }
+
+        if (sbZones.length > 0) {
+          setZones(
+            sbZones.map((z) => ({
+              id: z.id,
+              name: z.name,
+              fee: Number(z.fee),
+              freeThreshold: z.freeShippingThreshold ? Number(z.freeShippingThreshold) : 2500,
+              days: z.estimatedDays,
+              active: z.isActive,
+            }))
+          );
+        }
+      } catch {
+        // Fallback to initial defaults
+      }
+    })();
   }, []);
 
   const currentUser = accounts.find((a) => a.id === currentUserId) ?? null;
@@ -351,21 +414,60 @@ export function AdminPortalClient() {
     setTimeout(() => setSavedSection(null), 2000);
   };
 
-  const handleSaveStore = () => {
+  const handleSaveStore = async () => {
     localStorage.setItem(
       KEYS.store,
       JSON.stringify({ storeName, whatsapp, defaultAccent })
     );
+    try {
+      await sbPatch("store_configs", "slug=eq.room-egypt", {
+        name: storeName,
+        whatsappNumber: whatsapp,
+        defaultAccentColor: defaultAccent,
+      });
+    } catch {
+      // Ignore network errors
+    }
     markSaved("store");
   };
 
-  const handleSaveUniverses = () => {
+  const handleSaveUniverses = async () => {
     localStorage.setItem(KEYS.universes, JSON.stringify(universes));
+    try {
+      await Promise.all(
+        universes.map((u) =>
+          sbPatch("universes", `slug=eq.${encodeURIComponent(u.slug)}`, {
+            name: u.name,
+            tagline: u.tagline,
+            accentColor: u.accentColor,
+            isActive: u.isActive,
+          })
+        )
+      );
+    } catch {
+      // Ignore network errors
+    }
     markSaved("universes");
   };
 
-  const handleSaveCatalog = () => {
+  const handleSaveCatalog = async () => {
     localStorage.setItem(KEYS.products, JSON.stringify(products));
+    try {
+      await Promise.all(
+        products.map(async (p) => {
+          await sbPatch("products", `id=eq.${encodeURIComponent(p.id)}`, {
+            basePrice: p.price,
+          });
+          await sbPatch(
+            "product_variants",
+            `productId=eq.${encodeURIComponent(p.id)}&isDefault=eq.true`,
+            { stock: p.stock }
+          );
+        })
+      );
+    } catch {
+      // Ignore network errors
+    }
     markSaved("catalog");
   };
 
@@ -374,8 +476,21 @@ export function AdminPortalClient() {
     markSaved("sections");
   };
 
-  const handleSaveZones = () => {
+  const handleSaveZones = async () => {
     localStorage.setItem(KEYS.zones, JSON.stringify(zones));
+    try {
+      await Promise.all(
+        zones.map((z) =>
+          sbPatch("shipping_zones", `id=eq.${encodeURIComponent(z.id)}`, {
+            fee: z.fee,
+            freeShippingThreshold: z.freeThreshold,
+            isActive: z.active,
+          })
+        )
+      );
+    } catch {
+      // Ignore network errors
+    }
     markSaved("shipping");
   };
 

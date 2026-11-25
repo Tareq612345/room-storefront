@@ -1,10 +1,11 @@
 /**
  * @file src/modules/universes/components/UniverseShowcaseGrid.tsx
- * @purpose 3-card Universe showcase that syncs live with Admin-saved colors, names, taglines, and visibility from localStorage.
+ * @purpose 3-card Universe showcase synced live with Supabase PostgreSQL so Admin changes appear immediately for all users.
  */
 
 "use client";
 
+import { sbSelect } from "@shared/db/supabase-rest";
 import { getAssetPath } from "@shared/utils/asset-path";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -14,13 +15,14 @@ interface UniverseShowcaseGridProps {
   universes: UniverseDTO[];
 }
 
-interface AdminUniverseOverride {
+interface SbUniverseRow {
   id: string;
   slug: string;
   name: string;
-  tagline: string;
+  tagline: string | null;
   accentColor: string;
   isActive: boolean;
+  sortOrder: number;
 }
 
 function buildUniverseGradient(accentColor: string): string {
@@ -31,30 +33,37 @@ export function UniverseShowcaseGrid({ universes }: UniverseShowcaseGridProps) {
   const [items, setItems] = useState<UniverseDTO[]>(universes);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("room_admin_universes_v1");
-      if (!raw) return;
-      const overrides = JSON.parse(raw) as AdminUniverseOverride[];
-      setItems((prev) =>
-        prev
-          .map((u) => {
-            const match = overrides.find(
-              (o) => o.slug === u.slug || o.id === u.id
-            );
-            if (!match) return u;
-            return {
-              ...u,
-              name: match.name,
-              tagline: match.tagline,
-              accentColor: match.accentColor,
-              isActive: match.isActive,
-            };
-          })
-          .filter((u) => u.isActive)
-      );
-    } catch {
-      // Ignore storage errors
-    }
+    let active = true;
+    (async () => {
+      try {
+        const rows = await sbSelect<SbUniverseRow>(
+          "universes",
+          "select=id,slug,name,tagline,accentColor,isActive,sortOrder&order=sortOrder.asc"
+        );
+        if (!active || rows.length === 0) return;
+
+        setItems((prev) =>
+          prev
+            .map((u) => {
+              const match = rows.find((r) => r.slug === u.slug || r.id === u.id);
+              if (!match) return u;
+              return {
+                ...u,
+                name: match.name,
+                tagline: match.tagline,
+                accentColor: match.accentColor,
+                isActive: match.isActive,
+              };
+            })
+            .filter((u) => u.isActive)
+        );
+      } catch {
+        // Keep SSR props on offline/error
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (

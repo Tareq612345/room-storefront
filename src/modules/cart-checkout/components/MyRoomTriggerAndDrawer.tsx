@@ -5,6 +5,7 @@
 
 "use client";
 
+import { sbSelect } from "@shared/db/supabase-rest";
 import { formatEgp } from "@shared/types/common";
 import { getAssetPath } from "@shared/utils/asset-path";
 import { Minus, Plus, Sparkles, Trash2, X } from "lucide-react";
@@ -45,20 +46,40 @@ export function MyRoomTriggerAndDrawer() {
 
   useEffect(() => {
     setMounted(true);
-    try {
-      const raw = localStorage.getItem("room_admin_zones_v1");
-      if (raw) {
-        const parsed = (JSON.parse(raw) as ShippingZoneOption[]).filter(
-          (z) => z.active
+    let active = true;
+    (async () => {
+      try {
+        const rows = await sbSelect<{
+          id: string;
+          name: string;
+          fee: number | string;
+          freeShippingThreshold: number | string | null;
+          isActive: boolean;
+        }>(
+          "shipping_zones",
+          "select=id,name,fee,freeShippingThreshold,isActive&isActive=eq.true&order=sortOrder.asc"
         );
-        if (parsed.length > 0) {
-          setZones(parsed);
-          setSelectedZoneId(parsed[0]?.id ?? "z1");
-        }
+        if (!active || rows.length === 0) return;
+        const mapped: ShippingZoneOption[] = rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          fee: Number(r.fee),
+          freeThreshold: r.freeShippingThreshold
+            ? Number(r.freeShippingThreshold)
+            : 2500,
+          active: r.isActive,
+        }));
+        setZones(mapped);
+        setSelectedZoneId((prev) =>
+          mapped.some((z) => z.id === prev) ? prev : mapped[0]?.id ?? "z1"
+        );
+      } catch {
+        // Fallback to defaults
       }
-    } catch {
-      // Ignore storage errors
-    }
+    })();
+    return () => {
+      active = false;
+    };
   }, [isOpen]);
 
   if (pathname?.includes("/schema") || pathname?.includes("/admin")) {

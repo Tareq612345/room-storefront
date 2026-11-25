@@ -1,16 +1,17 @@
 /**
  * @file src/app/universes/[slug]/page.tsx
- * @purpose Universe Detail Page: Dynamic static-exported route (/universes/cars, /gaming, /anime) with Universe accent theme and filtered products.
+ * @purpose Universe Detail Page: Dynamic static-exported route (/universes/cars, /gaming, /anime) synced live with Supabase.
  */
 
-import { notFound } from "next/navigation";
+import { listProductsByUniverse } from "@modules/catalog";
 import { getActiveStoreConfig } from "@modules/store-config";
 import {
   getUniverseBySlug,
   listStoreUniverses,
   UniverseStarHeader,
 } from "@modules/universes";
-import { listProductsByUniverse, ProductCard } from "@modules/catalog";
+import { UniverseDetailClient } from "@modules/universes/components/UniverseDetailClient";
+import { notFound } from "next/navigation";
 
 export async function generateStaticParams() {
   const store = await getActiveStoreConfig();
@@ -39,36 +40,10 @@ export default async function UniversePage({
   return (
     <div data-universe={universe.slug} className="flex flex-col pb-16">
       <UniverseStarHeader universes={universes} activeSlug={universe.slug} />
-
-      <section className="mx-auto w-full max-w-6xl px-4 py-8">
-        <div
-          className="rounded-3xl border border-[var(--color-border-subtle)] p-8 md:p-10"
-          style={{
-            background: `linear-gradient(135deg, #05030a 0%, ${universe.accentColor}26 100%)`,
-          }}
-        >
-          <span
-            className="inline-block rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white"
-            style={{ backgroundColor: universe.accentColor }}
-          >
-            Universe
-          </span>
-          <h1 className="mt-4 font-serif text-3xl font-semibold text-white md:text-4xl">
-            {universe.name}
-          </h1>
-          {universe.description ? (
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              {universe.description}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      </section>
+      <UniverseDetailClient
+        initialUniverse={universe}
+        initialProducts={products}
+      />
     </div>
   );
 }

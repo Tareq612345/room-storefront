@@ -1,10 +1,11 @@
 /**
  * @file src/modules/catalog/components/FreshDropsSection.tsx
- * @purpose Homepage Fresh Drops grid synced live with Admin-saved product prices, stock/Vaulted state, and Universe accent colors.
+ * @purpose Homepage Fresh Drops grid synced live with Supabase products, variants stock, and Universe accent colors.
  */
 
 "use client";
 
+import { sbSelect } from "@shared/db/supabase-rest";
 import { useEffect, useState } from "react";
 import type { ProductSummaryDTO } from "../schema";
 import { ProductCard } from "./ProductCard";
@@ -15,15 +16,18 @@ interface FreshDropsSectionProps {
   products: ProductSummaryDTO[];
 }
 
-interface AdminProductOverride {
+interface SbProductRow {
   id: string;
-  name: string;
-  universe: string;
-  price: number;
+  slug: string;
+  basePrice: number | string;
+}
+
+interface SbVariantRow {
+  productId: string;
   stock: number;
 }
 
-interface AdminUniverseOverride {
+interface SbUniverseRow {
   slug: string;
   accentColor: string;
 }
@@ -36,40 +40,46 @@ export function FreshDropsSection({
   const [items, setItems] = useState<ProductSummaryDTO[]>(products);
 
   useEffect(() => {
-    try {
-      const rawProd = localStorage.getItem("room_admin_products_v1");
-      const rawUniv = localStorage.getItem("room_admin_universes_v1");
-      const prodOverrides: AdminProductOverride[] = rawProd
-        ? (JSON.parse(rawProd) as AdminProductOverride[])
-        : [];
-      const univOverrides: AdminUniverseOverride[] = rawUniv
-        ? (JSON.parse(rawUniv) as AdminUniverseOverride[])
-        : [];
+    let active = true;
+    (async () => {
+      try {
+        const [prodRows, varRows, univRows] = await Promise.all([
+          sbSelect<SbProductRow>("products", "select=id,slug,basePrice"),
+          sbSelect<SbVariantRow>("product_variants", "select=productId,stock"),
+          sbSelect<SbUniverseRow>("universes", "select=slug,accentColor"),
+        ]);
+        if (!active) return;
 
-      if (prodOverrides.length === 0 && univOverrides.length === 0) return;
+        setItems(
+          products.map((p) => {
+            const pRow = prodRows.find((r) => r.slug === p.slug || r.id === p.id);
+            const uRow = univRows.find((u) => u.slug === p.universeSlug);
+            const pVars = varRows.filter(
+              (v) => v.productId === (pRow?.id ?? p.id)
+            );
+            const totalStock =
+              pVars.length > 0
+                ? pVars.reduce((sum, v) => sum + Number(v.stock), 0)
+                : p.totalStock;
 
-      setItems(
-        products.map((p) => {
-          const pMatch = prodOverrides.find(
-            (o) => o.name === p.name || o.id === p.id
-          );
-          const uMatch = univOverrides.find((u) => u.slug === p.universeSlug);
-
-          const nextStock = pMatch ? pMatch.stock : p.totalStock;
-          return {
-            ...p,
-            basePrice: pMatch ? pMatch.price : p.basePrice,
-            totalStock: nextStock,
-            isVaulted: nextStock <= 0,
-            universeAccentColor: uMatch
-              ? uMatch.accentColor
-              : p.universeAccentColor,
-          };
-        })
-      );
-    } catch {
-      // Ignore storage errors
-    }
+            return {
+              ...p,
+              basePrice: pRow ? Number(pRow.basePrice) : p.basePrice,
+              totalStock,
+              isVaulted: totalStock <= 0,
+              universeAccentColor: uRow
+                ? uRow.accentColor
+                : p.universeAccentColor,
+            };
+          })
+        );
+      } catch {
+        // Keep initial props
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [products]);
 
   if (items.length === 0) return null;
