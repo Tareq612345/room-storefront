@@ -115,10 +115,17 @@ const WIDGET_PALETTE: {
   },
   {
     kind: "TEXT_BLOCK",
-    arLabel: "بلوك نص وعنوان",
+    arLabel: "عنصر نص وعنوان",
     enLabel: "Text & Heading",
-    arDesc: "عنوان ونص تعريفي مركزي",
-    enDesc: "Centered heading & copy",
+    arDesc: "عنوان ونص تعريفي مع تحكم في اللون والمحاذاة",
+    enDesc: "Heading & copy with color and alignment",
+  },
+  {
+    kind: "CTA_BUTTON",
+    arLabel: "عنصر زر مخصص",
+    enLabel: "Custom CTA Button",
+    arDesc: "زر تتحكم في لونه ونصه والرابط الذي يفتح عند الضغط",
+    enDesc: "Button with custom label, color, and destination link",
   },
   {
     kind: "FEATURE_PILLS",
@@ -490,6 +497,13 @@ export function VisualEditorClient({
         <div className="mt-2 flex flex-col items-center rounded-lg border border-white/10 bg-black/50 px-3 py-2.5">
           <div className="h-2 w-24 rounded bg-white/70" />
           <div className="mt-1.5 h-1.5 w-36 rounded bg-white/30" />
+        </div>
+      );
+    }
+    if (kind === "CTA_BUTTON") {
+      return (
+        <div className="mt-2 flex justify-center rounded-lg border border-white/10 bg-black/50 py-2.5">
+          <div className="h-4 w-24 rounded-full bg-cyan-400/80" />
         </div>
       );
     }
@@ -886,6 +900,13 @@ export function VisualEditorClient({
         </div>
       );
     }
+    if (kind === "CTA_BUTTON") {
+      return (
+        <div className="mt-2 flex justify-center rounded-lg border border-white/10 bg-black/50 py-2.5">
+          <div className="h-4 w-24 rounded-full bg-cyan-400/80" />
+        </div>
+      );
+    }
     if (kind === "FEATURE_PILLS") {
       return (
         <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
@@ -1131,6 +1152,13 @@ export function VisualEditorClient({
         </div>
       );
     }
+    if (kind === "CTA_BUTTON") {
+      return (
+        <div className="mt-2 flex justify-center rounded-lg border border-white/10 bg-black/50 py-2.5">
+          <div className="h-4 w-24 rounded-full bg-cyan-400/80" />
+        </div>
+      );
+    }
     if (kind === "FEATURE_PILLS") {
       return (
         <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
@@ -1226,6 +1254,7 @@ export function VisualEditorClient({
                         />
                       </label>
                       <input
+                        dir="auto"
                         value={selectedBlock.config.eyebrow ?? ""}
                         onChange={(e) =>
                           updateSelectedConfig({ eyebrow: e.target.value })
@@ -1245,6 +1274,7 @@ export function VisualEditorClient({
                         />
                       </label>
                       <input
+                        dir="auto"
                         value={selectedBlock.title}
                         onChange={(e) =>
                           updateSelectedBlock({ title: e.target.value })
@@ -1258,11 +1288,12 @@ export function VisualEditorClient({
                         {t.subtitleLabel}
                         <InfoHint
                           id="ed-sub"
-                          ar="الوصف القصير الذي يظهر بجانب أو أسفل عنوان القسم."
-                          en="Short supporting description displayed next to the block title."
+                          ar="الوصف القصير الذي يظهر بجانب أو أسفل عنوان القسم (يكتب عربي من اليمين وإنجليزي من الشمال تلقائياً)."
+                          en="Short supporting description (auto-detects Arabic RTL & English LTR)."
                         />
                       </label>
                       <input
+                        dir="auto"
                         value={selectedBlock.subtitle}
                         onChange={(e) =>
                           updateSelectedBlock({ subtitle: e.target.value })
@@ -1406,49 +1437,143 @@ export function VisualEditorClient({
                                   <Trash2 className="h-3 w-3" />
                                 </button>
                               </div>
-                              {w.kind === "PROMO_BANNER" || w.kind === "TEXT_BLOCK" ? (
+                              {w.kind === "PROMO_BANNER" ||
+                              w.kind === "TEXT_BLOCK" ||
+                              w.kind === "CTA_BUTTON" ? (
                                 <div className="space-y-1.5">
-                                  <input
-                                    value={w.heading ?? ""}
-                                    onChange={(e) =>
-                                      updateWidget(selectedBlock.id, w.id, {
-                                        heading: e.target.value,
-                                      })
-                                    }
-                                    placeholder="Heading"
-                                    className="h-7 w-full rounded border border-white/15 bg-black/50 px-2 text-[11px]"
-                                  />
-                                  <input
-                                    value={w.body ?? ""}
-                                    onChange={(e) =>
-                                      updateWidget(selectedBlock.id, w.id, {
-                                        body: e.target.value,
-                                      })
-                                    }
-                                    placeholder="Body text"
-                                    className="h-7 w-full rounded border border-white/15 bg-black/50 px-2 text-[11px]"
-                                  />
-                                  {w.kind === "PROMO_BANNER" ? (
-                                    <div className="flex gap-1.5">
+                                  {w.kind !== "CTA_BUTTON" ? (
+                                    <>
                                       <input
-                                        value={w.ctaLabel ?? ""}
+                                        dir="auto"
+                                        value={w.heading ?? ""}
                                         onChange={(e) =>
                                           updateWidget(selectedBlock.id, w.id, {
-                                            ctaLabel: e.target.value,
+                                            heading: e.target.value,
                                           })
                                         }
-                                        placeholder="Button label"
-                                        className="h-7 flex-1 rounded border border-white/15 bg-black/50 px-2 text-[11px]"
+                                        placeholder="Heading / العنوان"
+                                        className="h-7 w-full rounded border border-white/15 bg-black/50 px-2 text-[11px]"
                                       />
                                       <input
-                                        type="color"
-                                        value={w.accentColor || "#c94b99"}
+                                        dir="auto"
+                                        value={w.body ?? ""}
                                         onChange={(e) =>
                                           updateWidget(selectedBlock.id, w.id, {
-                                            accentColor: e.target.value,
+                                            body: e.target.value,
                                           })
                                         }
-                                        className="h-7 w-9 rounded border border-white/15 bg-transparent"
+                                        placeholder="Body text / النص"
+                                        className="h-7 w-full rounded border border-white/15 bg-black/50 px-2 text-[11px]"
+                                      />
+                                    </>
+                                  ) : null}
+
+                                  {w.kind === "PROMO_BANNER" || w.kind === "CTA_BUTTON" ? (
+                                    <div className="space-y-1.5">
+                                      <div className="flex gap-1.5">
+                                        <input
+                                          dir="auto"
+                                          value={w.ctaLabel ?? ""}
+                                          onChange={(e) =>
+                                            updateWidget(selectedBlock.id, w.id, {
+                                              ctaLabel: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Button text / نص الزر"
+                                          className="h-7 flex-1 rounded border border-white/15 bg-black/50 px-2 text-[11px]"
+                                        />
+                                        <input
+                                          type="color"
+                                          value={w.accentColor || "#c94b99"}
+                                          onChange={(e) =>
+                                            updateWidget(selectedBlock.id, w.id, {
+                                              accentColor: e.target.value,
+                                            })
+                                          }
+                                          title="Button Color"
+                                          className="h-7 w-9 rounded border border-white/15 bg-transparent"
+                                        />
+                                        <input
+                                          type="color"
+                                          value={w.textColor || "#ffffff"}
+                                          onChange={(e) =>
+                                            updateWidget(selectedBlock.id, w.id, {
+                                              textColor: e.target.value,
+                                            })
+                                          }
+                                          title="Text Color"
+                                          className="h-7 w-9 rounded border border-white/15 bg-transparent"
+                                        />
+                                      </div>
+
+                                      <select
+                                        value={
+                                          ["/", "/universes/cars", "/universes/gaming", "/universes/anime", "/admin/"].includes(
+                                            w.ctaUrl || ""
+                                          )
+                                            ? w.ctaUrl
+                                            : "custom"
+                                        }
+                                        onChange={(e) => {
+                                          if (e.target.value !== "custom") {
+                                            updateWidget(selectedBlock.id, w.id, {
+                                              ctaUrl: e.target.value,
+                                            });
+                                          }
+                                        }}
+                                        className="h-7 w-full rounded border border-white/15 bg-black/50 px-2 text-[11px]"
+                                      >
+                                        <option value="/universes/cars">→ Cars Universe (/universes/cars)</option>
+                                        <option value="/universes/gaming">→ Gaming Universe (/universes/gaming)</option>
+                                        <option value="/universes/anime">→ Anime Universe (/universes/anime)</option>
+                                        <option value="/">→ Home (/)</option>
+                                        <option value="custom">→ Custom URL</option>
+                                      </select>
+
+                                      <input
+                                        dir="ltr"
+                                        value={w.ctaUrl ?? ""}
+                                        onChange={(e) =>
+                                          updateWidget(selectedBlock.id, w.id, {
+                                            ctaUrl: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Destination URL (e.g. /universes/anime)"
+                                        className="h-7 w-full rounded border border-white/15 bg-black/50 px-2 font-mono text-[10px]"
+                                      />
+                                    </div>
+                                  ) : null}
+
+                                  {w.kind === "TEXT_BLOCK" || w.kind === "CTA_BUTTON" ? (
+                                    <div className="flex items-center justify-between gap-2 pt-1">
+                                      <div className="flex gap-1">
+                                        {(["left", "center", "right"] as const).map((al) => (
+                                          <button
+                                            key={al}
+                                            type="button"
+                                            onClick={() =>
+                                              updateWidget(selectedBlock.id, w.id, { align: al })
+                                            }
+                                            className={`rounded px-2 py-0.5 text-[10px] uppercase ${
+                                              (w.align ?? "center") === al
+                                                ? "bg-white text-black font-bold"
+                                                : "border border-white/15 text-white/60"
+                                            }`}
+                                          >
+                                            {al}
+                                          </button>
+                                        ))}
+                                      </div>
+                                      <input
+                                        type="color"
+                                        value={w.textColor || "#ffffff"}
+                                        onChange={(e) =>
+                                          updateWidget(selectedBlock.id, w.id, {
+                                            textColor: e.target.value,
+                                          })
+                                        }
+                                        title="Text Color"
+                                        className="h-6 w-8 rounded border border-white/15 bg-transparent"
                                       />
                                     </div>
                                   ) : null}
@@ -1743,6 +1868,13 @@ export function VisualEditorClient({
         <div className="mt-2 flex flex-col items-center rounded-lg border border-white/10 bg-black/50 px-3 py-2.5">
           <div className="h-2 w-24 rounded bg-white/70" />
           <div className="mt-1.5 h-1.5 w-36 rounded bg-white/30" />
+        </div>
+      );
+    }
+    if (kind === "CTA_BUTTON") {
+      return (
+        <div className="mt-2 flex justify-center rounded-lg border border-white/10 bg-black/50 py-2.5">
+          <div className="h-4 w-24 rounded-full bg-cyan-400/80" />
         </div>
       );
     }

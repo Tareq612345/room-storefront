@@ -20,6 +20,7 @@ export type WidgetKind =
   | "LOADOUT_CARDS"
   | "PROMO_BANNER"
   | "TEXT_BLOCK"
+  | "CTA_BUTTON"
   | "FEATURE_PILLS"
   | "DIVIDER";
 
@@ -31,6 +32,8 @@ export interface BlockWidget {
   ctaLabel?: string;
   ctaUrl?: string;
   accentColor?: string;
+  textColor?: string;
+  align?: "left" | "center" | "right";
 }
 
 export interface BlockConfig {
@@ -117,12 +120,13 @@ export function BlockWidgetRenderer({
           : undefined
       }
     >
-      {/* Customizable Block Header (Eyebrow + Title + Subtitle) */}
+      {/* Customizable Block Header (Eyebrow + Title + Subtitle with auto RTL/LTR) */}
       {cfg.eyebrow || block.title || block.subtitle ? (
         <div className="mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
           <div>
             {cfg.eyebrow ? (
               <p
+                dir="auto"
                 className="text-xs font-semibold uppercase tracking-[0.2em]"
                 style={{ color: accent }}
               >
@@ -130,13 +134,19 @@ export function BlockWidgetRenderer({
               </p>
             ) : null}
             {block.title ? (
-              <h2 className="mt-1 font-serif text-2xl font-semibold text-white md:text-3xl">
+              <h2
+                dir="auto"
+                className="mt-1 font-serif text-2xl font-semibold text-white md:text-3xl"
+              >
                 {block.title}
               </h2>
             ) : null}
           </div>
           {block.subtitle ? (
-            <p className="text-sm text-[var(--color-text-secondary)]">
+            <p
+              dir="auto"
+              className="text-sm text-[var(--color-text-secondary)]"
+            >
               {block.subtitle}
             </p>
           ) : null}
@@ -191,6 +201,7 @@ export function BlockWidgetRenderer({
 
             if (widget.kind === "PROMO_BANNER") {
               const wAccent = widget.accentColor || accent;
+              const wText = widget.textColor || "#ffffff";
               return (
                 <div
                   key={widget.id}
@@ -200,10 +211,14 @@ export function BlockWidgetRenderer({
                   }}
                 >
                   <div>
-                    <h3 className="font-serif text-xl font-semibold text-white md:text-2xl">
+                    <h3
+                      dir="auto"
+                      className="font-serif text-xl font-semibold md:text-2xl"
+                      style={{ color: wText }}
+                    >
                       {widget.heading || "Midnight Cairo Drop"}
                     </h3>
-                    <p className="mt-1 text-xs text-white/75">
+                    <p dir="auto" className="mt-1 text-xs text-white/75">
                       {widget.body || "Upgrade your bedroom setup with limited-run textiles."}
                     </p>
                   </div>
@@ -219,18 +234,53 @@ export function BlockWidgetRenderer({
             }
 
             if (widget.kind === "TEXT_BLOCK") {
+              const alignClass =
+                widget.align === "left"
+                  ? "text-left"
+                  : widget.align === "right"
+                    ? "text-right"
+                    : "text-center";
               return (
                 <div
                   key={widget.id}
-                  className={`border border-white/10 bg-[var(--color-surface-card)] p-6 text-center ${radiusClass}`}
+                  className={`border border-white/10 bg-[var(--color-surface-card)] p-6 ${alignClass} ${radiusClass}`}
                 >
-                  <h3 className="font-serif text-lg font-semibold text-white">
+                  <h3
+                    dir="auto"
+                    className="font-serif text-lg font-semibold"
+                    style={{ color: widget.textColor || "#ffffff" }}
+                  >
                     {widget.heading || "Built for Cairo & New Cairo"}
                   </h3>
-                  <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                  <p
+                    dir="auto"
+                    className="mt-2 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+                  >
                     {widget.body ||
                       "High-craft dark-mode bedsheets engineered to transform your bedroom into your personal Universe."}
                   </p>
+                </div>
+              );
+            }
+
+            if (widget.kind === "CTA_BUTTON") {
+              const bColor = widget.accentColor || accent;
+              const bText = widget.textColor || "#ffffff";
+              const justifyClass =
+                widget.align === "left"
+                  ? "justify-start"
+                  : widget.align === "right"
+                    ? "justify-end"
+                    : "justify-center";
+              return (
+                <div key={widget.id} className={`flex ${justifyClass}`}>
+                  <Link
+                    href={widget.ctaUrl || "/universes/cars"}
+                    className="inline-flex items-center rounded-full px-7 py-3 text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: bColor, color: bText }}
+                  >
+                    {widget.ctaLabel || "Explore Universe →"}
+                  </Link>
                 </div>
               );
             }
