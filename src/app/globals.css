@@ -48,6 +48,27 @@ body {
   animation: nebulaDriftReverse 22s ease-in-out infinite;
 }
 
+/* Sleek Dark Scrollbars across Storefront, Admin & Visual Studio */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #05030a;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+/* Authentic 390px Mobile Preview inside Visual Studio */
+[data-preview-mobile="true"] .grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
 @keyframes schemaCableFlow {
   to {
     stroke-dashoffset: -28;

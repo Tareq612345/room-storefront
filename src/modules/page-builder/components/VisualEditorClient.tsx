@@ -551,6 +551,11 @@ export function VisualEditorClient({
     setBlocks((prev) => [...prev, newBlock]);
     setSelectedId(newBlock.id);
     setSidebarTab("widgets");
+    setTimeout(() => {
+      document
+        .querySelector(`[data-block-id="${newBlock.id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
   };
 
   const handleDeleteBlock = (block: EditorBlock) => {
@@ -576,8 +581,24 @@ export function VisualEditorClient({
           : kind === "TEXT_BLOCK"
             ? "Transform your bedroom into a personal Universe."
             : undefined,
-      ctaLabel: kind === "PROMO_BANNER" ? "Claim Yours" : undefined,
-      ctaUrl: kind === "PROMO_BANNER" ? "/universes/cars" : undefined,
+      ctaLabel:
+        kind === "PROMO_BANNER"
+          ? "Claim Yours"
+          : kind === "CTA_BUTTON"
+            ? "Explore Universe →"
+            : undefined,
+      ctaUrl:
+        kind === "PROMO_BANNER" || kind === "CTA_BUTTON"
+          ? "/universes/cars"
+          : undefined,
+      accentColor:
+        kind === "PROMO_BANNER" || kind === "CTA_BUTTON"
+          ? "#c94b99"
+          : undefined,
+      textColor:
+        kind === "PROMO_BANNER" || kind === "CTA_BUTTON" || kind === "TEXT_BLOCK"
+          ? "#ffffff"
+          : undefined,
     };
 
     setBlocks((prev) =>
@@ -956,6 +977,8 @@ export function VisualEditorClient({
             <button
               type="button"
               onClick={() => setViewport("desktop")}
+              aria-label="Desktop View"
+              title="Desktop View"
               className={`rounded-full p-1.5 ${
                 viewport === "desktop" ? "bg-white text-black" : "text-white/60"
               }`}
@@ -965,6 +988,8 @@ export function VisualEditorClient({
             <button
               type="button"
               onClick={() => setViewport("mobile")}
+              aria-label="Mobile View"
+              title="Mobile View"
               className={`rounded-full p-1.5 ${
                 viewport === "mobile" ? "bg-white text-black" : "text-white/60"
               }`}
@@ -1194,17 +1219,19 @@ export function VisualEditorClient({
                         <div className="flex items-center gap-2 min-w-0">
                           <GripVertical className="h-4 w-4 shrink-0 text-white/40" />
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-white">
+                            <p dir="auto" className="truncate text-xs font-semibold text-white">
                               {blk.title || blk.config.eyebrow || blk.type}
                             </p>
-                            <p className="text-[10px] text-white/45">
-                              {(blk.config.widgets ?? []).length} widgets • {blk.config.columns ?? 4} cols
+                            <p dir="ltr" className="text-[10px] text-white/45">
+                              {(blk.config.widgets ?? []).length} elements • {blk.config.columns ?? 4} cols
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
+                            aria-label={blk.visible ? "Hide Block" : "Show Block"}
+                            title={blk.visible ? "Hide Block" : "Show Block"}
                             onClick={(e) => {
                               e.stopPropagation();
                               setBlocks((prev) =>
@@ -1223,6 +1250,8 @@ export function VisualEditorClient({
                           </button>
                           <button
                             type="button"
+                            aria-label="Delete Block"
+                            title="Delete Block"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteBlock(blk);
@@ -1592,6 +1621,16 @@ export function VisualEditorClient({
             {/* TAB 2: WIDGET PALETTE (Live Visual Thumbnails + Drag into any Block) */}
             {sidebarTab === "widgets" ? (
               <div className="space-y-3">
+                {selectedBlock ? (
+                  <div className="rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-3 py-2 text-[11px]">
+                    <span className="text-white/70">
+                      {lang === "ar" ? "الإضافة إلى البلوك: " : "Target Block: "}
+                    </span>
+                    <span dir="auto" className="font-bold text-cyan-200">
+                      {selectedBlock.title || selectedBlock.config.eyebrow || selectedBlock.type}
+                    </span>
+                  </div>
+                ) : null}
                 <p className="text-[11px] leading-relaxed text-white/60">
                   {t.dragWidgetHint}
                 </p>

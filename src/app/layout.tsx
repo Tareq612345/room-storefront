@@ -26,6 +26,9 @@ export const metadata: Metadata = {
   title: "ROOM — Build Your Universe",
   description:
     "High-craft themed bedsheets & full bedroom Loadouts for Anime, Gaming, and Car setups in Cairo & New Cairo.",
+  icons: {
+    icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/brand/logo.jpeg`,
+  },
 };
 
 const PRE_PAINT_THEME_SCRIPT = `

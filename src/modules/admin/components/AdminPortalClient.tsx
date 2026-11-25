@@ -1321,17 +1321,10 @@ export function AdminPortalClient() {
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-[11px] text-white/60">
             <p className="font-semibold text-white/85">{t.seededTitle}</p>
             <p className="mt-1 font-mono" dir="ltr">
-              tareq612345@gmail.com (user: <span className="text-white">tareq</span>)
+              tareq612345@gmail.com (@tareq)
             </p>
             <p className="font-mono" dir="ltr">
-              adegddn@gmail.com (user: <span className="text-white">adegddn</span>)
-            </p>
-            <p className="mt-1 text-white/45">
-              {t.initialPassNote}{" "}
-              <span className="font-mono text-white/75" dir="ltr">
-                RoomOwner#2026
-              </span>{" "}
-              {t.changeInProfile}
+              adegddn@gmail.com (@adegddn)
             </p>
           </div>
         </div>

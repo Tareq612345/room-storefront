@@ -83,6 +83,16 @@ const RADIUS_MAP = {
   pill: "rounded-[28px]",
 } as const;
 
+function getContrastText(hex: string): string {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return "#ffffff";
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.65 ? "#070709" : "#ffffff";
+}
+
 export function BlockWidgetRenderer({
   block,
   universes,
@@ -120,32 +130,30 @@ export function BlockWidgetRenderer({
           : undefined
       }
     >
-      {/* Customizable Block Header (Eyebrow + Title + Subtitle with auto RTL/LTR) */}
+      {/* Customizable Block Header (Eyebrow + Title + Subtitle cleanly stacked) */}
       {cfg.eyebrow || block.title || block.subtitle ? (
-        <div className="mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-          <div>
-            {cfg.eyebrow ? (
-              <p
-                dir="auto"
-                className="text-xs font-semibold uppercase tracking-[0.2em]"
-                style={{ color: accent }}
-              >
-                {cfg.eyebrow}
-              </p>
-            ) : null}
-            {block.title ? (
-              <h2
-                dir="auto"
-                className="mt-1 font-serif text-2xl font-semibold text-white md:text-3xl"
-              >
-                {block.title}
-              </h2>
-            ) : null}
-          </div>
+        <div className="mb-6 flex flex-col gap-1.5">
+          {cfg.eyebrow ? (
+            <p
+              dir="auto"
+              className="text-xs font-semibold uppercase tracking-[0.2em]"
+              style={{ color: accent }}
+            >
+              {cfg.eyebrow}
+            </p>
+          ) : null}
+          {block.title ? (
+            <h2
+              dir="auto"
+              className="font-serif text-2xl font-semibold text-white md:text-3xl"
+            >
+              {block.title}
+            </h2>
+          ) : null}
           {block.subtitle ? (
             <p
               dir="auto"
-              className="text-sm text-[var(--color-text-secondary)]"
+              className="max-w-2xl text-sm text-[var(--color-text-secondary)]"
             >
               {block.subtitle}
             </p>
@@ -159,16 +167,16 @@ export function BlockWidgetRenderer({
           <div className="flex h-36 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-400/35 bg-cyan-500/[0.04] text-center">
             <Sparkles className="h-5 w-5 text-cyan-300" />
             <p className="mt-2 text-xs font-semibold text-cyan-200">
-              Empty Block — Drag &amp; Drop any Widget here
+              Empty Block — Drag &amp; Drop any Element here
             </p>
           </div>
         ) : null
       ) : (
-        <div className="space-y-6">
+        <div className={`grid gap-5 ${COLS_MAP[cols]}`}>
           {widgets.map((widget) => {
             if (widget.kind === "UNIVERSE_CARDS") {
               return (
-                <div key={widget.id} className="-mx-4">
+                <div key={widget.id} className="col-span-full -mx-4">
                   <UniverseShowcaseGrid universes={universes} />
                 </div>
               );
@@ -178,7 +186,7 @@ export function BlockWidgetRenderer({
               return (
                 <div
                   key={widget.id}
-                  className={`grid gap-5 ${COLS_MAP[cols]}`}
+                  className={`col-span-full grid gap-5 ${COLS_MAP[cols]}`}
                 >
                   {products.map((product) => (
                     <ProductCard key={product.id} product={product} />
@@ -189,7 +197,7 @@ export function BlockWidgetRenderer({
 
             if (widget.kind === "LOADOUT_CARDS") {
               return (
-                <div key={widget.id} className="-mx-4">
+                <div key={widget.id} className="col-span-full -mx-4">
                   <LoadoutsSection
                     title={null}
                     subtitle={null}
@@ -200,8 +208,9 @@ export function BlockWidgetRenderer({
             }
 
             if (widget.kind === "PROMO_BANNER") {
-              const wAccent = widget.accentColor || accent;
+              const wAccent = widget.accentColor || "#c94b99";
               const wText = widget.textColor || "#ffffff";
+              const btnText = getContrastText(wAccent);
               return (
                 <div
                   key={widget.id}
@@ -224,8 +233,8 @@ export function BlockWidgetRenderer({
                   </div>
                   <Link
                     href={widget.ctaUrl || "/universes/cars"}
-                    className="shrink-0 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: wAccent }}
+                    className="shrink-0 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: wAccent, color: btnText }}
                   >
                     {widget.ctaLabel || "Claim Yours"}
                   </Link>
@@ -264,8 +273,8 @@ export function BlockWidgetRenderer({
             }
 
             if (widget.kind === "CTA_BUTTON") {
-              const bColor = widget.accentColor || accent;
-              const bText = widget.textColor || "#ffffff";
+              const bColor = widget.accentColor || "#c94b99";
+              const bText = widget.textColor || getContrastText(bColor);
               const justifyClass =
                 widget.align === "left"
                   ? "justify-start"
@@ -273,7 +282,7 @@ export function BlockWidgetRenderer({
                     ? "justify-end"
                     : "justify-center";
               return (
-                <div key={widget.id} className={`flex ${justifyClass}`}>
+                <div key={widget.id} className={`flex items-center ${justifyClass}`}>
                   <Link
                     href={widget.ctaUrl || "/universes/cars"}
                     className="inline-flex items-center rounded-full px-7 py-3 text-xs font-bold uppercase tracking-widest transition-opacity hover:opacity-90"
@@ -289,7 +298,7 @@ export function BlockWidgetRenderer({
               return (
                 <div
                   key={widget.id}
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+                  className="col-span-full grid grid-cols-1 gap-3 sm:grid-cols-3"
                 >
                   {[
                     { icon: <Truck className="h-4 w-4" />, text: "1-2 Days Cairo & New Cairo" },
@@ -312,7 +321,7 @@ export function BlockWidgetRenderer({
               return (
                 <div
                   key={widget.id}
-                  className="my-2 h-[1px] w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                  className="col-span-full my-2 h-[1px] w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
                 />
               );
             }
