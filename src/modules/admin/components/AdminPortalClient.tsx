@@ -1,33 +1,40 @@
 /**
  * @file src/modules/admin/components/AdminPortalClient.tsx
- * @purpose Full-featured ROOM Admin & Owner Portal: Event Theme Presets + Default Theme Restore, Add/Edit/Delete Products, Orders Manager, Home Builder, Cairo Shipping, 48h Invites, and AR/EN toggle.
+ * @purpose Luxury Dark Command Center for ROOM: Complete site control (Store & Live Theme Preview, Event Presets, Universes, Catalog + Add/Delete, Loadouts, Orders + WhatsApp, Home Builder, Cairo Shipping, 48h Invites, Profile).
  */
 
 "use client";
 
 import { sbDelete, sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
+import { formatEgp } from "@shared/types/common";
 import {
   generateClientId,
   hashPasswordWeb,
   verifyPasswordWeb,
 } from "@shared/utils/client-auth";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   BookmarkPlus,
+  Boxes,
   Check,
   Copy,
+  Database,
+  ExternalLink,
   KeyRound,
   Languages,
   LayoutDashboard,
   Layers,
   LogOut,
   MapPin,
+  MessageCircle,
   Package,
   Palette,
   Plus,
   RotateCcw,
   Save,
+  Search,
   Settings,
   ShieldCheck,
   ShoppingBag,
@@ -39,7 +46,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Lang = "ar" | "en";
 
@@ -48,6 +55,7 @@ type AdminTab =
   | "store"
   | "universes"
   | "catalog"
+  | "loadouts"
   | "orders"
   | "sections"
   | "shipping"
@@ -94,6 +102,16 @@ interface AdminOrderRow {
   createdAt: string;
 }
 
+interface AdminLoadoutRow {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string;
+  fixedPrice: number;
+  isFeatured: boolean;
+  isActive: boolean;
+}
+
 const ROOM_DEFAULT_PRESET: ThemePreset = {
   id: "preset_room_default",
   name: "ROOM Default (Original)",
@@ -110,35 +128,21 @@ const ROOM_DEFAULT_PRESET: ThemePreset = {
 };
 
 const INITIAL_OWNERS: LocalAdminAccount[] = [
-  {
-    id: "owner_tareq",
-    email: "tareq612345@gmail.com",
-    username: "tareq",
-    name: "Tareq (Owner)",
-    role: "OWNER",
-    passwordHash: "",
-  },
-  {
-    id: "owner_adegddn",
-    email: "adegddn@gmail.com",
-    username: "adegddn",
-    name: "Partner (Owner)",
-    role: "OWNER",
-    passwordHash: "",
-  },
+  { id: "owner_tareq", email: "tareq612345@gmail.com", username: "tareq", name: "Tareq (Owner)", role: "OWNER", passwordHash: "" },
+  { id: "owner_adegddn", email: "adegddn@gmail.com", username: "adegddn", name: "Partner (Owner)", role: "OWNER", passwordHash: "" },
 ];
 
 const INITIAL_UNIVERSES = [
-  { id: "univ_cars", slug: "cars", name: "GARAGE & CARS", tagline: "Midnight Touge & Supercar Bedroom Loadouts", accentColor: "#d92323", isActive: true },
-  { id: "univ_gaming", slug: "gaming", name: "GAMING ARENA", tagline: "Obsidian RGB & Next-Gen Battle Stations", accentColor: "#6366f1", isActive: true },
-  { id: "univ_anime", slug: "anime", name: "ANIME REALM", tagline: "Shonen Arcs, Katana & Neo-Tokyo Vibes", accentColor: "#c94b99", isActive: true },
+  { id: "univ_cars", slug: "cars", name: "GARAGE & CARS", tagline: "Midnight Touge & Supercar Bedroom Loadouts", description: "High-craft automotive bedsheets and pit-lane setups.", accentColor: "#d92323", isActive: true },
+  { id: "univ_gaming", slug: "gaming", name: "GAMING ARENA", tagline: "Obsidian RGB & Next-Gen Battle Stations", description: "Stealth dark-mode bedsheets engineered for gaming setups.", accentColor: "#6366f1", isActive: true },
+  { id: "univ_anime", slug: "anime", name: "ANIME REALM", tagline: "Shonen Arcs, Katana & Neo-Tokyo Vibes", description: "Signature anime-inspired bedsheets and collector Loadouts.", accentColor: "#c94b99", isActive: true },
 ];
 
 const INITIAL_PRODUCTS = [
-  { id: "prod_touge", name: "Midnight Touge Carbon Bedsheet", subtitle: "300TC Matte Obsidian Cotton • Pit-Lane Red Piping", universeId: "univ_cars", universe: "cars", price: 1450, stock: 18, thumbnailUrl: "/mockups/products/sheet-midnight-touge.svg", isFreshDrop: true },
-  { id: "prod_ranked", name: "Obsidian Ranked Arena Bedsheet", subtitle: "Stealth Micro-Weave • Indigo Stitch Matrix", universeId: "univ_gaming", universe: "gaming", price: 1390, stock: 12, thumbnailUrl: "/mockups/products/sheet-obsidian-ranked.svg", isFreshDrop: true },
-  { id: "prod_eclipse", name: "Neo-Tokyo Eclipse Bedsheet", subtitle: "Brushed Dark Sateen • Orchid Embroidered Crest", universeId: "univ_anime", universe: "anime", price: 1550, stock: 9, thumbnailUrl: "/mockups/products/sheet-neo-tokyo.svg", isFreshDrop: true },
-  { id: "prod_apex", name: "Apex GT Twin Pillowcase Pair", subtitle: "Limited Cairo Drop • Heavyweight Weave", universeId: "univ_cars", universe: "cars", price: 590, stock: 0, thumbnailUrl: "/mockups/products/pillows-apex-gt.svg", isFreshDrop: true },
+  { id: "prod_touge", name: "Midnight Touge Carbon Bedsheet", subtitle: "300TC Matte Obsidian Cotton • Pit-Lane Red Piping", universeId: "univ_cars", universe: "cars", price: 1450, compareAtPrice: 1750, stock: 18, thumbnailUrl: "/mockups/products/sheet-midnight-touge.svg", isFreshDrop: true },
+  { id: "prod_ranked", name: "Obsidian Ranked Arena Bedsheet", subtitle: "Stealth Micro-Weave • Indigo Stitch Matrix", universeId: "univ_gaming", universe: "gaming", price: 1390, compareAtPrice: 0, stock: 12, thumbnailUrl: "/mockups/products/sheet-obsidian-ranked.svg", isFreshDrop: true },
+  { id: "prod_eclipse", name: "Neo-Tokyo Eclipse Bedsheet", subtitle: "Brushed Dark Sateen • Orchid Embroidered Crest", universeId: "univ_anime", universe: "anime", price: 1550, compareAtPrice: 1890, stock: 9, thumbnailUrl: "/mockups/products/sheet-neo-tokyo.svg", isFreshDrop: true },
+  { id: "prod_apex", name: "Apex GT Twin Pillowcase Pair", subtitle: "Limited Cairo Drop • Heavyweight Weave", universeId: "univ_cars", universe: "cars", price: 590, compareAtPrice: 0, stock: 0, thumbnailUrl: "/mockups/products/pillows-apex-gt.svg", isFreshDrop: true },
 ];
 
 const INITIAL_ZONES = [
@@ -167,139 +171,161 @@ const SESSION_KEY = "room_admin_session_v1";
 
 const I18N = {
   en: {
-    brand: "ROOM ADMIN",
+    brand: "ROOM COMMAND",
+    supabaseLive: "Supabase Live",
     loginSub: "Sign in with Username or Email",
     identifierLabel: "Username or Email",
     identifierPlaceholder: "tareq or tareq612345@gmail.com",
     passwordLabel: "Password",
-    loginBtn: "Enter Control Center",
+    loginBtn: "Enter Command Center",
     loginErr: "Invalid username/email or password",
     seededTitle: "Seeded Owners:",
     initialPassNote: "Initial password:",
     changeInProfile: "(change in Profile)",
+    searchPlaceholder: "Quick search...",
     tabs: {
-      overview: "Overview",
-      store: "Store & Themes",
+      overview: "Command Overview",
+      store: "Themes & Brand",
       universes: "Universes",
-      catalog: "Catalog & Products",
-      orders: "Orders",
+      catalog: "Products & Stock",
+      loadouts: "Loadouts (Bundles)",
+      orders: "Orders & WhatsApp",
       sections: "Home Builder",
       shipping: "Cairo Shipping",
       team: "Owners & Invites",
       profile: "My Profile",
     },
-    viewStore: "View Storefront →",
-    viewSchema: "DB Schema Explorer →",
+    viewStore: "Live Storefront",
+    viewSchema: "DB Schema",
     signOut: "Sign Out",
-    welcome: "Welcome back",
-    signedInAs: "Signed in as",
+    welcome: "Command Center",
+    signedInAs: "Active session:",
+    quickActions: "Quick Actions",
+    vaultedAlerts: "Stock & Vaulted Alerts",
+    restockOneClick: "+10 Restock",
+    allHealthy: "All products are well-stocked.",
     stats: {
       universes: "Active Universes",
-      products: "Catalog Products",
-      zones: "Cairo Shipping Zones",
+      products: "Live Products",
+      orders: "Total Orders",
       team: "Owners & Admins",
     },
-    storeTitle: "Store & Event Theme Presets",
+    storeTitle: "Brand, Live Preview & Event Themes",
+    livePreview: "Live Theme Preview",
     storeName: "Store Name",
     whatsapp: "WhatsApp Order Number",
-    homeAccent: "Home Default Accent",
-    bgPrimary: "Canvas Top (Primary)",
-    bgSecondary: "Canvas Mid (Secondary)",
-    bgElevated: "Canvas Bottom (Elevated)",
-    presetsTitle: "Saved Event Themes & Default Restore",
+    homeAccent: "Home Accent",
+    bgPrimary: "Canvas Top",
+    bgSecondary: "Canvas Mid",
+    bgElevated: "Canvas Bottom",
+    presetsTitle: "Event Theme Presets & Default Restore",
     presetPlaceholder: "Event name (e.g. Ramadan Nights, Black Friday)",
-    savePresetBtn: "Save Current Theme as Preset",
-    applyTheme: "Apply Theme",
+    savePresetBtn: "Save as Preset",
+    applyTheme: "Apply",
     restoreDefault: "Restore ROOM Default",
-    universesTitle: "Universes Control",
+    universesTitle: "Universes Studio",
     active: "Active",
     hidden: "Hidden",
     visible: "Visible",
-    catalogTitle: "Catalog & Product Management",
+    catalogTitle: "Catalog & Inventory",
     addProductTitle: "Add New Product",
     prodName: "Product Name",
     prodSub: "1-Line Subtitle",
     prodPrice: "Price (EGP)",
-    prodStock: "Initial Stock",
+    prodOldPrice: "Old Price",
+    prodStock: "Stock",
     prodMockup: "Mockup Visual",
-    addProdBtn: "Add Product",
+    addProdBtn: "Create Product",
+    loadoutsTitle: "Signature Loadouts (Bundles)",
     egp: "EGP",
     stock: "Stock",
     vaulted: "Vaulted",
     inStock: "In Stock",
-    ordersTitle: "Customer Orders",
+    ordersTitle: "Orders & WhatsApp Dispatch",
     noOrders: "No orders placed yet. Orders from checkout will appear here live.",
+    whatsappBtn: "WhatsApp Update",
     sectionsTitle: "Homepage Section Builder",
     shippingTitle: "Cairo & New Cairo Shipping Zones",
+    addZoneTitle: "Add New Cairo Zone",
+    zoneNamePlaceholder: "e.g. Sheikh Zayed / Zamalek",
+    addZoneBtn: "Add Zone",
     fee: "Fee (EGP)",
     freeAbove: "Free Above",
     teamTitle: "Owners & Admin Team",
     teamSub: "Invite a new admin by email to generate a 48-hour single-use onboarding link.",
     adminEmail: "Admin Email",
     role: "Role",
-    genInvite: "Generate 48h Invite Link",
-    inviteLinksTitle: "Single-Use Invite Links (Valid 48 Hours)",
+    genInvite: "Generate 48h Invite",
+    inviteLinksTitle: "Single-Use Invite Links (48 Hours)",
     expires: "Expires",
     used: "Used",
     expired: "Expired",
-    copyLink: "Copy Invite Link",
-    copied: "Copied Link",
+    copyLink: "Copy Link",
+    copied: "Copied",
     activeAccounts: "Active Accounts",
     profileTitle: "My Profile & Username",
     profileSub: "Set a custom username so you can sign in with Username + Password without needing your email.",
     displayName: "Display Name",
     usernameLabel: "Username (Login without Email)",
     emailLabel: "Email",
-    newPasswordLabel: "New Password (leave blank to keep current)",
+    newPasswordLabel: "New Password (optional)",
     saveBtn: "Save Changes",
     savedBtn: "Saved!",
   },
   ar: {
-    brand: "إدارة ROOM",
+    brand: "مركز تحكم ROOM",
+    supabaseLive: "متصل بـ Supabase",
     loginSub: "سجّل الدخول باسم المستخدم أو البريد الإلكتروني",
     identifierLabel: "اسم المستخدم أو البريد الإلكتروني",
     identifierPlaceholder: "tareq أو tareq612345@gmail.com",
     passwordLabel: "كلمة المرور",
-    loginBtn: "دخول لوحة التحكم",
+    loginBtn: "دخول مركز التحكم",
     loginErr: "اسم المستخدم/البريد أو كلمة المرور غير صحيحة",
     seededTitle: "حسابات المالكين المسجلة:",
     initialPassNote: "كلمة المرور الأولية:",
     changeInProfile: "(يمكن تغييرها من الملف الشخصي)",
+    searchPlaceholder: "بحث سريع...",
     tabs: {
       overview: "نظرة عامة",
-      store: "المتجر والثيمات",
+      store: "الثيمات والهوية",
       universes: "الأقسام (Universes)",
       catalog: "المنتجات والمخزون",
-      orders: "الطلبات",
+      loadouts: "الباقات (Loadouts)",
+      orders: "الطلبات والواتساب",
       sections: "بناء الرئيسية",
       shipping: "شحن القاهرة",
       team: "المالكون والدعوات",
       profile: "ملفي الشخصي",
     },
-    viewStore: "عرض المتجر ←",
-    viewSchema: "خريطة قاعدة البيانات ←",
-    signOut: "تسجيل الخروج",
-    welcome: "مرحباً بعودتك",
-    signedInAs: "مسجل باسم",
+    viewStore: "عرض المتجر",
+    viewSchema: "خريطة الداتا بيز",
+    signOut: "خروج",
+    welcome: "مركز التحكم",
+    signedInAs: "الجلسة الحالية:",
+    quickActions: "إجراءات سريعة",
+    vaultedAlerts: "تنبيهات المخزون والمنتجات النافدة",
+    restockOneClick: "+10 للمخزون",
+    allHealthy: "كل المنتجات متوفرة بمخزون جيد.",
     stats: {
       universes: "الأقسام النشطة",
-      products: "المنتجات بالكتالوج",
-      zones: "مناطق شحن القاهرة",
+      products: "المنتجات المتاحة",
+      orders: "إجمالي الطلبات",
       team: "المالكون والأدمن",
     },
-    storeTitle: "إعدادات المتجر وثيمات الإيفنتات",
+    storeTitle: "الهوية البصرية والمعاينة وثيمات الإيفنتات",
+    livePreview: "معاينة حية للثيم",
     storeName: "اسم المتجر",
     whatsapp: "رقم واتساب الطلبات",
-    homeAccent: "اللون الأساسي للرئيسية",
-    bgPrimary: "لون الخلفية العلوي",
-    bgSecondary: "لون الخلفية الأوسط",
-    bgElevated: "لون الخلفية السفلي",
-    presetsTitle: "الثيمات المحفوظة (الإيفنتات) والثيم الأساسي",
+    homeAccent: "لون الرئيسية",
+    bgPrimary: "خلفية علوي",
+    bgSecondary: "خلفية أوسط",
+    bgElevated: "خلفية سفلي",
+    presetsTitle: "ثيمات الإيفنتات المحفوظة والثيم الأساسي",
     presetPlaceholder: "اسم الإيفنت (مثال: رمضان، بلاك فرايداي)",
-    savePresetBtn: "حفظ الثيم الحالي كقالب",
-    applyTheme: "تطبيق الثيم",
+    savePresetBtn: "حفظ كثيم إيفنت",
+    applyTheme: "تطبيق",
     restoreDefault: "استرجاع ثيم ROOM الأساسي",
-    universesTitle: "التحكم في الأقسام (Universes)",
+    universesTitle: "استوديو الأقسام (Universes)",
     active: "مفعل",
     hidden: "مخفي",
     visible: "ظاهر",
@@ -308,29 +334,35 @@ const I18N = {
     prodName: "اسم المنتج",
     prodSub: "وصف سطر واحد",
     prodPrice: "السعر (ج.م)",
+    prodOldPrice: "السعر قبل الخصم",
     prodStock: "المخزون",
     prodMockup: "صورة الموكاب",
     addProdBtn: "إضافة المنتج",
+    loadoutsTitle: "إدارة الباقات (Loadouts)",
     egp: "ج.م",
     stock: "المخزون",
     vaulted: "نفد (Vaulted)",
     inStock: "متاح",
-    ordersTitle: "طلبات العملاء",
+    ordersTitle: "الطلبات والتواصل عبر واتساب",
     noOrders: "لا توجد طلبات مسجلة بعد. أي طلب جديد سيظهر هنا مباشرة.",
+    whatsappBtn: "تحديث واتساب",
     sectionsTitle: "ترتيب وإظهار أقسام الرئيسية",
     shippingTitle: "مناطق الشحن (القاهرة والقاهرة الجديدة)",
-    fee: "تكلفة الشحن (ج.م)",
-    freeAbove: "شحن مجاني فوق",
+    addZoneTitle: "إضافة منطقة شحن جديدة",
+    zoneNamePlaceholder: "مثال: مدينتي أو التجمع الأول",
+    addZoneBtn: "إضافة منطقة",
+    fee: "تكلفة الشحن",
+    freeAbove: "مجاني فوق",
     teamTitle: "المالكون وفريق الإدارة",
     teamSub: "أضف إيميل أدمن جديد لتوليد رابط دعوة صالح ليومين (48 ساعة) للاستخدام مرة واحدة فقط.",
     adminEmail: "البريد الإلكتروني للأدمن",
     role: "الصلاحية",
-    genInvite: "توليد رابط دعوة (48 ساعة)",
-    inviteLinksTitle: "روابط الدعوة (صالحة 48 ساعة • استخدام مرة واحدة)",
+    genInvite: "توليد رابط (48 ساعة)",
+    inviteLinksTitle: "روابط الدعوة (48 ساعة • استخدام مرة واحدة)",
     expires: "ينتهي في",
     used: "مُستخدم",
     expired: "منتهي",
-    copyLink: "نسخ رابط الدعوة",
+    copyLink: "نسخ الرابط",
     copied: "تم النسخ",
     activeAccounts: "الحسابات النشطة",
     profileTitle: "الملف الشخصي واسم المستخدم",
@@ -338,7 +370,7 @@ const I18N = {
     displayName: "الاسم الظاهر",
     usernameLabel: "اسم المستخدم (للدخول بدون إيميل)",
     emailLabel: "البريد الإلكتروني",
-    newPasswordLabel: "كلمة مرور جديدة (اتركه فارغاً للإبقاء على الحالية)",
+    newPasswordLabel: "كلمة مرور جديدة (اختياري)",
     saveBtn: "حفظ التغييرات",
     savedBtn: "تم الحفظ!",
   },
@@ -359,6 +391,7 @@ export function AdminPortalClient() {
 
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [savedSection, setSavedSection] = useState<AdminTab | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Store & Theme state
   const [storeName, setStoreName] = useState("ROOM");
@@ -370,9 +403,10 @@ export function AdminPortalClient() {
   const [presets, setPresets] = useState<ThemePreset[]>([ROOM_DEFAULT_PRESET]);
   const [newPresetName, setNewPresetName] = useState("");
 
-  // Universes, Catalog, Orders, Sections, Zones
+  // Domain Data
   const [universes, setUniverses] = useState(INITIAL_UNIVERSES);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [loadouts, setLoadouts] = useState<AdminLoadoutRow[]>([]);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [zones, setZones] = useState(INITIAL_ZONES);
   const [sections, setSections] = useState(INITIAL_SECTIONS);
@@ -382,8 +416,13 @@ export function AdminPortalClient() {
   const [newProdSub, setNewProdSub] = useState("");
   const [newProdUnivSlug, setNewProdUnivSlug] = useState("cars");
   const [newProdPrice, setNewProdPrice] = useState(1490);
+  const [newProdOldPrice, setNewProdOldPrice] = useState(0);
   const [newProdStock, setNewProdStock] = useState(15);
   const [newProdThumb, setNewProdThumb] = useState(MOCKUP_OPTIONS[0]?.value ?? "");
+
+  // Add Shipping Zone form
+  const [newZoneName, setNewZoneName] = useState("");
+  const [newZoneFee, setNewZoneFee] = useState(70);
 
   // Invite & Profile
   const [inviteEmail, setInviteEmail] = useState("");
@@ -405,56 +444,116 @@ export function AdminPortalClient() {
 
     (async () => {
       try {
-        const [sbStores, sbUnivs, sbProds, sbVars, sbZones, sbUsers, sbInvites, sbSections, sbOrders] =
-          await Promise.all([
-            sbSelect<{
-              id: string;
-              name: string;
-              whatsappNumber: string | null;
-              defaultAccentColor: string;
-              themeTokens: {
-                bgPrimary?: string;
-                bgSecondary?: string;
-                bgElevated?: string;
-                presets?: ThemePreset[];
-              };
-            }>(
-              "store_configs",
-              "select=id,name,whatsappNumber,defaultAccentColor,themeTokens&slug=eq.room-egypt"
-            ),
-            sbSelect<{ id: string; slug: string; name: string; tagline: string | null; accentColor: string; isActive: boolean }>(
-              "universes",
-              "select=id,slug,name,tagline,accentColor,isActive&order=sortOrder.asc"
-            ),
-            sbSelect<{ id: string; universeId: string; slug: string; name: string; subtitle: string | null; basePrice: number | string; thumbnailUrl: string; isNewArrival: boolean }>(
-              "products",
-              "select=id,universeId,slug,name,subtitle,basePrice,thumbnailUrl,isNewArrival&isActive=eq.true&order=createdAt.asc"
-            ),
-            sbSelect<{ id: string; productId: string; stock: number }>(
-              "product_variants",
-              "select=id,productId,stock"
-            ),
-            sbSelect<{ id: string; name: string; fee: number | string; freeShippingThreshold: number | string | null; estimatedDays: string; isActive: boolean }>(
-              "shipping_zones",
-              "select=id,name,fee,freeShippingThreshold,estimatedDays,isActive&order=sortOrder.asc"
-            ),
-            sbSelect<{ id: string; email: string | null; username: string | null; name: string; role: "OWNER" | "ADMIN" | "STAFF"; passwordHash: string | null }>(
-              "users",
-              "select=id,email,username,name,role,passwordHash&role=in.(OWNER,ADMIN,STAFF)&order=createdAt.asc"
-            ),
-            sbSelect<LocalInvite>(
-              "admin_invites",
-              "select=id,email,role,token,expiresAt,usedAt&order=createdAt.desc"
-            ),
-            sbSelect<{ id: string; type: string; title: string | null; isVisible: boolean; sortOrder: number }>(
-              "page_sections",
-              "select=id,type,title,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
-            ),
-            sbSelect<AdminOrderRow>(
-              "orders",
-              "select=id,orderNumber,customerName,customerPhone,status,paymentMethod,total,createdAt&order=createdAt.desc&limit=30"
-            ),
-          ]);
+        const [
+          sbStores,
+          sbUnivs,
+          sbProds,
+          sbVars,
+          sbBundles,
+          sbZones,
+          sbUsers,
+          sbInvites,
+          sbSections,
+          sbOrders,
+        ] = await Promise.all([
+          sbSelect<{
+            id: string;
+            name: string;
+            whatsappNumber: string | null;
+            defaultAccentColor: string;
+            themeTokens: {
+              bgPrimary?: string;
+              bgSecondary?: string;
+              bgElevated?: string;
+              presets?: ThemePreset[];
+            };
+          }>(
+            "store_configs",
+            "select=id,name,whatsappNumber,defaultAccentColor,themeTokens&slug=eq.room-egypt"
+          ),
+          sbSelect<{
+            id: string;
+            slug: string;
+            name: string;
+            tagline: string | null;
+            description: string | null;
+            accentColor: string;
+            isActive: boolean;
+          }>(
+            "universes",
+            "select=id,slug,name,tagline,description,accentColor,isActive&order=sortOrder.asc"
+          ),
+          sbSelect<{
+            id: string;
+            universeId: string;
+            slug: string;
+            name: string;
+            subtitle: string | null;
+            basePrice: number | string;
+            compareAtPrice: number | string | null;
+            thumbnailUrl: string;
+            isNewArrival: boolean;
+          }>(
+            "products",
+            "select=id,universeId,slug,name,subtitle,basePrice,compareAtPrice,thumbnailUrl,isNewArrival&isActive=eq.true&order=createdAt.asc"
+          ),
+          sbSelect<{ id: string; productId: string; stock: number }>(
+            "product_variants",
+            "select=id,productId,stock"
+          ),
+          sbSelect<{
+            id: string;
+            slug: string;
+            name: string;
+            tagline: string | null;
+            fixedPrice: number | string | null;
+            isFeatured: boolean;
+            isActive: boolean;
+          }>(
+            "bundles",
+            "select=id,slug,name,tagline,fixedPrice,isFeatured,isActive&order=createdAt.asc"
+          ),
+          sbSelect<{
+            id: string;
+            name: string;
+            fee: number | string;
+            freeShippingThreshold: number | string | null;
+            estimatedDays: string;
+            isActive: boolean;
+          }>(
+            "shipping_zones",
+            "select=id,name,fee,freeShippingThreshold,estimatedDays,isActive&order=sortOrder.asc"
+          ),
+          sbSelect<{
+            id: string;
+            email: string | null;
+            username: string | null;
+            name: string;
+            role: "OWNER" | "ADMIN" | "STAFF";
+            passwordHash: string | null;
+          }>(
+            "users",
+            "select=id,email,username,name,role,passwordHash&role=in.(OWNER,ADMIN,STAFF)&order=createdAt.asc"
+          ),
+          sbSelect<LocalInvite>(
+            "admin_invites",
+            "select=id,email,role,token,expiresAt,usedAt&order=createdAt.desc"
+          ),
+          sbSelect<{
+            id: string;
+            type: string;
+            title: string | null;
+            isVisible: boolean;
+            sortOrder: number;
+          }>(
+            "page_sections",
+            "select=id,type,title,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
+          ),
+          sbSelect<AdminOrderRow>(
+            "orders",
+            "select=id,orderNumber,customerName,customerPhone,status,paymentMethod,total,createdAt&order=createdAt.desc&limit=30"
+          ),
+        ]);
 
         if (sbStores[0]) {
           const st = sbStores[0];
@@ -479,6 +578,7 @@ export function AdminPortalClient() {
               slug: u.slug,
               name: u.name,
               tagline: u.tagline ?? "",
+              description: u.description ?? "",
               accentColor: u.accentColor,
               isActive: u.isActive,
             }))
@@ -498,11 +598,26 @@ export function AdminPortalClient() {
                 universeId: p.universeId,
                 universe: matchedUniv?.slug ?? "cars",
                 price: Number(p.basePrice),
+                compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : 0,
                 stock: totalStock,
                 thumbnailUrl: p.thumbnailUrl,
                 isFreshDrop: p.isNewArrival,
               };
             })
+          );
+        }
+
+        if (sbBundles.length > 0) {
+          setLoadouts(
+            sbBundles.map((b) => ({
+              id: b.id,
+              slug: b.slug,
+              name: b.name,
+              tagline: b.tagline ?? "",
+              fixedPrice: b.fixedPrice ? Number(b.fixedPrice) : 2190,
+              isFeatured: b.isFeatured,
+              isActive: b.isActive,
+            }))
           );
         }
 
@@ -563,6 +678,21 @@ export function AdminPortalClient() {
       setProfileEmail(currentUser.email);
     }
   }, [currentUser]);
+
+  const lowStockProducts = useMemo(
+    () => products.filter((p) => p.stock <= 5),
+    [products]
+  );
+
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.universe.toLowerCase().includes(q)
+    );
+  }, [products, searchQuery]);
 
   const markSaved = (tab: AdminTab) => {
     setSavedSection(tab);
@@ -688,6 +818,7 @@ export function AdminPortalClient() {
           sbPatch("universes", `slug=eq.${encodeURIComponent(u.slug)}`, {
             name: u.name,
             tagline: u.tagline,
+            description: u.description,
             accentColor: u.accentColor,
             isActive: u.isActive,
             updatedAt: new Date().toISOString(),
@@ -708,7 +839,10 @@ export function AdminPortalClient() {
         products.map(async (p) => {
           await sbPatch("products", `id=eq.${encodeURIComponent(p.id)}`, {
             name: p.name,
+            subtitle: p.subtitle,
             basePrice: p.price,
+            compareAtPrice: p.compareAtPrice > 0 ? p.compareAtPrice : null,
+            isNewArrival: p.isFreshDrop,
             updatedAt: new Date().toISOString(),
           });
           await sbPatch(
@@ -723,6 +857,25 @@ export function AdminPortalClient() {
       // Ignore
     }
     markSaved("catalog");
+  };
+
+  const handleQuickRestock = async (prodId: string) => {
+    const target = products.find((p) => p.id === prodId);
+    if (!target) return;
+    const nextStock = target.stock + 10;
+    setProducts((prev) =>
+      prev.map((p) => (p.id === prodId ? { ...p, stock: nextStock } : p))
+    );
+    try {
+      await sbPatch(
+        "product_variants",
+        `productId=eq.${encodeURIComponent(prodId)}&isDefault=eq.true`,
+        { stock: nextStock, updatedAt: new Date().toISOString() }
+      );
+      localStorage.removeItem("room_live_products_v1");
+    } catch {
+      // Ignore
+    }
   };
 
   const handleAddProduct = async (e: React.FormEvent) => {
@@ -750,6 +903,7 @@ export function AdminPortalClient() {
         name: newProdName.trim(),
         subtitle: newProdSub.trim() || "Limited Cairo Drop",
         basePrice: newProdPrice,
+        compareAtPrice: newProdOldPrice > 0 ? newProdOldPrice : null,
         thumbnailUrl: newProdThumb,
         images: [newProdThumb],
         isFeatured: true,
@@ -781,6 +935,7 @@ export function AdminPortalClient() {
           universeId: targetUniv.id,
           universe: targetUniv.slug,
           price: newProdPrice,
+          compareAtPrice: newProdOldPrice,
           stock: newProdStock,
           thumbnailUrl: newProdThumb,
           isFreshDrop: true,
@@ -789,6 +944,7 @@ export function AdminPortalClient() {
       localStorage.removeItem("room_live_products_v1");
       setNewProdName("");
       setNewProdSub("");
+      setNewProdOldPrice(0);
       markSaved("catalog");
     } catch {
       // Ignore
@@ -803,6 +959,26 @@ export function AdminPortalClient() {
     } catch {
       // Ignore
     }
+  };
+
+  const handleSaveLoadouts = async () => {
+    try {
+      await Promise.all(
+        loadouts.map((l) =>
+          sbPatch("bundles", `id=eq.${encodeURIComponent(l.id)}`, {
+            name: l.name,
+            tagline: l.tagline,
+            fixedPrice: l.fixedPrice,
+            isFeatured: l.isFeatured,
+            isActive: l.isActive,
+            updatedAt: new Date().toISOString(),
+          })
+        )
+      );
+    } catch {
+      // Ignore
+    }
+    markSaved("loadouts");
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
@@ -874,6 +1050,42 @@ export function AdminPortalClient() {
       // Ignore
     }
     markSaved("shipping");
+  };
+
+  const handleAddZone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newZoneName.trim()) return;
+    const zId = generateClientId("zone");
+    const nowIso = new Date().toISOString();
+    try {
+      await sbInsert("shipping_zones", {
+        id: zId,
+        storeId,
+        name: newZoneName.trim(),
+        city: "Cairo",
+        fee: newZoneFee,
+        freeShippingThreshold: 2500,
+        estimatedDays: "1-2 Days",
+        sortOrder: zones.length + 1,
+        isActive: true,
+        updatedAt: nowIso,
+      });
+      setZones((prev) => [
+        ...prev,
+        {
+          id: zId,
+          name: newZoneName.trim(),
+          fee: newZoneFee,
+          freeThreshold: 2500,
+          days: "1-2 Days",
+          active: true,
+        },
+      ]);
+      setNewZoneName("");
+      markSaved("shipping");
+    } catch {
+      // Ignore
+    }
   };
 
   const moveSection = (index: number, dir: -1 | 1) => {
@@ -1011,30 +1223,33 @@ export function AdminPortalClient() {
     <button
       type="button"
       onClick={() => setLang((prev) => (prev === "ar" ? "en" : "ar"))}
-      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3.5 py-1.5 text-xs font-bold text-cyan-200 transition-colors hover:bg-cyan-500/25"
+      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-cyan-400/35 bg-cyan-500/10 px-3.5 text-xs font-bold text-cyan-200 transition-colors hover:bg-cyan-500/20"
     >
       <Languages className="h-3.5 w-3.5" />
       <span>{lang === "ar" ? "English" : "عربي"}</span>
     </button>
   );
 
+  // ============================================================================
+  // LOGIN SCREEN
+  // ============================================================================
   if (!currentUser) {
     return (
       <div
         dir={lang === "ar" ? "rtl" : "ltr"}
-        className="flex min-h-screen items-center justify-center bg-[#05030a] px-4 text-white"
+        className="flex min-h-screen items-center justify-center bg-[#040308] px-4 text-white"
       >
         <div className="fixed right-5 top-5 z-50">
           <LangToggleButton />
         </div>
 
-        <div className="w-full max-w-md rounded-3xl border border-white/15 bg-[#0c0916]/95 p-8 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10">
-              <ShieldCheck className="h-5 w-5 text-white" />
+        <div className="w-full max-w-md rounded-3xl border border-white/15 bg-[#0b0814]/95 p-8 shadow-[0_24px_60px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10">
+              <ShieldCheck className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="font-serif text-xl font-semibold tracking-[0.12em]">
+              <h1 className="font-serif text-xl font-semibold tracking-[0.14em]">
                 {t.brand}
               </h1>
               <p className="text-xs text-white/55">{t.loginSub}</p>
@@ -1107,11 +1322,15 @@ export function AdminPortalClient() {
     );
   }
 
+  // ============================================================================
+  // COMMAND CENTER LAYOUT
+  // ============================================================================
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: t.tabs.overview, icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: "store", label: t.tabs.store, icon: <Palette className="h-4 w-4" /> },
     { id: "universes", label: t.tabs.universes, icon: <Sparkles className="h-4 w-4" /> },
     { id: "catalog", label: t.tabs.catalog, icon: <Package className="h-4 w-4" /> },
+    { id: "loadouts", label: t.tabs.loadouts, icon: <Boxes className="h-4 w-4" /> },
     { id: "orders", label: t.tabs.orders, icon: <ShoppingBag className="h-4 w-4" /> },
     { id: "sections", label: t.tabs.sections, icon: <Layers className="h-4 w-4" /> },
     { id: "shipping", label: t.tabs.shipping, icon: <Truck className="h-4 w-4" /> },
@@ -1146,33 +1365,36 @@ export function AdminPortalClient() {
   return (
     <div
       dir={lang === "ar" ? "rtl" : "ltr"}
-      className="flex min-h-screen bg-[#05030a] text-white"
+      className="flex min-h-screen bg-[#040308] text-white"
     >
-      {/* Sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-e border-white/10 bg-[#080611] p-5 md:flex">
+      {/* Sleek Glass Sidebar */}
+      <aside className="hidden w-64 shrink-0 flex-col border-e border-white/10 bg-[#070510]/95 p-5 md:flex">
         <div className="flex items-center justify-between">
-          <span className="font-serif text-base font-semibold tracking-[0.15em]">
-            {t.brand}
-          </span>
-          <span className="rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-            {currentUser.role}
-          </span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/20 bg-white/10">
+              <ShieldCheck className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-serif text-sm font-semibold tracking-[0.14em]">
+              {t.brand}
+            </span>
+          </div>
         </div>
 
-        <div className="mt-4">
-          <LangToggleButton />
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
+          <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400" />
+          <span>{t.supabaseLive}</span>
         </div>
 
-        <nav className="mt-6 flex-1 space-y-1.5">
+        <nav className="mt-6 flex-1 space-y-1">
           {navItems.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setActiveTab(item.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all ${
                 activeTab === item.id
-                  ? "bg-white text-black"
-                  : "text-white/70 hover:bg-white/5 hover:text-white"
+                  ? "bg-white text-black shadow-[0_6px_20px_rgba(255,255,255,0.18)]"
+                  : "text-white/65 hover:bg-white/5 hover:text-white"
               }`}
             >
               {item.icon}
@@ -1182,18 +1404,18 @@ export function AdminPortalClient() {
         </nav>
 
         <div className="space-y-2 border-t border-white/10 pt-4">
-          <Link
-            href="/"
-            className="block rounded-xl border border-white/15 px-3 py-2 text-center text-xs font-semibold text-white/80 hover:bg-white/5"
-          >
-            {t.viewStore}
-          </Link>
-          <Link
-            href="/schema/"
-            className="block rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2 text-center text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
-          >
-            {t.viewSchema}
-          </Link>
+          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold">{currentUser.name}</p>
+              <p className="truncate font-mono text-[10px] text-white/50" dir="ltr">
+                @{currentUser.username}
+              </p>
+            </div>
+            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-300">
+              {currentUser.role}
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={handleLogout}
@@ -1205,20 +1427,60 @@ export function AdminPortalClient() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-6 md:p-10">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 md:hidden">
-          <span className="font-serif text-base font-semibold tracking-widest">
-            {t.brand}
-          </span>
-          <LangToggleButton />
-          <div className="flex w-full flex-wrap gap-1.5">
+      {/* Main Command Workspace */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Top Command Header */}
+        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#070510]/85 px-6 py-3.5 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <h1 className="font-serif text-lg font-semibold text-white">
+              {navItems.find((n) => n.id === activeTab)?.label}
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="relative hidden sm:block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value && activeTab === "overview") {
+                    setActiveTab("catalog");
+                  }
+                }}
+                placeholder={t.searchPlaceholder}
+                className="h-9 w-48 rounded-full border border-white/15 bg-black/60 pl-9 pr-3 text-xs text-white placeholder:text-white/40 focus:border-white/45 focus:outline-none"
+              />
+            </div>
+
+            <LangToggleButton />
+
+            <Link
+              href="/schema/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 text-xs font-semibold text-white/85 hover:bg-white/10"
+            >
+              <Database className="h-3.5 w-3.5 text-cyan-300" />
+              <span className="hidden sm:inline">{t.viewSchema}</span>
+            </Link>
+
+            <Link
+              href="/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-bold text-black hover:opacity-90"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>{t.viewStore}</span>
+            </Link>
+          </div>
+
+          {/* Mobile Tab Strip */}
+          <div className="flex w-full gap-1.5 overflow-x-auto pb-1 md:hidden">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setActiveTab(item.id)}
-                className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${
                   activeTab === item.id
                     ? "bg-white text-black"
                     : "border border-white/15 text-white/75"
@@ -1228,783 +1490,1066 @@ export function AdminPortalClient() {
               </button>
             ))}
           </div>
-        </div>
+        </header>
 
-        {/* OVERVIEW */}
-        {activeTab === "overview" ? (
-          <div className="space-y-6">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold">
-                {t.welcome}, {currentUser.name}
-              </h2>
-              <p className="mt-1 text-xs text-white/55">
-                {t.signedInAs} <span dir="ltr">@{currentUser.username} ({currentUser.email})</span> •{" "}
-                {currentUser.role}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { label: t.stats.universes, value: universes.filter((u) => u.isActive).length },
-                { label: t.stats.products, value: products.length },
-                { label: t.stats.zones, value: zones.filter((z) => z.active).length },
-                { label: t.stats.team, value: accounts.length },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-2xl border border-white/10 bg-[#0d0a16] p-5"
-                >
-                  <p className="text-xs text-white/55">{stat.label}</p>
-                  <p className="mt-2 font-serif text-3xl font-semibold text-white">
-                    {stat.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* STORE & EVENT THEMES */}
-        {activeTab === "store" ? (
-          <div className="max-w-3xl space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 className="font-serif text-2xl font-semibold">{t.storeTitle}</h2>
-              <SaveButton tab="store" onClick={() => void handleSaveStore()} />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs text-white/65">{t.storeName}</label>
-                <input
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-white/65">{t.whatsapp}</label>
-                <input
-                  dir="ltr"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
-                />
-              </div>
-              {[
-                { label: t.homeAccent, val: defaultAccent, set: setDefaultAccent },
-                { label: t.bgPrimary, val: bgPrimary, set: setBgPrimary },
-                { label: t.bgSecondary, val: bgSecondary, set: setBgSecondary },
-                { label: t.bgElevated, val: bgElevated, set: setBgElevated },
-              ].map((c) => (
-                <div key={c.label}>
-                  <label className="mb-1 block text-xs text-white/65">{c.label}</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={c.val}
-                      onChange={(e) => c.set(e.target.value)}
-                      className="h-9 w-14 rounded-lg border border-white/15 bg-transparent"
-                    />
-                    <span className="font-mono text-xs text-white/75" dir="ltr">
-                      {c.val}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Event Theme Presets */}
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="font-serif text-lg font-semibold">{t.presetsTitle}</h3>
-                <button
-                  type="button"
-                  onClick={() => void handleApplyPreset(ROOM_DEFAULT_PRESET)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  {t.restoreDefault}
-                </button>
-              </div>
-
-              <form onSubmit={handleSavePreset} className="flex flex-wrap gap-3">
-                <input
-                  value={newPresetName}
-                  onChange={(e) => setNewPresetName(e.target.value)}
-                  placeholder={t.presetPlaceholder}
-                  required
-                  className="h-10 flex-1 min-w-[220px] rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
-                />
-                <button
-                  type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
-                >
-                  <BookmarkPlus className="h-4 w-4" />
-                  {t.savePresetBtn}
-                </button>
-              </form>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {presets.map((preset) => (
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+          {/* OVERVIEW */}
+          {activeTab === "overview" ? (
+            <div className="space-y-6">
+              {/* KPI Grid */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { label: t.stats.universes, value: universes.filter((u) => u.isActive).length, accent: "#c94b99" },
+                  { label: t.stats.products, value: products.length, accent: "#6366f1" },
+                  { label: t.stats.orders, value: orders.length, accent: "#22c55e" },
+                  { label: t.stats.team, value: accounts.length, accent: "#f59e0b" },
+                ].map((stat) => (
                   <div
-                    key={preset.id}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 p-3.5"
+                    key={stat.label}
+                    className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0b0815] p-5"
                   >
-                    <div>
-                      <p className="text-sm font-semibold">{preset.name}</p>
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        {[
-                          preset.bgPrimary,
-                          preset.bgElevated,
-                          preset.defaultAccent,
-                          ...Object.values(preset.universeColors),
-                        ].map((hex, idx) => (
-                          <span
-                            key={`${preset.id}-c-${idx}`}
-                            className="h-3.5 w-3.5 rounded-full border border-white/20"
-                            style={{ backgroundColor: hex }}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    <div
+                      className="absolute inset-x-0 top-0 h-0.5"
+                      style={{ backgroundColor: stat.accent }}
+                    />
+                    <p className="text-xs text-white/55">{stat.label}</p>
+                    <p className="mt-2 font-serif text-3xl font-semibold text-white">
+                      {stat.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {/* Quick Actions */}
+                <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
+                  <h2 className="font-serif text-lg font-semibold">{t.quickActions}</h2>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => void handleApplyPreset(preset)}
-                      className="rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-black hover:opacity-90"
+                      onClick={() => setActiveTab("catalog")}
+                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
                     >
-                      {t.applyTheme}
+                      <Plus className="h-4 w-4 text-cyan-300" />
+                      <span>{t.addProductTitle}</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("store")}
+                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
+                    >
+                      <Palette className="h-4 w-4 text-pink-300" />
+                      <span>{t.tabs.store}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("team")}
+                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
+                    >
+                      <UserPlus className="h-4 w-4 text-emerald-300" />
+                      <span>{t.genInvite}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("orders")}
+                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
+                    >
+                      <ShoppingBag className="h-4 w-4 text-amber-300" />
+                      <span>{t.tabs.orders}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stock & Vaulted Alerts */}
+                <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <h2 className="font-serif text-lg font-semibold">{t.vaultedAlerts}</h2>
+                  </div>
+                  <div className="mt-4 space-y-2.5">
+                    {lowStockProducts.length === 0 ? (
+                      <p className="text-xs text-white/55">{t.allHealthy}</p>
+                    ) : (
+                      lowStockProducts.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-4 py-2.5"
+                        >
+                          <div>
+                            <p className="text-xs font-semibold">{p.name}</p>
+                            <p className="text-[11px] text-white/50">
+                              {t.stock}: {p.stock} {p.stock <= 0 ? `(${t.vaulted})` : ""}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleQuickRestock(p.id)}
+                            className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3 py-1 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/25"
+                          >
+                            {t.restockOneClick}
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* STORE, LIVE PREVIEW & EVENT THEMES */}
+          {activeTab === "store" ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-serif text-2xl font-semibold">{t.storeTitle}</h2>
+                <SaveButton tab="store" onClick={() => void handleSaveStore()} />
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {/* Color & Identity Inputs */}
+                <div className="grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6 sm:grid-cols-2 lg:col-span-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-white/65">{t.storeName}</label>
+                    <input
+                      value={storeName}
+                      onChange={(e) => setStoreName(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-white/65">{t.whatsapp}</label>
+                    <input
+                      dir="ltr"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                    />
+                  </div>
+                  {[
+                    { label: t.homeAccent, val: defaultAccent, set: setDefaultAccent },
+                    { label: t.bgPrimary, val: bgPrimary, set: setBgPrimary },
+                    { label: t.bgSecondary, val: bgSecondary, set: setBgSecondary },
+                    { label: t.bgElevated, val: bgElevated, set: setBgElevated },
+                  ].map((c) => (
+                    <div key={c.label}>
+                      <label className="mb-1 block text-xs text-white/65">{c.label}</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={c.val}
+                          onChange={(e) => c.set(e.target.value)}
+                          className="h-9 w-14 rounded-lg border border-white/15 bg-transparent"
+                        />
+                        <span className="font-mono text-xs text-white/75" dir="ltr">
+                          {c.val}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Live Theme Preview Mini-Card */}
+                <div
+                  className="flex flex-col justify-between rounded-2xl border border-white/15 p-5"
+                  style={{
+                    background: `linear-gradient(180deg, ${bgPrimary} 0%, ${bgSecondary} 45%, ${bgElevated} 100%)`,
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-white/70">
+                      {t.livePreview}
+                    </span>
+                    <span
+                      className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[10px] font-bold"
+                      style={{ color: defaultAccent }}
+                    >
+                      ✦ MY ROOM
+                    </span>
+                  </div>
+                  <div className="my-6 text-center">
+                    <p className="font-serif text-2xl font-semibold tracking-[0.22em] text-white">
+                      {storeName}
+                    </p>
+                    <div className="mt-3 flex justify-center gap-2">
+                      {universes.map((u) => (
+                        <span
+                          key={u.id}
+                          className="h-6 w-12 rounded-lg border border-white/15"
+                          style={{
+                            background: `linear-gradient(180deg, #05030a 0%, ${u.accentColor} 100%)`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-center text-[10px] text-white/50">
+                    {bgPrimary} → {bgElevated}
+                  </p>
+                </div>
+              </div>
+
+              {/* Event Theme Presets */}
+              <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-serif text-lg font-semibold">{t.presetsTitle}</h3>
+                  <button
+                    type="button"
+                    onClick={() => void handleApplyPreset(ROOM_DEFAULT_PRESET)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    {t.restoreDefault}
+                  </button>
+                </div>
+
+                <form onSubmit={handleSavePreset} className="flex flex-wrap gap-3">
+                  <input
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    placeholder={t.presetPlaceholder}
+                    required
+                    className="h-10 min-w-[220px] flex-1 rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex h-10 items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
+                  >
+                    <BookmarkPlus className="h-4 w-4" />
+                    {t.savePresetBtn}
+                  </button>
+                </form>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {presets.map((preset) => (
+                    <div
+                      key={preset.id}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 p-3.5"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold">{preset.name}</p>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          {[
+                            preset.bgPrimary,
+                            preset.bgElevated,
+                            preset.defaultAccent,
+                            ...Object.values(preset.universeColors),
+                          ].map((hex, idx) => (
+                            <span
+                              key={`${preset.id}-c-${idx}`}
+                              className="h-3.5 w-3.5 rounded-full border border-white/20"
+                              style={{ backgroundColor: hex }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleApplyPreset(preset)}
+                        className="rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-black hover:opacity-90"
+                      >
+                        {t.applyTheme}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* UNIVERSES */}
+          {activeTab === "universes" ? (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-serif text-2xl font-semibold">{t.universesTitle}</h2>
+                <SaveButton tab="universes" onClick={() => void handleSaveUniverses()} />
+              </div>
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                {universes.map((u) => (
+                  <div
+                    key={u.id}
+                    className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
+                    style={{
+                      borderTop: `3px solid ${u.accentColor}`,
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs text-white/55" dir="ltr">
+                        /{u.slug}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setUniverses((prev) =>
+                              prev.map((x) =>
+                                x.id === u.id ? { ...x, isActive: !x.isActive } : x
+                              )
+                            )
+                          }
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            u.isActive
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : "bg-white/10 text-white/45"
+                          }`}
+                        >
+                          {u.isActive ? t.active : t.hidden}
+                        </button>
+                        <input
+                          type="color"
+                          value={u.accentColor}
+                          onChange={(e) =>
+                            setUniverses((prev) =>
+                              prev.map((x) =>
+                                x.id === u.id ? { ...x, accentColor: e.target.value } : x
+                              )
+                            )
+                          }
+                          className="h-7 w-10 rounded border border-white/15 bg-transparent"
+                        />
+                      </div>
+                    </div>
+                    <input
+                      value={u.name}
+                      onChange={(e) =>
+                        setUniverses((prev) =>
+                          prev.map((x) =>
+                            x.id === u.id ? { ...x, name: e.target.value } : x
+                          )
+                        )
+                      }
+                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-sm font-semibold"
+                    />
+                    <input
+                      value={u.tagline}
+                      onChange={(e) =>
+                        setUniverses((prev) =>
+                          prev.map((x) =>
+                            x.id === u.id ? { ...x, tagline: e.target.value } : x
+                          )
+                        )
+                      }
+                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-xs text-white/80"
+                    />
+                    <textarea
+                      rows={2}
+                      value={u.description}
+                      onChange={(e) =>
+                        setUniverses((prev) =>
+                          prev.map((x) =>
+                            x.id === u.id ? { ...x, description: e.target.value } : x
+                          )
+                        )
+                      }
+                      className="w-full rounded-lg border border-white/15 bg-black/50 p-2.5 text-xs text-white/75"
+                    />
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {/* UNIVERSES */}
-        {activeTab === "universes" ? (
-          <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 className="font-serif text-2xl font-semibold">{t.universesTitle}</h2>
-              <SaveButton tab="universes" onClick={() => void handleSaveUniverses()} />
+          {/* CATALOG & PRODUCTS */}
+          {activeTab === "catalog" ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-serif text-2xl font-semibold">{t.catalogTitle}</h2>
+                <SaveButton tab="catalog" onClick={() => void handleSaveCatalog()} />
+              </div>
+
+              {/* Add Product Form */}
+              <form
+                onSubmit={handleAddProduct}
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5 sm:grid-cols-2 lg:grid-cols-7"
+              >
+                <div className="lg:col-span-2">
+                  <label className="mb-1 block text-[11px] text-white/65">{t.prodName}</label>
+                  <input
+                    required
+                    value={newProdName}
+                    onChange={(e) => setNewProdName(e.target.value)}
+                    placeholder="e.g. Akatsuki Night Bedsheet"
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div className="lg:col-span-2">
+                  <label className="mb-1 block text-[11px] text-white/65">{t.prodSub}</label>
+                  <input
+                    value={newProdSub}
+                    onChange={(e) => setNewProdSub(e.target.value)}
+                    placeholder="300TC Matte Sateen • Limited"
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] text-white/65">Universe</label>
+                  <select
+                    value={newProdUnivSlug}
+                    onChange={(e) => setNewProdUnivSlug(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
+                  >
+                    {universes.map((u) => (
+                      <option key={u.id} value={u.slug}>
+                        {u.slug.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] text-white/65">{t.prodPrice}</label>
+                  <input
+                    type="number"
+                    value={newProdPrice}
+                    onChange={(e) => setNewProdPrice(Number(e.target.value))}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] text-white/65">{t.prodStock}</label>
+                  <input
+                    type="number"
+                    value={newProdStock}
+                    onChange={(e) => setNewProdStock(Number(e.target.value))}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div className="lg:col-span-3">
+                  <label className="mb-1 block text-[11px] text-white/65">{t.prodMockup}</label>
+                  <select
+                    value={newProdThumb}
+                    onChange={(e) => setNewProdThumb(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
+                  >
+                    {MOCKUP_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="lg:col-span-2">
+                  <label className="mb-1 block text-[11px] text-white/65">{t.prodOldPrice}</label>
+                  <input
+                    type="number"
+                    value={newProdOldPrice}
+                    onChange={(e) => setNewProdOldPrice(Number(e.target.value))}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div className="flex items-end lg:col-span-2">
+                  <button
+                    type="submit"
+                    className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-white px-4 text-xs font-bold text-black hover:opacity-90"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t.addProdBtn}
+                  </button>
+                </div>
+              </form>
+
+              {/* Product List */}
+              <div className="space-y-3">
+                {filteredProducts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
+                  >
+                    <div className="min-w-[220px] flex-1 space-y-1.5">
+                      <input
+                        value={p.name}
+                        onChange={(e) =>
+                          setProducts((prev) =>
+                            prev.map((x) =>
+                              x.id === p.id ? { ...x, name: e.target.value } : x
+                            )
+                          )
+                        }
+                        className="h-8 w-full rounded-lg border border-white/10 bg-black/40 px-2.5 text-sm font-semibold"
+                      />
+                      <input
+                        value={p.subtitle}
+                        onChange={(e) =>
+                          setProducts((prev) =>
+                            prev.map((x) =>
+                              x.id === p.id ? { ...x, subtitle: e.target.value } : x
+                            )
+                          )
+                        }
+                        className="h-7 w-full rounded-lg border border-white/10 bg-black/30 px-2.5 text-xs text-white/70"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="text-xs text-white/60">
+                        {t.egp}
+                        <input
+                          type="number"
+                          value={p.price}
+                          onChange={(e) =>
+                            setProducts((prev) =>
+                              prev.map((x) =>
+                                x.id === p.id ? { ...x, price: Number(e.target.value) } : x
+                              )
+                            )
+                          }
+                          className="mx-1.5 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
+                        />
+                      </label>
+                      <label className="text-xs text-white/60">
+                        {t.stock}
+                        <input
+                          type="number"
+                          value={p.stock}
+                          onChange={(e) =>
+                            setProducts((prev) =>
+                              prev.map((x) =>
+                                x.id === p.id ? { ...x, stock: Number(e.target.value) } : x
+                              )
+                            )
+                          }
+                          className="mx-1.5 h-8 w-16 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
+                        />
+                      </label>
+                      <span
+                        className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${
+                          p.stock <= 0
+                            ? "bg-zinc-700 text-white"
+                            : "bg-emerald-500/20 text-emerald-300"
+                        }`}
+                      >
+                        {p.stock <= 0 ? t.vaulted : t.inStock}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteProduct(p.id)}
+                        className="rounded-lg border border-red-500/25 p-1.5 text-red-300 hover:bg-red-500/20"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {universes.map((u) => (
-                <div
-                  key={u.id}
-                  className="space-y-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-white/55" dir="ltr">
-                      /{u.slug}
-                    </span>
-                    <div className="flex items-center gap-2">
+          ) : null}
+
+          {/* LOADOUTS (BUNDLES) */}
+          {activeTab === "loadouts" ? (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-serif text-2xl font-semibold">{t.loadoutsTitle}</h2>
+                <SaveButton tab="loadouts" onClick={() => void handleSaveLoadouts()} />
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {loadouts.map((l) => (
+                  <div
+                    key={l.id}
+                    className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
+                  >
+                    <input
+                      value={l.name}
+                      onChange={(e) =>
+                        setLoadouts((prev) =>
+                          prev.map((x) =>
+                            x.id === l.id ? { ...x, name: e.target.value } : x
+                          )
+                        )
+                      }
+                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-sm font-semibold"
+                    />
+                    <input
+                      value={l.tagline}
+                      onChange={(e) =>
+                        setLoadouts((prev) =>
+                          prev.map((x) =>
+                            x.id === l.id ? { ...x, tagline: e.target.value } : x
+                          )
+                        )
+                      }
+                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-xs text-white/80"
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-xs text-white/60">
+                        {t.egp}
+                        <input
+                          type="number"
+                          value={l.fixedPrice}
+                          onChange={(e) =>
+                            setLoadouts((prev) =>
+                              prev.map((x) =>
+                                x.id === l.id
+                                  ? { ...x, fixedPrice: Number(e.target.value) }
+                                  : x
+                              )
+                            )
+                          }
+                          className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        />
+                      </label>
                       <button
                         type="button"
                         onClick={() =>
-                          setUniverses((prev) =>
+                          setLoadouts((prev) =>
                             prev.map((x) =>
-                              x.id === u.id ? { ...x, isActive: !x.isActive } : x
+                              x.id === l.id ? { ...x, isFeatured: !x.isFeatured } : x
+                            )
+                          )
+                        }
+                        className={`rounded-full px-3 py-1 text-[10px] font-bold ${
+                          l.isFeatured
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-white/10 text-white/50"
+                        }`}
+                      >
+                        {l.isFeatured ? t.visible : t.hidden}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* ORDERS & WHATSAPP */}
+          {activeTab === "orders" ? (
+            <div className="space-y-5">
+              <h2 className="font-serif text-2xl font-semibold">{t.ordersTitle}</h2>
+              {orders.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-8 text-center text-xs text-white/55">
+                  {t.noOrders}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {orders.map((ord) => {
+                    const waPhone = ord.customerPhone.replace(/[^0-9]/g, "");
+                    const waMsg = encodeURIComponent(
+                      `Hi ${ord.customerName}, your ROOM order #${ord.orderNumber} (${formatEgp(ord.total)}) is now: ${ord.status}`
+                    );
+                    return (
+                      <div
+                        key={ord.id}
+                        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
+                      >
+                        <div>
+                          <p className="font-mono text-sm font-bold text-white">
+                            #{ord.orderNumber} — {ord.customerName}
+                          </p>
+                          <p className="text-xs text-white/55">
+                            {ord.customerPhone} • {ord.paymentMethod} • {formatEgp(ord.total)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={`https://wa.me/${waPhone}?text=${waMsg}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            <span>{t.whatsappBtn}</span>
+                          </a>
+                          <select
+                            value={ord.status}
+                            onChange={(e) => void handleUpdateOrderStatus(ord.id, e.target.value)}
+                            className="h-9 rounded-xl border border-white/15 bg-black/60 px-3 text-xs font-semibold text-white"
+                          >
+                            {[
+                              "PENDING",
+                              "CONFIRMED",
+                              "PACKING",
+                              "OUT_FOR_DELIVERY",
+                              "DELIVERED",
+                              "CANCELLED",
+                            ].map((st) => (
+                              <option key={st} value={st}>
+                                {st}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* HOME BUILDER */}
+          {activeTab === "sections" ? (
+            <div className="max-w-2xl space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-serif text-2xl font-semibold">{t.sectionsTitle}</h2>
+                <SaveButton tab="sections" onClick={() => void handleSaveSections()} />
+              </div>
+              <div className="space-y-2.5">
+                {sections.map((s, idx) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b0815] px-5 py-3.5"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">{s.title}</p>
+                      <p className="font-mono text-[11px] text-white/45" dir="ltr">
+                        {s.type}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => moveSection(idx, -1)}
+                        disabled={idx === 0}
+                        className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSection(idx, 1)}
+                        disabled={idx === sections.length - 1}
+                        className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSections((prev) =>
+                            prev.map((x) =>
+                              x.id === s.id ? { ...x, visible: !x.visible } : x
+                            )
+                          )
+                        }
+                        className={`rounded-full px-4 py-1.5 text-xs font-bold ${
+                          s.visible
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-white/10 text-white/50"
+                        }`}
+                      >
+                        {s.visible ? t.visible : t.hidden}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* CAIRO SHIPPING */}
+          {activeTab === "shipping" ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-serif text-2xl font-semibold">{t.shippingTitle}</h2>
+                <SaveButton tab="shipping" onClick={() => void handleSaveZones()} />
+              </div>
+
+              <form
+                onSubmit={handleAddZone}
+                className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
+              >
+                <div className="min-w-[220px] flex-1">
+                  <label className="mb-1 block text-xs text-white/65">{t.addZoneTitle}</label>
+                  <input
+                    required
+                    value={newZoneName}
+                    onChange={(e) => setNewZoneName(e.target.value)}
+                    placeholder={t.zoneNamePlaceholder}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-white/65">{t.fee}</label>
+                  <input
+                    type="number"
+                    value={newZoneFee}
+                    onChange={(e) => setNewZoneFee(Number(e.target.value))}
+                    className="h-9 w-24 rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-bold text-black"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t.addZoneBtn}
+                </button>
+              </form>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {zones.map((z) => (
+                  <div
+                    key={z.id}
+                    className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-cyan-300" />
+                        <h3 className="text-sm font-semibold">{z.name}</h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setZones((prev) =>
+                            prev.map((x) =>
+                              x.id === z.id ? { ...x, active: !x.active } : x
                             )
                           )
                         }
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                          u.isActive
+                          z.active
                             ? "bg-emerald-500/20 text-emerald-300"
                             : "bg-white/10 text-white/45"
                         }`}
                       >
-                        {u.isActive ? t.active : t.hidden}
+                        {z.active ? t.active : t.hidden}
                       </button>
-                      <input
-                        type="color"
-                        value={u.accentColor}
-                        onChange={(e) =>
-                          setUniverses((prev) =>
-                            prev.map((x) =>
-                              x.id === u.id ? { ...x, accentColor: e.target.value } : x
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      <label className="text-white/60">
+                        {t.fee}
+                        <input
+                          type="number"
+                          value={z.fee}
+                          onChange={(e) =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id ? { ...x, fee: Number(e.target.value) } : x
+                              )
                             )
-                          )
-                        }
-                        className="h-7 w-10 rounded border border-white/15 bg-transparent"
-                      />
+                          }
+                          className="mx-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        />
+                      </label>
+                      <label className="text-white/60">
+                        {t.freeAbove}
+                        <input
+                          type="number"
+                          value={z.freeThreshold}
+                          onChange={(e) =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id
+                                  ? { ...x, freeThreshold: Number(e.target.value) }
+                                  : x
+                              )
+                            )
+                          }
+                          className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        />
+                      </label>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* TEAM & INVITES */}
+          {activeTab === "team" ? (
+            <div className="space-y-8">
+              <div>
+                <h2 className="font-serif text-2xl font-semibold">{t.teamTitle}</h2>
+                <p className="mt-1 text-xs text-white/55">{t.teamSub}</p>
+              </div>
+
+              <form
+                onSubmit={handleCreateInvite}
+                className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
+              >
+                <div className="min-w-[220px] flex-1">
+                  <label className="mb-1.5 block text-xs font-semibold text-white/70">
+                    {t.adminEmail}
+                  </label>
                   <input
-                    value={u.name}
-                    onChange={(e) =>
-                      setUniverses((prev) =>
-                        prev.map((x) =>
-                          x.id === u.id ? { ...x, name: e.target.value } : x
-                        )
-                      )
-                    }
-                    className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-sm font-semibold"
-                  />
-                  <input
-                    value={u.tagline}
-                    onChange={(e) =>
-                      setUniverses((prev) =>
-                        prev.map((x) =>
-                          x.id === u.id ? { ...x, tagline: e.target.value } : x
-                        )
-                      )
-                    }
-                    className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-xs text-white/80"
+                    type="email"
+                    dir="ltr"
+                    required
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="new-admin@example.com"
+                    className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm text-white"
                   />
                 </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
 
-        {/* CATALOG & ADD PRODUCT */}
-        {activeTab === "catalog" ? (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 className="font-serif text-2xl font-semibold">{t.catalogTitle}</h2>
-              <SaveButton tab="catalog" onClick={() => void handleSaveCatalog()} />
-            </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-white/70">
+                    {t.role}
+                  </label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "STAFF")}
+                    className="h-10 rounded-xl border border-white/15 bg-black/50 px-3 text-sm text-white"
+                  >
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="STAFF">STAFF</option>
+                  </select>
+                </div>
 
-            {/* Add New Product Form */}
-            <form
-              onSubmit={handleAddProduct}
-              className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5 sm:grid-cols-2 lg:grid-cols-6"
-            >
-              <div className="lg:col-span-2">
-                <label className="mb-1 block text-[11px] text-white/65">{t.prodName}</label>
-                <input
-                  required
-                  value={newProdName}
-                  onChange={(e) => setNewProdName(e.target.value)}
-                  placeholder="e.g. Akatsuki Night Bedsheet"
-                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                />
-              </div>
-              <div className="lg:col-span-2">
-                <label className="mb-1 block text-[11px] text-white/65">{t.prodSub}</label>
-                <input
-                  value={newProdSub}
-                  onChange={(e) => setNewProdSub(e.target.value)}
-                  placeholder="300TC Matte Sateen • Limited"
-                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] text-white/65">Universe</label>
-                <select
-                  value={newProdUnivSlug}
-                  onChange={(e) => setNewProdUnivSlug(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
-                >
-                  {universes.map((u) => (
-                    <option key={u.id} value={u.slug}>
-                      {u.slug.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] text-white/65">{t.prodPrice}</label>
-                <input
-                  type="number"
-                  value={newProdPrice}
-                  onChange={(e) => setNewProdPrice(Number(e.target.value))}
-                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] text-white/65">{t.prodStock}</label>
-                <input
-                  type="number"
-                  value={newProdStock}
-                  onChange={(e) => setNewProdStock(Number(e.target.value))}
-                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                />
-              </div>
-              <div className="lg:col-span-3">
-                <label className="mb-1 block text-[11px] text-white/65">{t.prodMockup}</label>
-                <select
-                  value={newProdThumb}
-                  onChange={(e) => setNewProdThumb(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
-                >
-                  {MOCKUP_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end lg:col-span-2">
                 <button
                   type="submit"
-                  className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-white px-4 text-xs font-bold text-black hover:opacity-90"
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-xs font-bold uppercase tracking-wider text-black hover:opacity-90"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t.addProdBtn}
+                  <UserPlus className="h-4 w-4" />
+                  <span>{t.genInvite}</span>
                 </button>
-              </div>
-            </form>
+              </form>
 
-            {/* Product List */}
-            <div className="space-y-3">
-              {products.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-4"
-                >
-                  <div>
-                    <h3 className="text-sm font-semibold">{p.name}</h3>
-                    <p className="font-mono text-xs text-white/50">
-                      Universe: {p.universe}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="text-xs text-white/60">
-                      {t.egp}
-                      <input
-                        type="number"
-                        value={p.price}
-                        onChange={(e) =>
-                          setProducts((prev) =>
-                            prev.map((x) =>
-                              x.id === p.id ? { ...x, price: Number(e.target.value) } : x
-                            )
-                          )
-                        }
-                        className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
-                      />
-                    </label>
-                    <label className="text-xs text-white/60">
-                      {t.stock}
-                      <input
-                        type="number"
-                        value={p.stock}
-                        onChange={(e) =>
-                          setProducts((prev) =>
-                            prev.map((x) =>
-                              x.id === p.id ? { ...x, stock: Number(e.target.value) } : x
-                            )
-                          )
-                        }
-                        className="mx-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
-                      />
-                    </label>
-                    <span
-                      className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${
-                        p.stock <= 0
-                          ? "bg-zinc-700 text-white"
-                          : "bg-emerald-500/20 text-emerald-300"
-                      }`}
-                    >
-                      {p.stock <= 0 ? t.vaulted : t.inStock}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteProduct(p.id)}
-                      className="rounded-lg border border-red-500/25 p-1.5 text-red-300 hover:bg-red-500/20"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+              {invites.length > 0 ? (
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">
+                    {t.inviteLinksTitle}
+                  </h3>
+                  {invites.map((inv) => {
+                    const expired = new Date(inv.expiresAt).getTime() < Date.now();
+                    return (
+                      <div
+                        key={inv.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold" dir="ltr">
+                            {inv.email}
+                          </p>
+                          <p className="text-xs text-white/50">
+                            {t.role}: {inv.role} • {t.expires}:{" "}
+                            {new Date(inv.expiresAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {inv.usedAt ? (
+                            <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
+                              {t.used}
+                            </span>
+                          ) : expired ? (
+                            <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300">
+                              {t.expired}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyInvite(inv.token)}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-4 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/25"
+                            >
+                              {copiedToken === inv.token ? (
+                                <>
+                                  <Check className="h-3.5 w-3.5" /> {t.copied}
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3.5 w-3.5" /> {t.copyLink}
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
+              ) : null}
 
-        {/* ORDERS */}
-        {activeTab === "orders" ? (
-          <div className="space-y-5">
-            <h2 className="font-serif text-2xl font-semibold">{t.ordersTitle}</h2>
-            {orders.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-[#0d0a16] p-8 text-center text-xs text-white/55">
-                {t.noOrders}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {orders.map((ord) => (
-                  <div
-                    key={ord.id}
-                    className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-4"
-                  >
-                    <div>
-                      <p className="font-mono text-sm font-bold text-white">
-                        #{ord.orderNumber} — {ord.customerName}
-                      </p>
-                      <p className="text-xs text-white/55">
-                        {ord.customerPhone} • {ord.paymentMethod} • {ord.total} EGP
-                      </p>
-                    </div>
-                    <select
-                      value={ord.status}
-                      onChange={(e) => void handleUpdateOrderStatus(ord.id, e.target.value)}
-                      className="h-9 rounded-xl border border-white/15 bg-black/60 px-3 text-xs font-semibold text-white"
-                    >
-                      {[
-                        "PENDING",
-                        "CONFIRMED",
-                        "PACKING",
-                        "OUT_FOR_DELIVERY",
-                        "DELIVERED",
-                        "CANCELLED",
-                      ].map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : null}
-
-        {/* HOME BUILDER */}
-        {activeTab === "sections" ? (
-          <div className="max-w-2xl space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 className="font-serif text-2xl font-semibold">{t.sectionsTitle}</h2>
-              <SaveButton tab="sections" onClick={() => void handleSaveSections()} />
-            </div>
-            <div className="space-y-2.5">
-              {sections.map((s, idx) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] px-5 py-3.5"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{s.title}</p>
-                    <p className="font-mono text-[11px] text-white/45" dir="ltr">
-                      {s.type}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => moveSection(idx, -1)}
-                      disabled={idx === 0}
-                      className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSection(idx, 1)}
-                      disabled={idx === sections.length - 1}
-                      className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
-                    >
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSections((prev) =>
-                          prev.map((x) =>
-                            x.id === s.id ? { ...x, visible: !x.visible } : x
-                          )
-                        )
-                      }
-                      className={`rounded-full px-4 py-1.5 text-xs font-bold ${
-                        s.visible
-                          ? "bg-emerald-500/20 text-emerald-300"
-                          : "bg-white/10 text-white/50"
-                      }`}
-                    >
-                      {s.visible ? t.visible : t.hidden}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* CAIRO SHIPPING */}
-        {activeTab === "shipping" ? (
-          <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 className="font-serif text-2xl font-semibold">{t.shippingTitle}</h2>
-              <SaveButton tab="shipping" onClick={() => void handleSaveZones()} />
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {zones.map((z) => (
-                <div
-                  key={z.id}
-                  className="space-y-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-cyan-300" />
-                      <h3 className="text-sm font-semibold">{z.name}</h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setZones((prev) =>
-                          prev.map((x) =>
-                            x.id === z.id ? { ...x, active: !x.active } : x
-                          )
-                        )
-                      }
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                        z.active
-                          ? "bg-emerald-500/20 text-emerald-300"
-                          : "bg-white/10 text-white/45"
-                      }`}
-                    >
-                      {z.active ? t.active : t.hidden}
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-xs">
-                    <label className="text-white/60">
-                      {t.fee}
-                      <input
-                        type="number"
-                        value={z.fee}
-                        onChange={(e) =>
-                          setZones((prev) =>
-                            prev.map((x) =>
-                              x.id === z.id ? { ...x, fee: Number(e.target.value) } : x
-                            )
-                          )
-                        }
-                        className="mx-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
-                      />
-                    </label>
-                    <label className="text-white/60">
-                      {t.freeAbove}
-                      <input
-                        type="number"
-                        value={z.freeThreshold}
-                        onChange={(e) =>
-                          setZones((prev) =>
-                            prev.map((x) =>
-                              x.id === z.id
-                                ? { ...x, freeThreshold: Number(e.target.value) }
-                                : x
-                            )
-                          )
-                        }
-                        className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
-                      />
-                    </label>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* TEAM & INVITES */}
-        {activeTab === "team" ? (
-          <div className="space-y-8">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold">{t.teamTitle}</h2>
-              <p className="mt-1 text-xs text-white/55">{t.teamSub}</p>
-            </div>
-
-            <form
-              onSubmit={handleCreateInvite}
-              className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-5"
-            >
-              <div className="min-w-[220px] flex-1">
-                <label className="mb-1.5 block text-xs font-semibold text-white/70">
-                  {t.adminEmail}
-                </label>
-                <input
-                  type="email"
-                  dir="ltr"
-                  required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="new-admin@example.com"
-                  className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm text-white"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-white/70">
-                  {t.role}
-                </label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "STAFF")}
-                  className="h-10 rounded-xl border border-white/15 bg-black/50 px-3 text-sm text-white"
-                >
-                  <option value="ADMIN">ADMIN</option>
-                  <option value="STAFF">STAFF</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-xs font-bold uppercase tracking-wider text-black hover:opacity-90"
-              >
-                <UserPlus className="h-4 w-4" />
-                <span>{t.genInvite}</span>
-              </button>
-            </form>
-
-            {invites.length > 0 ? (
               <div className="space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">
-                  {t.inviteLinksTitle}
+                  {t.activeAccounts} ({accounts.length})
                 </h3>
-                {invites.map((inv) => {
-                  const expired = new Date(inv.expiresAt).getTime() < Date.now();
-                  return (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {accounts.map((acc) => (
                     <div
-                      key={inv.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0d0a16] p-4"
+                      key={acc.id}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0b0815] p-4"
                     >
-                      <div>
-                        <p className="text-sm font-semibold" dir="ltr">
-                          {inv.email}
-                        </p>
-                        <p className="text-xs text-white/50">
-                          {t.role}: {inv.role} • {t.expires}:{" "}
-                          {new Date(inv.expiresAt).toLocaleString()}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <UserCheck className="h-5 w-5 text-white/70" />
+                        <div>
+                          <p className="text-sm font-semibold">{acc.name}</p>
+                          <p className="font-mono text-xs text-white/55" dir="ltr">
+                            @{acc.username} • {acc.email}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {inv.usedAt ? (
-                          <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
-                            {t.used}
-                          </span>
-                        ) : expired ? (
-                          <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300">
-                            {t.expired}
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleCopyInvite(inv.token)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-4 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/25"
-                          >
-                            {copiedToken === inv.token ? (
-                              <>
-                                <Check className="h-3.5 w-3.5" /> {t.copied}
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3.5 w-3.5" /> {t.copyLink}
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
+                      <span className="rounded-full border border-amber-400/35 bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-300">
+                        {acc.role}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">
-                {t.activeAccounts} ({accounts.length})
-              </h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {accounts.map((acc) => (
-                  <div
-                    key={acc.id}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0d0a16] p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <UserCheck className="h-5 w-5 text-white/70" />
-                      <div>
-                        <p className="text-sm font-semibold">{acc.name}</p>
-                        <p className="font-mono text-xs text-white/55" dir="ltr">
-                          @{acc.username} • {acc.email}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-amber-400/35 bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-300">
-                      {acc.role}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {/* MY PROFILE */}
-        {activeTab === "profile" ? (
-          <div className="max-w-xl space-y-5">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold">{t.profileTitle}</h2>
-              <p className="mt-1 text-xs text-white/55">{t.profileSub}</p>
+          {/* MY PROFILE */}
+          {activeTab === "profile" ? (
+            <div className="max-w-xl space-y-5">
+              <div>
+                <h2 className="font-serif text-2xl font-semibold">{t.profileTitle}</h2>
+                <p className="mt-1 text-xs text-white/55">{t.profileSub}</p>
+              </div>
+
+              <form
+                onSubmit={handleSaveProfile}
+                className="space-y-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6"
+              >
+                <div>
+                  <label className="mb-1 block text-xs text-white/65">{t.displayName}</label>
+                  <input
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    required
+                    className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs text-white/65">
+                    {t.usernameLabel}
+                  </label>
+                  <input
+                    dir="ltr"
+                    value={profileUsername}
+                    onChange={(e) => setProfileUsername(e.target.value)}
+                    required
+                    pattern="^[a-zA-Z0-9_]+$"
+                    className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 font-mono text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs text-white/65">{t.emailLabel}</label>
+                  <input
+                    type="email"
+                    dir="ltr"
+                    value={profileEmail}
+                    onChange={(e) => setProfileEmail(e.target.value)}
+                    required
+                    className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 flex items-center gap-1.5 text-xs text-white/65">
+                    <KeyRound className="h-3.5 w-3.5" />
+                    <span>{t.newPasswordLabel}</span>
+                  </label>
+                  <input
+                    type="password"
+                    dir="ltr"
+                    value={profileNewPassword}
+                    onChange={(e) => setProfileNewPassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                    className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                  />
+                </div>
+
+                <SaveButton
+                  tab="profile"
+                  onClick={() => {
+                    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+                    void handleSaveProfile(fakeEvent);
+                  }}
+                />
+              </form>
             </div>
-
-            <form
-              onSubmit={handleSaveProfile}
-              className="space-y-4 rounded-2xl border border-white/10 bg-[#0d0a16] p-6"
-            >
-              <div>
-                <label className="mb-1 block text-xs text-white/65">{t.displayName}</label>
-                <input
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  required
-                  className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs text-white/65">
-                  {t.usernameLabel}
-                </label>
-                <input
-                  dir="ltr"
-                  value={profileUsername}
-                  onChange={(e) => setProfileUsername(e.target.value)}
-                  required
-                  pattern="^[a-zA-Z0-9_]+$"
-                  className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 font-mono text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs text-white/65">{t.emailLabel}</label>
-                <input
-                  type="email"
-                  dir="ltr"
-                  value={profileEmail}
-                  onChange={(e) => setProfileEmail(e.target.value)}
-                  required
-                  className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 flex items-center gap-1.5 text-xs text-white/65">
-                  <KeyRound className="h-3.5 w-3.5" />
-                  <span>{t.newPasswordLabel}</span>
-                </label>
-                <input
-                  type="password"
-                  dir="ltr"
-                  value={profileNewPassword}
-                  onChange={(e) => setProfileNewPassword(e.target.value)}
-                  placeholder="Min 6 characters"
-                  className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
-                />
-              </div>
-
-              <SaveButton
-                tab="profile"
-                onClick={() => {
-                  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-                  void handleSaveProfile(fakeEvent);
-                }}
-              />
-            </form>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </div>
   );

@@ -1,12 +1,14 @@
 /**
  * @file src/modules/bundles/components/LoadoutsSection.tsx
- * @purpose Loadouts Section UI: Displays bundled room setups with savings badge and 'Add to Room' action.
+ * @purpose Displays bundled room Loadouts synced live with Supabase bundles table and adds them to the My Room bag.
  */
 
 "use client";
 
 import { useRoomBagStore } from "@modules/cart-checkout";
+import { sbSelect } from "@shared/db/supabase-rest";
 import { formatEgp } from "@shared/types/common";
+import { useEffect, useState } from "react";
 import type { BundleSummaryDTO } from "../schema";
 
 interface LoadoutsSectionProps {
@@ -21,8 +23,69 @@ export function LoadoutsSection({
   loadouts,
 }: LoadoutsSectionProps) {
   const addItem = useRoomBagStore((s) => s.addItem);
+  const [items, setItems] = useState<BundleSummaryDTO[]>(loadouts);
 
-  if (loadouts.length === 0) return null;
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [sbBundles, sbUnivs] = await Promise.all([
+          sbSelect<{
+            id: string;
+            universeId: string | null;
+            slug: string;
+            name: string;
+            tagline: string | null;
+            fixedPrice: number | string | null;
+            isFeatured: boolean;
+            isActive: boolean;
+          }>(
+            "bundles",
+            "select=id,universeId,slug,name,tagline,fixedPrice,isFeatured,isActive&isActive=eq.true&isFeatured=eq.true&order=createdAt.desc"
+          ),
+          sbSelect<{ id: string; slug: string; accentColor: string }>(
+            "universes",
+            "select=id,slug,accentColor"
+          ),
+        ]);
+
+        if (!active || sbBundles.length === 0) return;
+
+        setItems((prev) =>
+          sbBundles.map((b) => {
+            const existing = prev.find((p) => p.slug === b.slug || p.id === b.id);
+            const u = sbUnivs.find((un) => un.id === b.universeId);
+            const finalPrice = b.fixedPrice
+              ? Number(b.fixedPrice)
+              : existing?.finalPrice ?? 2190;
+            const originalPrice = existing?.originalPrice ?? finalPrice + 450;
+
+            return {
+              id: b.id,
+              storeId: existing?.storeId ?? "store_room_egypt",
+              universeSlug: u?.slug ?? existing?.universeSlug ?? null,
+              universeAccentColor:
+                u?.accentColor ?? existing?.universeAccentColor ?? "#c94b99",
+              slug: b.slug,
+              name: b.name,
+              tagline: b.tagline,
+              itemCount: existing?.itemCount ?? 3,
+              originalPrice,
+              finalPrice,
+              savingsAmount: Math.max(0, originalPrice - finalPrice),
+            };
+          })
+        );
+      } catch {
+        // Keep initial props
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (items.length === 0) return null;
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10 pb-16">
@@ -43,7 +106,7 @@ export function LoadoutsSection({
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {loadouts.map((loadout) => (
+        {items.map((loadout) => (
           <article
             key={loadout.id}
             className="flex flex-col justify-between rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-strong)]"
