@@ -1,6 +1,6 @@
 /**
  * @file src/modules/page-builder/components/HomeSectionsClient.tsx
- * @purpose Dynamically renders and reorders Homepage sections synced live from Supabase page_sections table.
+ * @purpose Dynamically renders and reorders Homepage sections (including custom titles & subtitles) synced live from Supabase page_sections table.
  */
 
 "use client";
@@ -24,13 +24,14 @@ interface AdminSectionConfig {
   id: string;
   type: string;
   title: string;
+  subtitle: string | null;
   visible: boolean;
 }
 
 const DEFAULT_SECTION_ORDER: AdminSectionConfig[] = [
-  { id: "s1", type: "UNIVERSE_QUICK_BAR", title: "3-Card Universe Showcase", visible: true },
-  { id: "s2", type: "NEW_ARRIVALS", title: "Fresh Drops", visible: true },
-  { id: "s3", type: "FEATURED_BUNDLES", title: "Signature Loadouts", visible: true },
+  { id: "s1", type: "UNIVERSE_QUICK_BAR", title: "Choose Your Universe", subtitle: null, visible: true },
+  { id: "s2", type: "NEW_ARRIVALS", title: "Fresh Drops", subtitle: "High-craft themed bedsheets engineered for Cairo & New Cairo setups", visible: true },
+  { id: "s3", type: "FEATURED_BUNDLES", title: "Signature Loadouts", subtitle: "Full room setups bundled for maximum drip & instant savings", visible: true },
 ];
 
 export function HomeSectionsClient({
@@ -50,11 +51,12 @@ export function HomeSectionsClient({
           id: string;
           type: string;
           title: string | null;
+          subtitle: string | null;
           isVisible: boolean;
           sortOrder: number;
         }>(
           "page_sections",
-          "select=id,type,title,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
+          "select=id,type,title,subtitle,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
         );
         if (!active || rows.length === 0) return;
 
@@ -63,6 +65,7 @@ export function HomeSectionsClient({
             id: r.id,
             type: r.type,
             title: r.title ?? r.type,
+            subtitle: r.subtitle,
             visible: r.isVisible,
           }))
         );
@@ -84,10 +87,24 @@ export function HomeSectionsClient({
             return <UniverseShowcaseGrid key={s.id} universes={universes} />;
           }
           if (s.type === "NEW_ARRIVALS") {
-            return <FreshDropsSection key={s.id} products={freshDrops} />;
+            return (
+              <FreshDropsSection
+                key={s.id}
+                title={s.title}
+                subtitle={s.subtitle}
+                products={freshDrops}
+              />
+            );
           }
           if (s.type === "FEATURED_BUNDLES") {
-            return <LoadoutsSection key={s.id} loadouts={loadouts} />;
+            return (
+              <LoadoutsSection
+                key={s.id}
+                title={s.title}
+                subtitle={s.subtitle}
+                loadouts={loadouts}
+              />
+            );
           }
           return null;
         })}

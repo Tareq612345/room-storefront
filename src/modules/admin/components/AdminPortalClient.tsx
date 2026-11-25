@@ -1541,6 +1541,14 @@ export function AdminPortalClient() {
             <LangToggleButton />
 
             <Link
+              href="/admin/editor/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3.5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "المحرر البصري" : "Visual Editor"}</span>
+            </Link>
+
+            <Link
               href="/schema/"
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 text-xs font-semibold text-white/85 hover:bg-white/10"
             >
