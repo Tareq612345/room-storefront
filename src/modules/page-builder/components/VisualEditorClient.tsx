@@ -1791,6 +1791,7 @@ export function VisualEditorClient({
         {/* Center Live Storefront Canvas */}
         <main dir="ltr" className="flex-1 overflow-y-auto bg-[#020105] p-4 md:p-8">
           <div
+            data-preview-mobile={viewport === "mobile" ? "true" : "false"}
             className={`mx-auto min-h-full overflow-hidden rounded-3xl border border-white/15 transition-all duration-300 ${
               viewport === "mobile" ? "max-w-[390px]" : "max-w-6xl"
             }`}
@@ -1806,138 +1807,10 @@ export function VisualEditorClient({
             <div className="space-y-2 pb-12">
               {blocks.map((blk, idx) => {
                 const isSelected = blk.id === selectedBlock?.id;
-                const InfoHint = ({
-    id,
-    ar,
-    en,
-  }: {
-    id: string;
-    ar: string;
-    en: string;
-  }) => {
-    const isOpen = openHintId === id;
-    return (
-      <span className="relative inline-flex items-center align-middle">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setOpenHintId((prev) => (prev === id ? null : id));
-          }}
-          className={`mx-1 inline-flex h-4 w-4 items-center justify-center rounded-full border transition-colors ${
-            isOpen
-              ? "border-cyan-400 bg-cyan-500/25 text-cyan-200"
-              : "border-white/25 bg-white/5 text-white/60 hover:border-cyan-400/60 hover:text-cyan-200"
-          }`}
-          aria-label="Info"
-        >
-          <Info className="h-2.5 w-2.5" />
-        </button>
-        {isOpen ? (
-          <span className="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-xl border border-cyan-400/35 bg-[#090714] p-2.5 text-[11px] font-normal leading-relaxed text-white/95 shadow-2xl">
-            {lang === "ar" ? ar : en}
-          </span>
-        ) : null}
-      </span>
-    );
-  };
-
-  const renderWidgetPreview = (kind: WidgetKind) => {
-    if (kind === "UNIVERSE_CARDS") {
-      return (
-        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
-          {["#d92323", "#6366f1", "#c94b99"].map((c) => (
-            <div
-              key={c}
-              className="flex h-11 items-end rounded-md p-1"
-              style={{ background: `linear-gradient(180deg, #07050c 0%, ${c} 100%)` }}
-            >
-              <div className="h-2 w-full rounded-sm bg-black/65" />
-            </div>
-          ))}
-        </div>
-      );
-    }
-    if (kind === "PRODUCT_CARDS") {
-      return (
-        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1">
-              <div className="h-5 rounded-sm bg-white/10" />
-              <div className="mt-1 h-1.5 w-3/4 rounded bg-white/30" />
-              <div className="mt-1 flex justify-between">
-                <div className="h-1.5 w-1/3 rounded bg-white/50" />
-                <div className="h-1.5 w-1/3 rounded bg-cyan-400/70" />
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    if (kind === "LOADOUT_CARDS") {
-      return (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-lg bg-black/50 p-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="rounded-md border border-white/10 bg-[#120e1c] p-1.5">
-              <div className="flex justify-between">
-                <div className="h-1.5 w-6 rounded bg-white/25" />
-                <div className="h-1.5 w-6 rounded bg-pink-500/70" />
-              </div>
-              <div className="mt-1.5 h-2 w-4/5 rounded bg-white/40" />
-              <div className="mt-2 h-2 w-1/2 rounded-full bg-white/70" />
-            </div>
-          ))}
-        </div>
-      );
-    }
-    if (kind === "PROMO_BANNER") {
-      return (
-        <div className="mt-2 flex items-center justify-between rounded-lg border border-white/10 bg-gradient-to-r from-[#090612] to-[#c94b99]/35 px-2.5 py-2.5">
-          <div className="space-y-1">
-            <div className="h-2 w-20 rounded bg-white/70" />
-            <div className="h-1.5 w-28 rounded bg-white/30" />
-          </div>
-          <div className="h-4 w-12 rounded-full bg-[#c94b99]" />
-        </div>
-      );
-    }
-    if (kind === "TEXT_BLOCK") {
-      return (
-        <div className="mt-2 flex flex-col items-center rounded-lg border border-white/10 bg-black/50 px-3 py-2.5">
-          <div className="h-2 w-24 rounded bg-white/70" />
-          <div className="mt-1.5 h-1.5 w-36 rounded bg-white/30" />
-        </div>
-      );
-    }
-    if (kind === "CTA_BUTTON") {
-      return (
-        <div className="mt-2 flex justify-center rounded-lg border border-white/10 bg-black/50 py-2.5">
-          <div className="h-4 w-24 rounded-full bg-cyan-400/80" />
-        </div>
-      );
-    }
-    if (kind === "FEATURE_PILLS") {
-      return (
-        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg bg-black/50 p-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex h-5 items-center justify-center rounded border border-white/10 bg-[#120e1c]">
-              <div className="h-1.5 w-8 rounded bg-white/45" />
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return (
-      <div className="mt-2 flex h-6 items-center rounded-lg bg-black/50 px-3">
-        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-white/50 to-transparent" />
-      </div>
-    );
-  };
-
-  return (
+                return (
                   <div
                     key={blk.id}
+                    data-block-id={blk.id}
                     draggable
                     onDragStart={() => setDragBlockIdx(idx)}
                     onDragOver={(e) => e.preventDefault()}
