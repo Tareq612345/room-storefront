@@ -5,6 +5,7 @@
 
 "use client";
 
+import { sbSelect } from "@shared/db/supabase-rest";
 import {
   Check,
   Copy,
@@ -14,6 +15,7 @@ import {
   Languages,
   Layers,
   Link2,
+  RefreshCw,
   RotateCcw,
   Search,
   Sparkles,
@@ -21,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ModelMeta, SchemaMeta } from "../schema";
 
 interface SchemaExplorerClientProps {
@@ -81,6 +83,10 @@ const COPY = {
     moreFields: (n: number) => `+${n} more fields (click to inspect)`,
     pgTable: "PostgreSQL Table",
     columns: "Columns",
+    liveDataTab: "Live Data",
+    structureTab: "Structure",
+    loadingRows: "Fetching live rows from Supabase...",
+    emptyTable: "No records in this table yet.",
     relationsTitle: "Relations",
     indexesTitle: "Performance Indexes",
     enumsTitle: "PostgreSQL Enums",
@@ -99,6 +105,10 @@ const COPY = {
     moreFields: (n: number) => `+${n} حقول إضافية (اضغط للتفاصيل)`,
     pgTable: "اسم الجدول في PostgreSQL",
     columns: "الأعمدة",
+    liveDataTab: "البيانات الحية",
+    structureTab: "الهيكل والأعمدة",
+    loadingRows: "جاري تحميل البيانات من Supabase...",
+    emptyTable: "لا توجد بيانات مسجلة في هذا الجدول بعد.",
     relationsTitle: "العلاقات المرتبطة",
     indexesTitle: "فهارس الأداء",
     enumsTitle: "التعدادات (PostgreSQL Enums)",
@@ -128,6 +138,9 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
   const [activeDomain, setActiveDomain] = useState<string>("ALL");
   const [showEnums, setShowEnums] = useState(false);
   const [copiedModel, setCopiedModel] = useState<string | null>(null);
+  const [inspectorTab, setInspectorTab] = useState<"data" | "structure">("data");
+  const [liveRows, setLiveRows] = useState<Record<string, unknown>[]>([]);
+  const [loadingRows, setLoadingRows] = useState(false);
 
   const dragRef = useRef<{
     modelName: string;
@@ -178,6 +191,29 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
     () => meta.models.find((m) => m.name === selectedModelName) ?? null,
     [meta.models, selectedModelName]
   );
+
+  const fetchLiveTableRows = async (tableName: string) => {
+    setLoadingRows(true);
+    try {
+      const rows = await sbSelect<Record<string, unknown>>(
+        tableName,
+        "select=*&limit=25"
+      );
+      setLiveRows(rows);
+    } catch {
+      setLiveRows([]);
+    } finally {
+      setLoadingRows(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedModel) {
+      setLiveRows([]);
+      return;
+    }
+    void fetchLiveTableRows(selectedModel.tableName);
+  }, [selectedModel?.tableName]);
 
   const handlePointerDown = (
     e: React.PointerEvent<HTMLDivElement>,
@@ -554,7 +590,124 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               </div>
             </div>
 
+            <div className="flex items-center gap-2 border-b border-white/10 px-5 py-2.5">
+              <button
+                type="button"
+                onClick={() => setInspectorTab("data")}
+                className={`rounded-full px-3.5 py-1 text-xs font-bold transition-colors ${
+                  inspectorTab === "data"
+                    ? "bg-cyan-400 text-black"
+                    : "bg-white/5 text-white/70 hover:text-white"
+                }`}
+              >
+                {t.liveDataTab} ({liveRows.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setInspectorTab("structure")}
+                className={`rounded-full px-3.5 py-1 text-xs font-bold transition-colors ${
+                  inspectorTab === "structure"
+                    ? "bg-white text-black"
+                    : "bg-white/5 text-white/70 hover:text-white"
+                }`}
+              >
+                {t.structureTab}
+              </button>
+              <button
+                type="button"
+                onClick={() => void fetchLiveTableRows(selectedModel.tableName)}
+                className="ms-auto rounded-lg border border-white/15 p-1.5 text-white/65 hover:text-white"
+                title="Refresh"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingRows ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+
             <div className="flex-1 space-y-5 overflow-y-auto p-5">
+              {inspectorTab === "data" ? (
+                loadingRows ? (
+                  <p className="py-10 text-center text-xs text-white/55">
+                    {t.loadingRows}
+                  </p>
+                ) : liveRows.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center text-xs text-white/55">
+                    {t.emptyTable}
+                  </div>
+                ) : (
+                  <div className="space-y-3" dir="ltr">
+                    {liveRows.map((row, idx) => {
+                      const titleVal =
+                        row.name ??
+                        row.orderNumber ??
+                        row.email ??
+                        row.title ??
+                        row.slug ??
+                        row.id;
+                      const badgeVal = row.role ?? row.status ?? row.slug ?? row.type;
+                      const colorVal =
+                        typeof row.accentColor === "string"
+                          ? row.accentColor
+                          : typeof row.defaultAccentColor === "string"
+                            ? row.defaultAccentColor
+                            : null;
+
+                      return (
+                        <div
+                          key={String(row.id ?? idx)}
+                          className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5"
+                        >
+                          <div className="mb-2.5 flex items-center justify-between gap-2 border-b border-white/10 pb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {colorVal ? (
+                                <span
+                                  className="h-3 w-3 shrink-0 rounded-full border border-white/30"
+                                  style={{ backgroundColor: colorVal }}
+                                />
+                              ) : null}
+                              <span className="truncate text-xs font-bold text-white">
+                                {String(titleVal ?? `Row #${idx + 1}`)}
+                              </span>
+                            </div>
+                            {badgeVal ? (
+                              <span className="shrink-0 rounded-full bg-cyan-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-200">
+                                {String(badgeVal)}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="space-y-1 text-[11px]">
+                            {Object.entries(row).map(([k, v]) => {
+                              if (v === null || v === undefined || v === "") return null;
+                              let display = "";
+                              if (k.toLowerCase().includes("password")) {
+                                display = "•••••••• (Secured)";
+                              } else if (typeof v === "object") {
+                                display = JSON.stringify(v).slice(0, 60);
+                              } else {
+                                display = String(v);
+                              }
+                              return (
+                                <div
+                                  key={k}
+                                  className="flex items-start justify-between gap-3"
+                                >
+                                  <span className="shrink-0 font-mono text-white/45">
+                                    {k}
+                                  </span>
+                                  <span className="truncate text-right font-mono text-white/85">
+                                    {display}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                <>
               {/* All Fields */}
               <div>
                 <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">
@@ -651,6 +804,8 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                   </div>
                 </div>
               ) : null}
+                </>
+              )}
             </div>
           </aside>
         ) : null}
