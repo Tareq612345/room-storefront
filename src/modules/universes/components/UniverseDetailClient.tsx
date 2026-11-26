@@ -18,6 +18,7 @@ import {
   type SiteOfferBannerSource,
 } from "@modules/universe-organizer";
 import { formatEgp } from "@shared/types/common";
+import { getAssetPath } from "@shared/utils/asset-path";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { UniverseDTO } from "../schema";
@@ -292,70 +293,131 @@ export function UniverseDetailClient({
                 );
               }
 
+              const pkgHref = `/package/?slug=${encodeURIComponent(offer.slug)}`;
+              const bannerSrc = offer.bannerImageUrl
+                ? offer.bannerImageUrl.startsWith("data:") ||
+                  offer.bannerImageUrl.startsWith("http")
+                  ? offer.bannerImageUrl
+                  : getAssetPath(offer.bannerImageUrl)
+                : null;
+
               return (
                 <article
                   key={offer.id}
-                  className="flex flex-col justify-between rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-strong)]"
+                  className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-strong)]"
                   style={{ boxShadow: "var(--shadow-card)" }}
                 >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85">
-                        {offer.itemCount ?? 3} Pieces
+                  {bannerSrc ? (
+                    <Link
+                      href={pkgHref}
+                      className="relative flex h-40 items-start justify-between overflow-hidden p-4"
+                      style={{
+                        background: `radial-gradient(circle at 50% 35%, ${accent}36 0%, #07050c 82%)`,
+                      }}
+                    >
+                      <img
+                        src={bannerSrc}
+                        alt={offer.title}
+                        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/45" />
+                      <span className="relative z-10 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/90">
+                        {offer.kind === "COLLECTION"
+                          ? `${offer.itemCount ?? 0} Items`
+                          : `${offer.itemCount ?? 3} Pieces`}
                       </span>
                       {offer.savingsAmount && offer.savingsAmount > 0 ? (
                         <span
-                          className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+                          className="relative z-10 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
                           style={{ backgroundColor: accent }}
                         >
                           Save {formatEgp(offer.savingsAmount)}
                         </span>
                       ) : null}
-                    </div>
+                    </Link>
+                  ) : null}
 
-                    <h3 className="mt-4 font-serif text-xl font-semibold text-white">
-                      {offer.title}
-                    </h3>
-                    {offer.subtitle ? (
-                      <p className="mt-2 line-clamp-1 text-xs text-[var(--color-text-secondary)]">
-                        {offer.subtitle}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-6 flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-4">
+                  <div className="flex flex-1 flex-col justify-between p-6">
                     <div>
-                      {offer.finalPrice !== null ? (
-                        <div className="text-lg font-bold text-white">
-                          {formatEgp(offer.finalPrice)}
+                      {!bannerSrc ? (
+                        <div className="mb-4 flex items-center justify-between gap-2">
+                          <span className="rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85">
+                            {offer.kind === "COLLECTION"
+                              ? `${offer.itemCount ?? 0} Items`
+                              : `${offer.itemCount ?? 3} Pieces`}
+                          </span>
+                          {offer.savingsAmount && offer.savingsAmount > 0 ? (
+                            <span
+                              className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+                              style={{ backgroundColor: accent }}
+                            >
+                              Save {formatEgp(offer.savingsAmount)}
+                            </span>
+                          ) : null}
                         </div>
                       ) : null}
-                      {offer.savingsAmount &&
-                      offer.savingsAmount > 0 &&
-                      offer.originalPrice !== null ? (
-                        <div className="text-xs text-[var(--color-text-muted)] line-through">
-                          {formatEgp(offer.originalPrice)}
-                        </div>
-                      ) : null}
+
+                      <Link href={pkgHref} className="block">
+                        <h3 className="font-serif text-xl font-semibold text-white group-hover:text-white/90">
+                          {offer.title}
+                        </h3>
+                        {offer.subtitle ? (
+                          <p className="mt-2 line-clamp-1 text-xs text-[var(--color-text-secondary)]">
+                            {offer.subtitle}
+                          </p>
+                        ) : null}
+                      </Link>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        addItem({
-                          id: offer.id,
-                          itemType: "BUNDLE",
-                          title: offer.title,
-                          subtitle: offer.subtitle,
-                          unitPrice: offer.finalPrice ?? 0,
-                          accentColor: accent,
-                        })
-                      }
-                      className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: accent }}
-                    >
-                      {offer.ctaLabel || "Add to Room"}
-                    </button>
+                    <div className="mt-6 flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-4">
+                      <div>
+                        {offer.finalPrice !== null ? (
+                          <div className="text-lg font-bold text-white">
+                            {formatEgp(offer.finalPrice)}
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold uppercase tracking-wider text-white/65">
+                            Curated Collection
+                          </span>
+                        )}
+                        {offer.savingsAmount &&
+                        offer.savingsAmount > 0 &&
+                        offer.originalPrice !== null ? (
+                          <div className="text-xs text-[var(--color-text-muted)] line-through">
+                            {formatEgp(offer.originalPrice)}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {offer.finalPrice !== null ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addItem({
+                              id: offer.id,
+                              itemType: "BUNDLE",
+                              title: offer.title,
+                              subtitle: offer.subtitle,
+                              unitPrice: offer.finalPrice ?? 0,
+                              accentColor: accent,
+                              imageUrl: offer.bannerImageUrl ?? undefined,
+                            })
+                          }
+                          className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: accent }}
+                        >
+                          {offer.ctaLabel || "Add to Room"}
+                        </button>
+                      ) : (
+                        <Link
+                          href={pkgHref}
+                          className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: accent }}
+                        >
+                          {offer.ctaLabel || "Explore"}
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </article>
               );

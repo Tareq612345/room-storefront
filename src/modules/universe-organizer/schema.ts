@@ -53,7 +53,7 @@ export type SiteProductSource = z.infer<typeof SiteProductSourceSchema>;
 
 export const SiteOfferBannerSourceSchema = z.object({
   id: z.string(),
-  kind: z.enum(["LOADOUT", "PROMO_BANNER"]),
+  kind: z.enum(["LOADOUT", "COLLECTION", "PROMO_BANNER"]),
   slug: z.string(),
   title: z.string(),
   subtitle: z.string().nullable(),
@@ -63,6 +63,9 @@ export const SiteOfferBannerSourceSchema = z.object({
   savingsAmount: z.number().nullable(),
   ctaLabel: z.string().nullable(),
   ctaUrl: z.string().nullable(),
+  bannerImageUrl: z.string().nullable().optional(),
+  bannerImageFit: z.enum(["cover", "contain"]).optional(),
+  bannerImagePosition: z.enum(["center", "top", "bottom"]).optional(),
   originalAccentColor: z.string(),
   textColor: z.string().nullable(),
   universeSlug: z.string().nullable(),

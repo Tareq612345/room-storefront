@@ -1534,6 +1534,14 @@ export function AdminPortalClient() {
             <LangToggleButton />
 
             <Link
+              href="/admin/packages/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3.5 text-xs font-bold text-amber-200 hover:bg-amber-500/25"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "تنظيم الباكدجات" : "Packages"}</span>
+            </Link>
+
+            <Link
               href="/admin/products/"
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-indigo-400/40 bg-indigo-500/15 px-3.5 text-xs font-bold text-indigo-200 hover:bg-indigo-500/25"
             >

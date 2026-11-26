@@ -223,81 +223,126 @@ export function ReadonlyStorefrontOfferBanner({
     );
   }
 
-  // LOADOUT Storefront Banner Appearance (original bundle accent only — no universe filter)
+  // LOADOUT / COLLECTION Storefront Banner Appearance (original accent only — no universe filter)
+  const bannerImg = offer.bannerImageUrl
+    ? offer.bannerImageUrl.startsWith("data:") || offer.bannerImageUrl.startsWith("http")
+      ? offer.bannerImageUrl
+      : getAssetPath(offer.bannerImageUrl)
+    : null;
+
   return (
     <article
-      className={`flex flex-col justify-between rounded-2xl border p-6 transition-all duration-200 ${
+      className={`flex flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-200 ${
         isSelected
           ? "border-emerald-400/70 ring-1 ring-emerald-400/35"
           : "border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)]"
       } bg-[var(--color-surface-card)]`}
       style={{ boxShadow: "var(--shadow-card)" }}
     >
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85">
-            {offer.itemCount ?? 3} Pieces
+      {bannerImg ? (
+        <div
+          className="relative flex h-36 items-start justify-between overflow-hidden p-4"
+          style={{
+            background: `radial-gradient(circle at 50% 35%, ${accent}36 0%, #07050c 82%)`,
+          }}
+        >
+          <img
+            src={bannerImg}
+            alt={offer.title}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/45" />
+          <span className="relative z-10 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/90">
+            {offer.kind === "COLLECTION"
+              ? `${offer.itemCount ?? 0} Items • Collection`
+              : `${offer.itemCount ?? 3} Pieces`}
           </span>
           {offer.savingsAmount && offer.savingsAmount > 0 ? (
             <span
-              className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+              className="relative z-10 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
               style={{ backgroundColor: accent }}
             >
               Save {formatEgp(offer.savingsAmount)}
             </span>
           ) : null}
         </div>
+      ) : null}
 
-        <h3 className="mt-4 font-serif text-xl font-semibold text-white">
-          {offer.title}
-        </h3>
-        {offer.subtitle ? (
-          <p className="mt-2 line-clamp-1 text-xs text-[var(--color-text-secondary)]">
-            {offer.subtitle}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="mt-6 flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-4">
+      <div className="flex flex-1 flex-col justify-between p-6">
         <div>
-          {offer.finalPrice !== null ? (
-            <div className="text-lg font-bold text-white">
-              {formatEgp(offer.finalPrice)}
+          {!bannerImg ? (
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <span className="rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85">
+                {offer.kind === "COLLECTION"
+                  ? `${offer.itemCount ?? 0} Items • Collection`
+                  : `${offer.itemCount ?? 3} Pieces`}
+              </span>
+              {offer.savingsAmount && offer.savingsAmount > 0 ? (
+                <span
+                  className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+                  style={{ backgroundColor: accent }}
+                >
+                  Save {formatEgp(offer.savingsAmount)}
+                </span>
+              ) : null}
             </div>
           ) : null}
-          {offer.savingsAmount && offer.savingsAmount > 0 && offer.originalPrice !== null ? (
-            <div className="text-xs text-[var(--color-text-muted)] line-through">
-              {formatEgp(offer.originalPrice)}
-            </div>
+
+          <h3 className="font-serif text-xl font-semibold text-white">
+            {offer.title}
+          </h3>
+          {offer.subtitle ? (
+            <p className="mt-2 line-clamp-1 text-xs text-[var(--color-text-secondary)]">
+              {offer.subtitle}
+            </p>
           ) : null}
         </div>
 
-        <span
-          className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white"
-          style={{ backgroundColor: accent }}
-        >
-          {offer.ctaLabel || "Add to Room"}
-        </span>
-      </div>
+        <div className="mt-6 flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-4">
+          <div>
+            {offer.finalPrice !== null ? (
+              <div className="text-lg font-bold text-white">
+                {formatEgp(offer.finalPrice)}
+              </div>
+            ) : (
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/60">
+                Collection
+              </span>
+            )}
+            {offer.savingsAmount && offer.savingsAmount > 0 && offer.originalPrice !== null ? (
+              <div className="text-xs text-[var(--color-text-muted)] line-through">
+                {formatEgp(offer.originalPrice)}
+              </div>
+            ) : null}
+          </div>
 
-      <div className="mt-4 space-y-2 border-t border-white/10 pt-3.5">
-        {otherUniverseNames.length > 0 ? (
-          <p className="truncate text-[11px] text-white/55">
-            {labels.alsoIn}: {otherUniverseNames.join(" • ")}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={onToggle}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-            isSelected
-              ? "border border-emerald-400/50 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30"
-              : "border border-white/15 bg-white/5 text-white/85 hover:bg-white/15"
-          }`}
-        >
-          {isSelected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-          <span>{isSelected ? labels.selected : labels.add}</span>
-        </button>
+          <span
+            className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white"
+            style={{ backgroundColor: accent }}
+          >
+            {offer.ctaLabel || "Add to Room"}
+          </span>
+        </div>
+
+        <div className="mt-4 space-y-2 border-t border-white/10 pt-3.5">
+          {otherUniverseNames.length > 0 ? (
+            <p className="truncate text-[11px] text-white/55">
+              {labels.alsoIn}: {otherUniverseNames.join(" • ")}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={onToggle}
+            className={`flex w-full items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+              isSelected
+                ? "border border-emerald-400/50 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30"
+                : "border border-white/15 bg-white/5 text-white/85 hover:bg-white/15"
+            }`}
+          >
+            {isSelected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            <span>{isSelected ? labels.selected : labels.add}</span>
+          </button>
+        </div>
       </div>
     </article>
   );
