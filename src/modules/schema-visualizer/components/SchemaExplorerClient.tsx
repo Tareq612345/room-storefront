@@ -1,6 +1,6 @@
 /**
  * @file src/modules/schema-visualizer/components/SchemaExplorerClient.tsx
- * @purpose Futuristic interactive Database Schema Visualizer with AR/EN toggle, draggable model nodes, animated SVG relation cables, domain filters, enum vault, and live field inspector.
+ * @purpose Futuristic Database & Live Data Flow Visualizer (/schema/): includes both the wide 4-stage Live Data Flow Tracer (showing actual values from Admin Writers -> Isolated Supabase Stores -> Reader APIs -> Storefront Pages) and the interactive Prisma Schema Graph.
  */
 
 "use client";
@@ -20,11 +20,13 @@ import {
   Search,
   Sparkles,
   Table2,
+  Workflow,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ModelMeta, SchemaMeta } from "../schema";
+import { LiveDataFlowCanvas } from "./LiveDataFlowCanvas";
 
 interface SchemaExplorerClientProps {
   meta: SchemaMeta;
@@ -123,6 +125,7 @@ function getDomainColor(domain: string): string {
 export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
   const [lang, setLang] = useState<Lang>("ar");
   const t = COPY[lang];
+  const [viewMode, setViewMode] = useState<"flow" | "graph">("flow");
 
   const [positions, setPositions] = useState<
     Record<string, { x: number; y: number }>
@@ -305,16 +308,46 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
 
           {/* Search & Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/45" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t.searchPlaceholder}
-                className="h-9 w-56 rounded-full border border-white/15 bg-black/60 pl-9 pr-4 text-xs text-white placeholder:text-white/40 focus:border-cyan-400/60 focus:outline-none"
-              />
+            {/* View Switcher: Live Data Flow vs Schema Graph */}
+            <div className="flex items-center rounded-full border border-white/15 bg-black/50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode("flow")}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors ${
+                  viewMode === "flow"
+                    ? "bg-cyan-400 text-black"
+                    : "text-white/75 hover:text-white"
+                }`}
+              >
+                <Workflow className="h-3.5 w-3.5" />
+                <span>{lang === "ar" ? "تتبع حركة الداتا" : "Live Data Flow"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("graph")}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors ${
+                  viewMode === "graph"
+                    ? "bg-white text-black"
+                    : "text-white/75 hover:text-white"
+                }`}
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                <span>{lang === "ar" ? "خريطة الجداول" : "Schema Graph"}</span>
+              </button>
             </div>
+
+            {viewMode === "graph" ? (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/45" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t.searchPlaceholder}
+                  className="h-9 w-56 rounded-full border border-white/15 bg-black/60 pl-9 pr-4 text-xs text-white placeholder:text-white/40 focus:border-cyan-400/60 focus:outline-none"
+                />
+              </div>
+            ) : null}
 
             {/* AR / EN Toggle Button */}
             <button
@@ -358,35 +391,40 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
           </div>
         </div>
 
-        {/* Domain Filter Pills */}
-        <div className="mx-auto mt-3 flex max-w-[1600px] items-center gap-2 overflow-x-auto pb-1">
-          {domains.map((domain) => {
-            const active = activeDomain === domain;
-            const color =
-              domain === "ALL" ? "#ffffff" : getDomainColor(domain);
-            return (
-              <button
-                key={domain}
-                type="button"
-                onClick={() => setActiveDomain(domain)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold transition-all ${
-                  active
-                    ? "border-white/50 bg-white/15 text-white"
-                    : "border-white/10 bg-black/40 text-white/60 hover:border-white/25 hover:text-white"
-                }`}
-              >
-                <span
-                  className="mx-1.5 inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-                {formatDomainLabel(domain)}
-              </button>
-            );
-          })}
-        </div>
+        {/* Domain Filter Pills (Schema Graph Mode) */}
+        {viewMode === "graph" ? (
+          <div className="mx-auto mt-3 flex max-w-[1600px] items-center gap-2 overflow-x-auto pb-1">
+            {domains.map((domain) => {
+              const active = activeDomain === domain;
+              const color =
+                domain === "ALL" ? "#ffffff" : getDomainColor(domain);
+              return (
+                <button
+                  key={domain}
+                  type="button"
+                  onClick={() => setActiveDomain(domain)}
+                  className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold transition-all ${
+                    active
+                      ? "border-white/50 bg-white/15 text-white"
+                      : "border-white/10 bg-black/40 text-white/60 hover:border-white/25 hover:text-white"
+                  }`}
+                >
+                  <span
+                    className="mx-1.5 inline-block h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  {formatDomainLabel(domain)}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </header>
 
-      {/* Main Interactive Workspace */}
+      {viewMode === "flow" ? (
+        <LiveDataFlowCanvas lang={lang} />
+      ) : (
+      /* Main Interactive Workspace */
       <div className="relative flex flex-1 overflow-hidden">
         {/* Draggable Node Graph Canvas (always LTR for coordinate math) */}
         <div
@@ -855,6 +893,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
           </div>
         ) : null}
       </div>
+      )}
     </div>
   );
 }
