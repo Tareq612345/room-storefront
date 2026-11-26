@@ -55,8 +55,10 @@ const ACTIVE_NODE_POSITIONS: Record<string, { x: number; y: number }> = {
   Order: { x: 780, y: 40 },
   OrderItem: { x: 780, y: 580 },
   IsolatedUniverses: { x: 1150, y: 40 },
-  IsolatedProducts: { x: 1150, y: 380 },
-  IsolatedPackages: { x: 1150, y: 720 },
+  IsolatedProducts: { x: 1150, y: 340 },
+  IsolatedPackages: { x: 1150, y: 640 },
+  IsolatedElements: { x: 1150, y: 940 },
+  IsolatedHomeLayout: { x: 1520, y: 440 },
 };
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -88,10 +90,15 @@ const MODEL_PURPOSE_AR: Record<string, string> = {
   IsolatedUniverses: "المخزن المعزول الفعلي لليونيفيرسز (/admin/universes/) — pageKey=__isolated_universe_organizer_v1__",
   IsolatedProducts: "المخزن المعزول الفعلي للمنتجات (/admin/products/) — pageKey=__isolated_product_organizer_v1__",
   IsolatedPackages: "المخزن المعزول الفعلي للباكدجات والكوليكشنز (/admin/packages/) — pageKey=__isolated_package_organizer_v1__",
+  IsolatedElements: "المخزن المعزول لبطاقات القراءة والأزرار (/admin/elements/) — pageKey=__isolated_element_organizer_v1__",
+  IsolatedHomeLayout: "منسّق الصفحة الرئيسية المعزول (/admin/home/) — البوابة الوحيدة لعرض الرئيسية (/)",
 };
 
 const VIRTUAL_ISOLATED_MODELS: Array<
-  ModelMeta & { isolatedPageKey: string; isolatedArrayKey: "universes" | "products" | "packages" }
+  ModelMeta & {
+    isolatedPageKey: string;
+    isolatedArrayKey: "universes" | "products" | "packages" | "elements" | "blocks";
+  }
 > = [
   {
     name: "IsolatedUniverses",
@@ -147,6 +154,38 @@ const VIRTUAL_ISOLATED_MODELS: Array<
     indexes: ["pageKey = __isolated_package_organizer_v1__"],
     uniques: ["korg_isolated_registry_v1"],
   },
+  {
+    name: "IsolatedElements",
+    tableName: "page_sections[eorg]",
+    domain: "Isolated Organizers",
+    position: { x: 1150, y: 940 },
+    isolatedPageKey: "__isolated_element_organizer_v1__",
+    isolatedArrayKey: "elements",
+    fields: [
+      { name: "id", type: "String", rawType: "String", isList: false, isOptional: false, isId: true, isUnique: true, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "pageKey", type: "String", rawType: "__isolated_element_organizer_v1__", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: true, defaultValue: null, relationTo: "PageSection", relationFields: ["pageKey"] },
+      { name: "config.textBlocks", type: "Json", rawType: "TextBlockItem[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "config.buttons", type: "Json", rawType: "ButtonItem[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+    ],
+    indexes: ["pageKey = __isolated_element_organizer_v1__"],
+    uniques: ["eorg_isolated_registry_v1"],
+  },
+  {
+    name: "IsolatedHomeLayout",
+    tableName: "page_sections[hcomp]",
+    domain: "Isolated Organizers",
+    position: { x: 1520, y: 440 },
+    isolatedPageKey: "__isolated_home_composer_v1__",
+    isolatedArrayKey: "blocks",
+    fields: [
+      { name: "id", type: "String", rawType: "String", isList: false, isOptional: false, isId: true, isUnique: true, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "pageKey", type: "String", rawType: "__isolated_home_composer_v1__", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: true, defaultValue: null, relationTo: "PageSection", relationFields: ["pageKey"] },
+      { name: "config.showStarHeader", type: "Boolean", rawType: "Boolean", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: "true", relationTo: null, relationFields: [] },
+      { name: "config.blocks", type: "Json", rawType: "HomeBlock[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+    ],
+    indexes: ["pageKey = __isolated_home_composer_v1__"],
+    uniques: ["hcomp_isolated_registry_v1"],
+  },
 ];
 
 const VIRTUAL_EDGES: EdgeMeta[] = [
@@ -170,6 +209,48 @@ const VIRTUAL_EDGES: EdgeMeta[] = [
     to: "PageSection",
     field: "pageKey=korg",
     fkFields: ["pageKey"],
+  },
+  {
+    id: "IsolatedElements->PageSection:isolated_eorg",
+    from: "IsolatedElements",
+    to: "PageSection",
+    field: "pageKey=eorg",
+    fkFields: ["pageKey"],
+  },
+  {
+    id: "IsolatedHomeLayout->PageSection:isolated_hcomp",
+    from: "IsolatedHomeLayout",
+    to: "PageSection",
+    field: "pageKey=hcomp",
+    fkFields: ["pageKey"],
+  },
+  {
+    id: "IsolatedUniverses->IsolatedHomeLayout:placed",
+    from: "IsolatedUniverses",
+    to: "IsolatedHomeLayout",
+    field: "UNIVERSE_CARD",
+    fkFields: ["refId"],
+  },
+  {
+    id: "IsolatedProducts->IsolatedHomeLayout:placed",
+    from: "IsolatedProducts",
+    to: "IsolatedHomeLayout",
+    field: "PRODUCT_CARD",
+    fkFields: ["refId"],
+  },
+  {
+    id: "IsolatedPackages->IsolatedHomeLayout:placed",
+    from: "IsolatedPackages",
+    to: "IsolatedHomeLayout",
+    field: "PACKAGE_CARD",
+    fkFields: ["refId"],
+  },
+  {
+    id: "IsolatedElements->IsolatedHomeLayout:placed",
+    from: "IsolatedElements",
+    to: "IsolatedHomeLayout",
+    field: "TEXT_BLOCK/BUTTON",
+    fkFields: ["refId"],
   },
   {
     id: "IsolatedUniverses->IsolatedProducts:productIds",
@@ -375,14 +456,22 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
         config: Record<string, unknown>;
       }>(
         "page_sections",
-        "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__)"
+        "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__)"
       ).catch(() => []);
 
       const countsMap: Record<string, number> = Object.fromEntries(results);
       for (const v of VIRTUAL_ISOLATED_MODELS) {
         const found = isolatedRows.find((r) => r.pageKey === v.isolatedPageKey);
-        const arr = found?.config?.[v.isolatedArrayKey];
-        countsMap[v.name] = Array.isArray(arr) ? arr.length : 0;
+        if (v.isolatedArrayKey === "elements") {
+          const tb = found?.config?.textBlocks;
+          const bt = found?.config?.buttons;
+          countsMap[v.name] =
+            (Array.isArray(tb) ? tb.length : 0) +
+            (Array.isArray(bt) ? bt.length : 0);
+        } else {
+          const arr = found?.config?.[v.isolatedArrayKey];
+          countsMap[v.name] = Array.isArray(arr) ? arr.length : 0;
+        }
       }
       setRowCounts(countsMap);
     } catch {
@@ -402,10 +491,20 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
             "page_sections",
             `select=config&pageKey=eq.${encodeURIComponent(virtualMeta.isolatedPageKey)}`
           );
-          const list = rows[0]?.config?.[virtualMeta.isolatedArrayKey];
-          const items = Array.isArray(list)
-            ? (list as Record<string, unknown>[])
-            : [];
+          let items: Record<string, unknown>[] = [];
+          if (virtualMeta.isolatedArrayKey === "elements") {
+            const tb = rows[0]?.config?.textBlocks;
+            const bt = rows[0]?.config?.buttons;
+            items = [
+              ...(Array.isArray(tb) ? (tb as Record<string, unknown>[]) : []),
+              ...(Array.isArray(bt) ? (bt as Record<string, unknown>[]) : []),
+            ];
+          } else {
+            const list = rows[0]?.config?.[virtualMeta.isolatedArrayKey];
+            items = Array.isArray(list)
+              ? (list as Record<string, unknown>[])
+              : [];
+          }
           setLiveRows(items);
           setRowCounts((prev) => ({ ...prev, [model.name]: items.length }));
         } else {
@@ -697,8 +796,8 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
             <div
               className="relative origin-top-left p-6"
               style={{
-                width: 1520,
-                height: 1120,
+                width: 1880,
+                height: 1240,
                 transform: `scale(${zoom})`,
               }}
             >
@@ -972,6 +1071,10 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                         ? "isolated_products"
                         : selectedModel.name === "IsolatedPackages"
                         ? "isolated_packages"
+                        : selectedModel.name === "IsolatedElements"
+                        ? "isolated_elements"
+                        : selectedModel.name === "IsolatedHomeLayout"
+                        ? "isolated_home"
                         : selectedModel.tableName;
                     setFlowSourceId(targetId);
                     setViewMode("flow");

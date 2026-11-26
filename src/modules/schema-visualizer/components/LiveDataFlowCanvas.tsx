@@ -50,7 +50,7 @@ interface DataSourceDef {
   modelName: string;
   tableName: string;
   isolatedPageKey?: string;
-  isolatedArrayKey?: "universes" | "products" | "packages";
+  isolatedArrayKey?: "universes" | "products" | "packages" | "elements" | "blocks";
   labelAr: string;
   labelEn: string;
   descAr: string;
@@ -199,8 +199,71 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
       { label: "Package Detail Page (/package/)", href: "/package/" },
       { label: "Universe Detail Page", href: "/universe/" },
     ],
-    relatedSourceIds: ["isolated_universes", "isolated_products", "page_sections", "order_items"],
+    relatedSourceIds: ["isolated_universes", "isolated_products", "isolated_home", "page_sections", "order_items"],
     previewColumns: ["name", "slug", "kind", "finalPrice", "isActive"],
+  },
+  {
+    id: "isolated_elements",
+    kind: "isolated",
+    domainKey: "isolated",
+    modelName: "IsolatedElements",
+    tableName: "page_sections",
+    isolatedPageKey: "__isolated_element_organizer_v1__",
+    isolatedArrayKey: "elements",
+    labelAr: "بطاقات القراءة والأزرار",
+    labelEn: "Isolated Elements (Text & Buttons)",
+    descAr: "مستودع معزول لبطاقات القراءة ذات المقاسات الثلاثة والأزرار المخصصة القابلة لإعادة الاستخدام.",
+    descEn: "Isolated vault storing frosted Reading Text Cards (per-line sizes) and standalone Reusable CTA Buttons.",
+    accentColor: "#ec4899",
+    writers: [
+      { label: "Elements Studio", route: "/admin/elements/", detail: "saveIsolatedElementRegistry()" },
+    ],
+    storageSummary:
+      "page_sections[id=eorg_isolated_registry_v1, pageKey=__isolated_element_organizer_v1__] + localStorage",
+    readerApis: [
+      { mod: "@modules/element-organizer", fn: "fetchResolvedElementsForStorefront()" },
+      { mod: "@modules/home-composer", fn: "reads inside Composer panels 4 & 5" },
+    ],
+    consumers: [
+      { label: "Homepage Composer Panels", href: "/admin/home/" },
+      { label: "Homepage via Home Composer", href: "/" },
+    ],
+    relatedSourceIds: ["isolated_home", "page_sections"],
+    previewColumns: ["name", "label", "align", "variant", "isActive"],
+  },
+  {
+    id: "isolated_home",
+    kind: "isolated",
+    domainKey: "isolated",
+    modelName: "IsolatedHomeLayout",
+    tableName: "page_sections",
+    isolatedPageKey: "__isolated_home_composer_v1__",
+    isolatedArrayKey: "blocks",
+    labelAr: "منسّق الصفحة الرئيسية",
+    labelEn: "Isolated Homepage Composer",
+    descAr: "البوابة الوحيدة للواجهة الرئيسية (/): يأخذ العناصر من المستودعات الأربعة ويرصّها في بلوكات وأعمدة متجاوبة.",
+    descEn: "Sole delivery boundary for Storefront (/): pulls placed cards from the 4 vaults into responsive blocks & grids.",
+    accentColor: "#10b981",
+    writers: [
+      { label: "Homepage Composer UI", route: "/admin/home/", detail: "saveIsolatedHomepageRegistry()" },
+    ],
+    storageSummary:
+      "page_sections[id=hcomp_isolated_registry_v1, pageKey=__isolated_home_composer_v1__] + localStorage",
+    readerApis: [
+      { mod: "@modules/home-composer", fn: "fetchResolvedHomepageForStorefront()" },
+      { mod: "@modules/home-composer", fn: "getCachedHomepageSnapshot()" },
+    ],
+    consumers: [
+      { label: "Live Storefront Homepage (ONLY entry)", href: "/" },
+    ],
+    relatedSourceIds: [
+      "isolated_universes",
+      "isolated_products",
+      "isolated_packages",
+      "isolated_elements",
+      "page_sections",
+    ],
+    previewColumns: ["internalName", "title", "desktopCols", "mobileCols", "isVisible"],
   },
 
   // 2. CORE & MULTI-TENANT
@@ -292,25 +355,32 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
     domainKey: "builder",
     modelName: "PageSection",
     tableName: "page_sections",
-    labelAr: "أقسام الصفحة والـ Host",
-    labelEn: "Page Sections (All Rows)",
-    descAr: "يحتوي على بلوكات الصفحة الرئيسية (home) + صفوف الاستضافة الثلاثة للمخازن المعزولة (__isolated_*).",
-    descEn: "Dynamic storefront sections (HERO_SLIDER, FLASH_DEALS, etc.) plus isolated JSON registry host rows.",
+    labelAr: "أقسام الصفحة واستضافة المخازن",
+    labelEn: "Page Sections (Registry Host)",
+    descAr: "الجدول المستضيف لجميع صفوف المخازن المعزولة الخمسة (__isolated_*) داخل Supabase.",
+    descEn: "Host table storing all 5 isolated JSON registry documents (__isolated_*) in Supabase.",
     accentColor: "#a855f7",
     writers: [
-      { label: "Visual Page Editor", route: "/admin/editor/", detail: "sbInsert/Patch/Delete('page_sections')" },
-      { label: "Isolated Organizers", route: "/admin/universes/", detail: "uorg / porg / korg registries" },
+      { label: "Homepage Composer", route: "/admin/home/", detail: "hcomp_isolated_registry_v1" },
+      { label: "Vault Organizers", route: "/admin/elements/", detail: "uorg / porg / korg / eorg registries" },
     ],
     storageSummary: "PostgreSQL / Supabase table: page_sections (indexed by storeId, pageKey, sortOrder)",
     readerApis: [
-      { mod: "@modules/page-builder", fn: "HomeSectionsClient -> sbSelect('page_sections')" },
+      { mod: "@modules/home-composer", fn: "fetchResolvedHomepageForStorefront()" },
       { mod: "@modules/*-organizer", fn: "sbSelect('page_sections', pageKey=eq.__isolated_*)" },
     ],
     consumers: [
-      { label: "Homepage Dynamic Blocks", href: "/" },
-      { label: "Visual Editor Canvas", href: "/admin/editor/" },
+      { label: "Homepage via Home Composer", href: "/" },
+      { label: "Admin Composers", href: "/admin/home/" },
     ],
-    relatedSourceIds: ["store_configs", "isolated_universes", "isolated_products", "isolated_packages"],
+    relatedSourceIds: [
+      "store_configs",
+      "isolated_home",
+      "isolated_universes",
+      "isolated_products",
+      "isolated_packages",
+      "isolated_elements",
+    ],
     previewColumns: ["pageKey", "type", "title", "sortOrder", "isVisible"],
   },
 
@@ -427,7 +497,7 @@ const COPY = {
   ar: {
     heading: "مركز التحكم وتتبع الداتابيز الفعالة (Active Database Explorer)",
     subheading:
-      "يعرض فقط الجداول والمخازن المستخدمة فعلياً في الموقع الآن (3 مخازن معزولة + 8 جداول تشغيلية فعالة) بدون الجداول القديمة غير المستخدمة.",
+      "يعرض فقط الجداول والمخازن المستخدمة فعلياً في الموقع الآن (5 مخازن معزولة + 8 جداول تشغيلية فعالة) بدون الجداول القديمة غير المستخدمة.",
     searchPlaceholder: "ابحث في كل الجداول والسجلات (اسم، إيميل، slug، رقم طلب، ID)...",
     refresh: "تحديث كل الداتابيز",
     lastSync: "آخر مزامنة",
@@ -459,8 +529,8 @@ const COPY = {
   en: {
     heading: "Active Database Flow & Live Inspector",
     subheading:
-      "Displays only the live active sources powering the site (8 active operational tables + 3 isolated storefront registries) with retired legacy tables removed.",
-    searchPlaceholder: "Search across all 11 active sources & live records (name, slug, email, order, id)...",
+      "Displays only the live active sources powering the site (8 active operational tables + 5 isolated storefront registries) with retired legacy tables removed.",
+    searchPlaceholder: "Search across all 13 active sources & live records (name, slug, email, order, id)...",
     refresh: "Refresh Active DB",
     lastSync: "Synced",
     allDomains: "All",
@@ -574,14 +644,14 @@ export function LiveDataFlowCanvas({
         })
       );
 
-      // Also guarantee fetching the 3 isolated registry rows even if page_sections grows > 100 rows
+      // Also guarantee fetching all 5 isolated registry rows even if page_sections grows > 100 rows
       const isolatedRows = await sbSelect<{
         id: string;
         pageKey: string;
         config: Record<string, unknown>;
       }>(
         "page_sections",
-        "select=id,pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__)"
+        "select=id,pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__)"
       ).catch(() => []);
 
       const byTable = Object.fromEntries(tableEntries);
@@ -590,11 +660,23 @@ export function LiveDataFlowCanvas({
       for (const def of DATA_SOURCE_CATALOG) {
         if (def.kind === "isolated" && def.isolatedPageKey && def.isolatedArrayKey) {
           const found = isolatedRows.find((r) => r.pageKey === def.isolatedPageKey);
-          const list = found?.config?.[def.isolatedArrayKey];
-          nextStates[def.id] = {
-            rows: Array.isArray(list) ? (list as Record<string, unknown>[]) : [],
-            ok: true,
-          };
+          if (def.isolatedArrayKey === "elements") {
+            const tb = found?.config?.textBlocks;
+            const bt = found?.config?.buttons;
+            nextStates[def.id] = {
+              rows: [
+                ...(Array.isArray(tb) ? (tb as Record<string, unknown>[]) : []),
+                ...(Array.isArray(bt) ? (bt as Record<string, unknown>[]) : []),
+              ],
+              ok: true,
+            };
+          } else {
+            const list = found?.config?.[def.isolatedArrayKey];
+            nextStates[def.id] = {
+              rows: Array.isArray(list) ? (list as Record<string, unknown>[]) : [],
+              ok: true,
+            };
+          }
         } else {
           nextStates[def.id] = byTable[def.tableName] ?? { rows: [], ok: true };
         }

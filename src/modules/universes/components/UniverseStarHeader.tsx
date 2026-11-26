@@ -17,6 +17,13 @@ import type { UniverseDTO } from "../schema";
 interface UniverseStarHeaderProps {
   universes: UniverseDTO[];
   activeSlug?: string;
+  customNodes?: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    iconPngUrl: string | null;
+  }>;
+  disableRemoteSync?: boolean;
 }
 
 interface HeaderNode {
@@ -123,17 +130,37 @@ function UniverseGlyph({
 export function UniverseStarHeader({
   universes,
   activeSlug,
+  customNodes,
+  disableRemoteSync = false,
 }: UniverseStarHeaderProps) {
   const [nodes, setNodes] = useState<HeaderNode[]>(() =>
-    universes.map((u) => ({
-      id: u.id,
-      slug: u.slug,
-      name: u.name,
-      iconPngUrl: null,
-    }))
+    customNodes
+      ? customNodes
+      : universes.map((u) => ({
+          id: u.id,
+          slug: u.slug,
+          name: u.name,
+          iconPngUrl: null,
+        }))
   );
 
   useEffect(() => {
+    if (disableRemoteSync) {
+      if (customNodes) {
+        setNodes(customNodes);
+      } else {
+        setNodes(
+          universes.map((u) => ({
+            id: u.id,
+            slug: u.slug,
+            name: u.name,
+            iconPngUrl: null,
+          }))
+        );
+      }
+      return;
+    }
+
     const cached = getCachedOrganizerUniverses();
     if (cached && cached.length > 0) {
       setNodes(
@@ -166,7 +193,7 @@ export function UniverseStarHeader({
     return () => {
       active = false;
     };
-  }, []);
+  }, [disableRemoteSync, customNodes, universes]);
 
   const leftNodes = nodes.slice(0, 2);
   const rightNodes = nodes.slice(1, 3);

@@ -83,3 +83,8 @@ Every module in `src/modules/[module-name]/` MUST follow this exact internal sep
 - **File Header Comment**: Every code file (`*.ts`, `*.tsx`, `*.css`) MUST start with a concise header comment (`/** ... */` or `/* ... */`) describing what site features, UI sections, or domain logic live in that file.
 - **Keep Headers Updated**: Whenever any file is modified, its top header comment MUST be updated to reflect the latest behavior.
 - **GitHub Backup Tags**: Tag major milestones (`v0.x.0`) and push commits + tags to GitHub so any prior version can be restored.
+
+---
+
+## 8. Living Systems Architecture Registry (`SYSTEMS_REGISTRY.md`)
+- Whenever any new isolated module, Organizer page, data store, or core system is created in this repository (in the current or any future session), you **MUST** add or update its entry in `SYSTEMS_REGISTRY.md` at the repository root with its module path, admin route, Supabase storage key, public APIs, consumers, and data flow.

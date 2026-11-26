@@ -1255,11 +1255,19 @@ export function AdminPortalClient() {
             </Link>
 
             <Link
-              href="/admin/editor/"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3.5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
+              href="/admin/elements/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-pink-400/40 bg-pink-500/15 px-3.5 text-xs font-bold text-pink-200 hover:bg-pink-500/25"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              <span>{lang === "ar" ? "المحرر البصري" : "Visual Editor"}</span>
+              <span>{lang === "ar" ? "النصوص والأزرار" : "Text & Buttons"}</span>
+            </Link>
+
+            <Link
+              href="/admin/home/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3.5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "منسّق الرئيسية" : "Home Composer"}</span>
             </Link>
 
             <Link
@@ -1718,74 +1726,39 @@ export function AdminPortalClient() {
             </div>
           ) : null}
 
-          {/* HOME BUILDER */}
+          {/* HOME COMPOSER REDIRECT */}
           {activeTab === "sections" ? (
-            <div className="max-w-2xl space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">{t.sectionsTitle}</h2>
-                <SaveButton tab="sections" onClick={() => void handleSaveSections()} />
+            <div className="max-w-2xl space-y-5 rounded-3xl border border-cyan-400/25 bg-[#0b0815] p-6">
+              <h2 className="font-serif text-2xl font-semibold text-white">
+                {lang === "ar"
+                  ? "منسّق الصفحة الرئيسية المعزول الجديد"
+                  : "New Isolated Homepage Composer"}
+              </h2>
+              <p className="text-xs leading-relaxed text-white/70">
+                {lang === "ar"
+                  ? "تم استبدال نظام أقسام الرئيسية القديم بمنسّق الصفحة الرئيسية المعزول (/admin/home/) + منظّم بطاقات القراءة والأزرار (/admin/elements/) للتحكم الكامل في البلوكات والأعمدة والموبايل والعناصر."
+                  : "The legacy Homepage builder has been replaced by the Isolated Homepage Composer (/admin/home/) and Text & Buttons Studio (/admin/elements/)."}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/admin/home/"
+                  className="inline-flex items-center gap-2 rounded-full bg-cyan-400 px-5 py-2.5 text-xs font-bold text-black hover:opacity-90"
+                >
+                  <Layers className="h-4 w-4" />
+                  <span>
+                    {lang === "ar" ? "فتح منسّق الرئيسية" : "Open Home Composer"}
+                  </span>
+                </Link>
+                <Link
+                  href="/admin/elements/"
+                  className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-5 py-2.5 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>
+                    {lang === "ar" ? "فتح منظّم النصوص والأزرار" : "Open Text & Buttons"}
+                  </span>
+                </Link>
               </div>
-              <div className="space-y-2.5">
-                {sections.map((s, idx) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b0815] px-5 py-3.5"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold">{s.title}</p>
-                      <p className="font-mono text-[11px] text-white/45" dir="ltr">
-                        {s.type}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => moveSection(idx, -1)}
-                        disabled={idx === 0}
-                        className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
-                      >
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveSection(idx, 1)}
-                        disabled={idx === sections.length - 1}
-                        className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white disabled:opacity-30"
-                      >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSections((prev) =>
-                            prev.map((x) =>
-                              x.id === s.id ? { ...x, visible: !x.visible } : x
-                            )
-                          )
-                        }
-                        className={`rounded-full px-4 py-1.5 text-xs font-bold ${
-                          s.visible
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : "bg-white/10 text-white/50"
-                        }`}
-                      >
-                        {s.visible ? t.visible : t.hidden}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <TabGuideBanner
-                arPoints={[
-                  "الأسهم (أعلى / أسفل) تغيّر ترتيب ظهور الأقسام في الصفحة الرئيسية.",
-                  "زر (ظاهر / مخفي) يتحكم في إظهار أو إخفاء أي قسم بالكامل من الرئيسية ويُحفظ في جدول page_sections."
-                ]}
-                enPoints={[
-                  "Up/Down arrows reorder sections on the Storefront Homepage.",
-                  "Visible/Hidden toggles section visibility in Supabase page_sections."
-                ]}
-              />
             </div>
           ) : null}
 

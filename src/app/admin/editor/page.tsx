@@ -1,29 +1,20 @@
 /**
  * @file src/app/admin/editor/page.tsx
- * @purpose Dedicated Shopify-style Visual Drag-and-Drop Editor route (/admin/editor/).
+ * @purpose Unified Admin Visual Homepage route (/admin/editor/) now powered by the Isolated Homepage Composer replacing the legacy page-builder editor.
  */
 
-import { listFeaturedLoadouts } from "@modules/bundles";
-import { listFreshDrops } from "@modules/catalog";
-import { VisualEditorClient } from "@modules/page-builder/components/VisualEditorClient";
-import { getActiveStoreConfig } from "@modules/store-config";
-import { listStoreUniverses } from "@modules/universes";
+import {
+  HomeComposerClient,
+  getHomeComposerBootstrap,
+} from "@modules/home-composer";
 
-export default async function AdminVisualEditorPage() {
-  const store = await getActiveStoreConfig();
-
-  const [universes, freshDrops, loadouts] = await Promise.all([
-    listStoreUniverses(store.id),
-    listFreshDrops(store.id, 4),
-    listFeaturedLoadouts(store.id, 3),
-  ]);
+export default async function AdminEditorHomeComposerPage() {
+  const bootstrap = await getHomeComposerBootstrap();
 
   return (
-    <VisualEditorClient
-      storeId={store.id}
-      initialUniverses={universes}
-      initialFreshDrops={freshDrops}
-      initialLoadouts={loadouts}
+    <HomeComposerClient
+      initialStoreId={bootstrap.storeId}
+      initialRegistry={bootstrap.initialRegistry}
     />
   );
 }
