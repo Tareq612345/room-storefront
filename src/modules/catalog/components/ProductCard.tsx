@@ -1,6 +1,6 @@
 /**
  * @file src/modules/catalog/components/ProductCard.tsx
- * @purpose Product Card UI: Displays product mockup, 1-line subtitle, EGP pricing, Vaulted/Fresh Drop badge, and 'Claim Yours' My Room action.
+ * @purpose Product Card UI: Displays product banner (with clean cover/contain image framing), EGP pricing, Vaulted/Fresh Drop badge, links to /product/?slug=..., and triggers 'Claim Yours' My Room action.
  */
 
 "use client";
@@ -8,14 +8,39 @@
 import { useRoomBagStore } from "@modules/cart-checkout";
 import { formatEgp } from "@shared/types/common";
 import { getAssetPath } from "@shared/utils/asset-path";
+import Link from "next/link";
 import type { ProductSummaryDTO } from "../schema";
 
 interface ProductCardProps {
   product: ProductSummaryDTO;
+  cardImageFit?: "cover" | "contain";
+  cardImagePosition?: "center" | "top" | "bottom";
+  badgeLabel?: string;
+  addToBagLabel?: string;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+function resolveImgSrc(raw: string): string {
+  if (!raw) return "";
+  if (raw.startsWith("data:") || raw.startsWith("http")) return raw;
+  return getAssetPath(raw);
+}
+
+export function ProductCard({
+  product,
+  cardImageFit = "cover",
+  cardImagePosition = "center",
+  badgeLabel,
+  addToBagLabel,
+}: ProductCardProps) {
   const addItem = useRoomBagStore((s) => s.addItem);
+  const productHref = `/product/?slug=${encodeURIComponent(product.slug)}`;
+  const imgSrc = resolveImgSrc(product.thumbnailUrl);
+  const posClass =
+    cardImagePosition === "top"
+      ? "object-top"
+      : cardImagePosition === "bottom"
+        ? "object-bottom"
+        : "object-center";
 
   const handleClaim = () => {
     if (product.isVaulted) return;
@@ -35,22 +60,33 @@ export function ProductCard({ product }: ProductCardProps) {
       className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-strong)]"
       style={{ boxShadow: "var(--shadow-card)" }}
     >
-      {/* Visual Preview */}
-      <div
-        className="relative flex h-56 items-end justify-between overflow-hidden p-4"
+      {/* Visual Preview (clickable to inner Product Page) */}
+      <Link
+        href={productHref}
+        className="relative flex h-56 items-start justify-between overflow-hidden p-3.5"
         style={{
-          background: `radial-gradient(circle at 50% 25%, ${product.universeAccentColor}33 0%, #07050c 78%)`,
+          background: `radial-gradient(circle at 50% 35%, ${product.universeAccentColor}30 0%, #07050c 82%)`,
         }}
       >
-        {product.thumbnailUrl ? (
-          <img
-            src={getAssetPath(product.thumbnailUrl)}
-            alt={product.name}
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105"
-          />
+        {imgSrc ? (
+          cardImageFit === "contain" ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-5 pt-11">
+              <img
+                src={imgSrc}
+                alt={product.name}
+                className={`max-h-full max-w-full object-contain ${posClass} drop-shadow-[0_12px_28px_rgba(0,0,0,0.75)] transition-transform duration-500 group-hover:scale-105`}
+              />
+            </div>
+          ) : (
+            <img
+              src={imgSrc}
+              alt={product.name}
+              className={`pointer-events-none absolute inset-0 h-full w-full object-cover ${posClass} opacity-85 transition-transform duration-500 group-hover:scale-105`}
+            />
+          )
         ) : null}
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
 
         <span className="relative z-10 rounded-full border border-white/15 bg-black/65 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/90 backdrop-blur-sm">
           {product.universeSlug}
@@ -60,19 +96,19 @@ export function ProductCard({ product }: ProductCardProps) {
           <span className="relative z-10 rounded-full bg-[var(--color-vaulted)]/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
             Vaulted
           </span>
-        ) : product.isNewArrival ? (
+        ) : badgeLabel || product.isNewArrival ? (
           <span
             className="relative z-10 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
             style={{ backgroundColor: product.universeAccentColor }}
           >
-            Fresh Drop
+            {badgeLabel || "Fresh Drop"}
           </span>
         ) : null}
-      </div>
+      </Link>
 
       {/* Info & CTA */}
       <div className="flex flex-1 flex-col justify-between p-5">
-        <div>
+        <Link href={productHref} className="block">
           <h3 className="line-clamp-1 text-base font-semibold text-[var(--color-text-primary)] group-hover:text-white">
             {product.name}
           </h3>
@@ -81,7 +117,7 @@ export function ProductCard({ product }: ProductCardProps) {
               {product.subtitle}
             </p>
           ) : null}
-        </div>
+        </Link>
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2">
@@ -107,7 +143,7 @@ export function ProductCard({ product }: ProductCardProps) {
               color: "#ffffff",
             }}
           >
-            {product.isVaulted ? "Vaulted" : "Claim Yours"}
+            {product.isVaulted ? "Vaulted" : addToBagLabel || "Claim Yours"}
           </button>
         </div>
       </div>

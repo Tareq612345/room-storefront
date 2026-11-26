@@ -1,6 +1,6 @@
 /**
  * @file src/modules/universes/components/UniverseDetailClient.tsx
- * @purpose Universe Detail View (/universes/[slug]/ and /universe/?slug=): consumes resolved Universe identity, PNG symbol, products, and offer banners from the isolated Universe Data Manager without stale fallback flash or color-filter overrides.
+ * @purpose Universe Detail View (/universes/[slug]/ and /universe/?slug=): consumes resolved Universe identity, PNG symbol, products (enriched with isolated Product Data Manager outer cards), and offer banners without stale flash or color-filter overrides.
  */
 
 "use client";
@@ -8,6 +8,10 @@
 import { useRoomBagStore } from "@modules/cart-checkout";
 import type { ProductSummaryDTO } from "@modules/catalog";
 import { ProductCard } from "@modules/catalog";
+import {
+  fetchResolvedProductsForStorefront,
+  type OrganizedProduct,
+} from "@modules/product-organizer";
 import {
   fetchResolvedUniverseDetail,
   type OrganizedUniverse,
@@ -24,6 +28,14 @@ interface UniverseDetailClientProps {
   dynamicSlug?: string;
 }
 
+interface EnrichedProductCardItem {
+  dto: ProductSummaryDTO;
+  cardImageFit: "cover" | "contain";
+  cardImagePosition: "center" | "top" | "bottom";
+  badgeLabel?: string;
+  addToBagLabel?: string;
+}
+
 export function UniverseDetailClient({
   initialUniverse,
   initialProducts,
@@ -34,7 +46,7 @@ export function UniverseDetailClient({
 
   const [ready, setReady] = useState(false);
   const [universe, setUniverse] = useState<OrganizedUniverse | null>(null);
-  const [products, setProducts] = useState<ProductSummaryDTO[]>([]);
+  const [products, setProducts] = useState<EnrichedProductCardItem[]>([]);
   const [offers, setOffers] = useState<SiteOfferBannerSource[]>([]);
 
   useEffect(() => {
@@ -48,7 +60,10 @@ export function UniverseDetailClient({
 
     (async () => {
       try {
-        const detail = await fetchResolvedUniverseDetail(targetSlug);
+        const [detail, organizedProducts] = await Promise.all([
+          fetchResolvedUniverseDetail(targetSlug),
+          fetchResolvedProductsForStorefront().catch(() => [] as OrganizedProduct[]),
+        ]);
         if (!active) return;
 
         setUniverse(detail.universe);
@@ -61,27 +76,41 @@ export function UniverseDetailClient({
           document.documentElement.setAttribute("data-universe", detail.universe.slug);
         }
 
-        // Preserve each product's own originalAccentColor (no universe color filter applied)
+        // Preserve each product's own original color (no universe color filter applied)
         setProducts(
-          detail.products.map((p) => ({
-            id: p.id,
-            storeId: "store_room_egypt",
-            universeId: p.universeId,
-            universeSlug: p.universeSlug,
-            universeAccentColor: p.originalAccentColor,
-            slug: p.slug,
-            name: p.name,
-            subtitle: p.subtitle,
-            basePrice: p.basePrice,
-            compareAtPrice: p.compareAtPrice,
-            thumbnailUrl: p.thumbnailUrl,
-            isFeatured: true,
-            isNewArrival: p.isNewArrival,
-            isBestSeller: false,
-            totalStock: p.totalStock,
-            isVaulted: p.isVaulted,
-            defaultVariantId: p.defaultVariantId ?? null,
-          }))
+          detail.products.map((p) => {
+            const custom = organizedProducts.find(
+              (op) => op.id === p.id || op.slug === p.slug
+            );
+            return {
+              dto: {
+                id: p.id,
+                storeId: "store_room_egypt",
+                universeId: p.universeId,
+                universeSlug: custom?.universeSlug ?? p.universeSlug,
+                universeAccentColor: custom?.accentColor ?? p.originalAccentColor,
+                slug: custom?.slug ?? p.slug,
+                name: custom?.name ?? p.name,
+                subtitle: custom?.subtitle ?? p.subtitle,
+                basePrice: custom?.basePrice ?? p.basePrice,
+                compareAtPrice:
+                  custom !== undefined ? custom.compareAtPrice : p.compareAtPrice,
+                thumbnailUrl: custom?.cardImageUrl ?? p.thumbnailUrl,
+                isFeatured: true,
+                isNewArrival: custom?.isNewArrival ?? p.isNewArrival,
+                isBestSeller: false,
+                totalStock: custom?.stock ?? p.totalStock,
+                isVaulted: custom
+                  ? custom.isVaulted || custom.stock <= 0
+                  : p.isVaulted,
+                defaultVariantId: p.defaultVariantId ?? null,
+              },
+              cardImageFit: custom?.cardImageFit ?? "cover",
+              cardImagePosition: custom?.cardImagePosition ?? "center",
+              badgeLabel: custom?.badgeLabel,
+              addToBagLabel: custom?.addToBagLabel,
+            };
+          })
         );
 
         setOffers(detail.offers);
@@ -106,7 +135,13 @@ export function UniverseDetailClient({
             createdAt: now,
             updatedAt: now,
           });
-          setProducts(initialProducts);
+          setProducts(
+            initialProducts.map((dto) => ({
+              dto,
+              cardImageFit: "cover",
+              cardImagePosition: "center",
+            }))
+          );
         }
         setReady(true);
       }
@@ -193,8 +228,15 @@ export function UniverseDetailClient({
       {/* Assigned Products (original product colors preserved) */}
       {products.length > 0 ? (
         <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {products.map((item) => (
+            <ProductCard
+              key={item.dto.id}
+              product={item.dto}
+              cardImageFit={item.cardImageFit}
+              cardImagePosition={item.cardImagePosition}
+              badgeLabel={item.badgeLabel}
+              addToBagLabel={item.addToBagLabel}
+            />
           ))}
         </div>
       ) : null}

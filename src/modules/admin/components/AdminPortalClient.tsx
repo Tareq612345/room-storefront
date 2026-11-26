@@ -1534,6 +1534,14 @@ export function AdminPortalClient() {
             <LangToggleButton />
 
             <Link
+              href="/admin/products/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-indigo-400/40 bg-indigo-500/15 px-3.5 text-xs font-bold text-indigo-200 hover:bg-indigo-500/25"
+            >
+              <Package className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "تنظيم المنتجات" : "Product Organizer"}</span>
+            </Link>
+
+            <Link
               href="/admin/universes/"
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-3.5 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25"
             >
