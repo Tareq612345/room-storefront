@@ -34,7 +34,10 @@ export const OrganizedProductSchema = z.object({
   sortOrder: z.number().int().default(1),
 
   // Inner product page content & layout
-  galleryImages: z.array(z.string()).default([]),
+  galleryImages: z.preprocess(
+    (v) => (typeof v === "string" ? [v] : v),
+    z.array(z.string()).default([])
+  ),
   description: z.string().default(""),
   specs: z.array(ProductSpecItemSchema).default([]),
   detailLayout: z.enum(["split-gallery", "cinema-hero"]).default("split-gallery"),

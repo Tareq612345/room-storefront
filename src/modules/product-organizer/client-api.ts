@@ -76,22 +76,22 @@ export function getCachedOrganizerProducts(): OrganizedProduct[] | null {
 export async function saveIsolatedProductRegistry(params: {
   storeId: string;
   registry: ProductRegistry;
-  recordExistsInDb: boolean;
+  recordExistsInDb?: boolean;
 }): Promise<boolean> {
   const validated = ProductRegistrySchema.parse(params.registry);
   cacheProductRegistryLocally(validated);
 
   const nowIso = new Date().toISOString();
-  if (params.recordExistsInDb) {
-    await sbPatch(
-      "page_sections",
-      `pageKey=eq.${encodeURIComponent(PRODUCT_ORGANIZER_PAGE_KEY)}`,
-      {
-        config: validated,
-        isVisible: false,
-        updatedAt: nowIso,
-      }
-    );
+  const patched = await sbPatch<{ id: string }>(
+    "page_sections",
+    `pageKey=eq.${encodeURIComponent(PRODUCT_ORGANIZER_PAGE_KEY)}`,
+    {
+      config: validated,
+      isVisible: false,
+      updatedAt: nowIso,
+    }
+  );
+  if (patched.length > 0) {
     return true;
   }
 

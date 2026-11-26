@@ -101,22 +101,22 @@ function cacheRegistryLocally(registry: OrganizerRegistry): void {
 export async function saveIsolatedRegistry(params: {
   storeId: string;
   registry: OrganizerRegistry;
-  recordExistsInDb: boolean;
+  recordExistsInDb?: boolean;
 }): Promise<boolean> {
   const validated = OrganizerRegistrySchema.parse(params.registry);
   cacheRegistryLocally(validated);
 
   const nowIso = new Date().toISOString();
-  if (params.recordExistsInDb) {
-    await sbPatch(
-      "page_sections",
-      `pageKey=eq.${encodeURIComponent(ORGANIZER_PAGE_KEY)}`,
-      {
-        config: validated,
-        isVisible: false,
-        updatedAt: nowIso,
-      }
-    );
+  const patched = await sbPatch<{ id: string }>(
+    "page_sections",
+    `pageKey=eq.${encodeURIComponent(ORGANIZER_PAGE_KEY)}`,
+    {
+      config: validated,
+      isVisible: false,
+      updatedAt: nowIso,
+    }
+  );
+  if (patched.length > 0) {
     return true;
   }
 
