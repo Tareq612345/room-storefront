@@ -23,6 +23,7 @@ let currentModel = null;
 const DOMAIN_MAP = {
   StoreConfig: "Core & Multi-Tenant",
   User: "Core & Multi-Tenant",
+  AdminInvite: "Core & Multi-Tenant",
   PageSection: "Dynamic Page Builder",
   Universe: "Universes",
   Product: "Catalog & A+ Story",
@@ -37,19 +38,20 @@ const DOMAIN_MAP = {
 };
 
 const DEFAULT_POSITIONS = {
-  StoreConfig: { x: 60, y: 260 },
-  User: { x: 380, y: 60 },
-  LoyaltyAccount: { x: 700, y: 40 },
-  Universe: { x: 380, y: 260 },
-  PageSection: { x: 60, y: 560 },
-  Product: { x: 700, y: 260 },
-  ProductVariant: { x: 1040, y: 120 },
-  ProductStoryBlock: { x: 1040, y: 390 },
-  Bundle: { x: 380, y: 520 },
-  BundleItem: { x: 700, y: 580 },
-  ShippingZone: { x: 60, y: 800 },
-  Order: { x: 380, y: 800 },
-  OrderItem: { x: 700, y: 830 },
+  AdminInvite: { x: 40, y: 40 },
+  StoreConfig: { x: 40, y: 340 },
+  PageSection: { x: 40, y: 660 },
+  ShippingZone: { x: 40, y: 980 },
+  User: { x: 410, y: 40 },
+  Universe: { x: 410, y: 340 },
+  Bundle: { x: 410, y: 660 },
+  Order: { x: 410, y: 980 },
+  LoyaltyAccount: { x: 780, y: 40 },
+  Product: { x: 780, y: 340 },
+  BundleItem: { x: 780, y: 680 },
+  OrderItem: { x: 780, y: 980 },
+  ProductVariant: { x: 1150, y: 220 },
+  ProductStoryBlock: { x: 1150, y: 540 },
 };
 
 for (const rawLine of lines) {

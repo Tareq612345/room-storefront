@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-25T22:41:57.293Z",
+  "generatedAt": "2026-11-26T04:46:57.157Z",
   "provider": "PostgreSQL (Supabase)",
   "stats": {
     "modelsCount": 14,
@@ -103,8 +103,8 @@
       "tableName": "store_configs",
       "domain": "Core & Multi-Tenant",
       "position": {
-        "x": 60,
-        "y": 260
+        "x": 40,
+        "y": 340
       },
       "fields": [
         {
@@ -493,8 +493,8 @@
       "tableName": "users",
       "domain": "Core & Multi-Tenant",
       "position": {
-        "x": 380,
-        "y": 60
+        "x": 410,
+        "y": 40
       },
       "fields": [
         {
@@ -752,10 +752,10 @@
     {
       "name": "AdminInvite",
       "tableName": "admin_invites",
-      "domain": "Domain",
+      "domain": "Core & Multi-Tenant",
       "position": {
-        "x": 460,
-        "y": 140
+        "x": 40,
+        "y": 40
       },
       "fields": [
         {
@@ -937,8 +937,8 @@
       "tableName": "universes",
       "domain": "Universes",
       "position": {
-        "x": 380,
-        "y": 260
+        "x": 410,
+        "y": 340
       },
       "fields": [
         {
@@ -1196,8 +1196,8 @@
       "tableName": "products",
       "domain": "Catalog & A+ Story",
       "position": {
-        "x": 700,
-        "y": 260
+        "x": 780,
+        "y": 340
       },
       "fields": [
         {
@@ -1565,8 +1565,8 @@
       "tableName": "product_variants",
       "domain": "Catalog & A+ Story",
       "position": {
-        "x": 1040,
-        "y": 120
+        "x": 1150,
+        "y": 220
       },
       "fields": [
         {
@@ -1872,8 +1872,8 @@
       "tableName": "product_story_blocks",
       "domain": "Catalog & A+ Story",
       "position": {
-        "x": 1040,
-        "y": 390
+        "x": 1150,
+        "y": 540
       },
       "fields": [
         {
@@ -2161,8 +2161,8 @@
       "tableName": "bundles",
       "domain": "Loadouts (Bundles)",
       "position": {
-        "x": 380,
-        "y": 520
+        "x": 410,
+        "y": 660
       },
       "fields": [
         {
@@ -2498,8 +2498,8 @@
       "tableName": "bundle_items",
       "domain": "Loadouts (Bundles)",
       "position": {
-        "x": 700,
-        "y": 580
+        "x": 780,
+        "y": 680
       },
       "fields": [
         {
@@ -2702,8 +2702,8 @@
       "tableName": "page_sections",
       "domain": "Dynamic Page Builder",
       "position": {
-        "x": 60,
-        "y": 560
+        "x": 40,
+        "y": 660
       },
       "fields": [
         {
@@ -2899,8 +2899,8 @@
       "tableName": "shipping_zones",
       "domain": "Orders & Cairo Shipping",
       "position": {
-        "x": 60,
-        "y": 800
+        "x": 40,
+        "y": 980
       },
       "fields": [
         {
@@ -3113,8 +3113,8 @@
       "tableName": "orders",
       "domain": "Orders & Cairo Shipping",
       "position": {
-        "x": 380,
-        "y": 800
+        "x": 410,
+        "y": 980
       },
       "fields": [
         {
@@ -3528,8 +3528,8 @@
       "tableName": "order_items",
       "domain": "Orders & Cairo Shipping",
       "position": {
-        "x": 700,
-        "y": 830
+        "x": 780,
+        "y": 980
       },
       "fields": [
         {
@@ -3808,7 +3808,7 @@
       "tableName": "loyalty_accounts",
       "domain": "Loyalty & Rewards",
       "position": {
-        "x": 700,
+        "x": 780,
         "y": 40
       },
       "fields": [
