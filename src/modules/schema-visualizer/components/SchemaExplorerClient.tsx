@@ -268,6 +268,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
     "Product"
   );
+  const [flowSourceId, setFlowSourceId] = useState<string | null>(null);
   const [hoveredModelName, setHoveredModelName] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDomain, setActiveDomain] = useState<string>("ALL");
@@ -638,7 +639,15 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
       </header>
 
       {viewMode === "flow" ? (
-        <LiveDataFlowCanvas lang={lang} />
+        <LiveDataFlowCanvas
+          lang={lang}
+          meta={meta}
+          initialSourceId={flowSourceId}
+          onOpenSchemaGraph={(modelName) => {
+            setSelectedModelName(modelName);
+            setViewMode("graph");
+          }}
+        />
       ) : (
         /* Main Interactive Schema Graph Workspace */
         <div className="relative flex flex-1 overflow-hidden">
@@ -918,18 +927,27 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
                 </button>
               </div>
 
-              {selectedModel.domain === "Isolated Organizers" ? (
-                <div className="border-b border-white/10 px-5 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("flow")}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/15 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/25"
-                  >
-                    <Workflow className="h-3.5 w-3.5" />
-                    <span>{t.jumpToFlow}</span>
-                  </button>
-                </div>
-              ) : null}
+              <div className="border-b border-white/10 px-5 py-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetId =
+                      selectedModel.name === "IsolatedUniverses"
+                        ? "isolated_universes"
+                        : selectedModel.name === "IsolatedProducts"
+                        ? "isolated_products"
+                        : selectedModel.name === "IsolatedPackages"
+                        ? "isolated_packages"
+                        : selectedModel.tableName;
+                    setFlowSourceId(targetId);
+                    setViewMode("flow");
+                  }}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-500/15 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/25"
+                >
+                  <Workflow className="h-3.5 w-3.5" />
+                  <span>{t.jumpToFlow}</span>
+                </button>
+              </div>
 
               <div className="flex-1 space-y-5 overflow-y-auto p-5">
                 {inspectorTab === "data" ? (
