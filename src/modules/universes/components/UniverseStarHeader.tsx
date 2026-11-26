@@ -1,16 +1,29 @@
 /**
  * @file src/modules/universes/components/UniverseStarHeader.tsx
- * @purpose Primary RM 4-point star header restored from v0.2.0 with flanking Universe star nodes and dashed side tracks.
+ * @purpose Primary RM 4-point star header synced live with the isolated Universe Data Manager (@modules/universe-organizer).
  */
 
 "use client";
 
+import {
+  fetchResolvedUniversesForStorefront,
+  getCachedOrganizerUniverses,
+  getUniverseHref,
+} from "@modules/universe-organizer";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { UniverseDTO } from "../schema";
 
 interface UniverseStarHeaderProps {
   universes: UniverseDTO[];
   activeSlug?: string;
+}
+
+interface HeaderNode {
+  id: string;
+  slug: string;
+  name: string;
+  iconPngUrl: string | null;
 }
 
 function FourPointStarFrame({
@@ -65,7 +78,22 @@ function CyberDashTrack({ side }: { side: "left" | "right" }) {
   );
 }
 
-function UniverseGlyph({ slug }: { slug: string }) {
+function UniverseGlyph({
+  slug,
+  iconPngUrl,
+}: {
+  slug: string;
+  iconPngUrl: string | null;
+}) {
+  if (iconPngUrl) {
+    return (
+      <img
+        src={iconPngUrl}
+        alt=""
+        className="h-5 w-5 object-contain"
+      />
+    );
+  }
   if (slug === "cars") {
     return (
       <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -96,8 +124,52 @@ export function UniverseStarHeader({
   universes,
   activeSlug,
 }: UniverseStarHeaderProps) {
-  const leftNodes = universes.slice(0, 2);
-  const rightNodes = universes.slice(1, 3);
+  const [nodes, setNodes] = useState<HeaderNode[]>(() =>
+    universes.map((u) => ({
+      id: u.id,
+      slug: u.slug,
+      name: u.name,
+      iconPngUrl: null,
+    }))
+  );
+
+  useEffect(() => {
+    const cached = getCachedOrganizerUniverses();
+    if (cached && cached.length > 0) {
+      setNodes(
+        cached.map((u) => ({
+          id: u.id,
+          slug: u.slug,
+          name: u.name,
+          iconPngUrl: u.iconPngUrl,
+        }))
+      );
+    }
+
+    let active = true;
+    (async () => {
+      try {
+        const resolved = await fetchResolvedUniversesForStorefront();
+        if (!active) return;
+        setNodes(
+          resolved.map((u) => ({
+            id: u.id,
+            slug: u.slug,
+            name: u.name,
+            iconPngUrl: u.iconPngUrl,
+          }))
+        );
+      } catch {
+        // Keep cached/fallback nodes
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const leftNodes = nodes.slice(0, 2);
+  const rightNodes = nodes.slice(1, 3);
 
   return (
     <section className="relative w-full pt-8 pb-6 overflow-hidden">
@@ -109,7 +181,7 @@ export function UniverseStarHeader({
           {leftNodes.map((univ) => (
             <Link
               key={`left-${univ.id}`}
-              href={`/universes/${univ.slug}`}
+              href={getUniverseHref(univ.slug)}
               title={univ.name}
               className="group transition-transform duration-300 hover:scale-110 -mx-1"
             >
@@ -121,7 +193,7 @@ export function UniverseStarHeader({
                       : "border-white/20 bg-black/70 group-hover:border-white/60"
                   }`}
                 >
-                  <UniverseGlyph slug={univ.slug} />
+                  <UniverseGlyph slug={univ.slug} iconPngUrl={univ.iconPngUrl} />
                 </span>
               </FourPointStarFrame>
             </Link>
@@ -151,7 +223,7 @@ export function UniverseStarHeader({
           {rightNodes.map((univ) => (
             <Link
               key={`right-${univ.id}`}
-              href={`/universes/${univ.slug}`}
+              href={getUniverseHref(univ.slug)}
               title={univ.name}
               className="group transition-transform duration-300 hover:scale-110 -mx-1"
             >
@@ -163,7 +235,7 @@ export function UniverseStarHeader({
                       : "border-white/20 bg-black/70 group-hover:border-white/60"
                   }`}
                 >
-                  <UniverseGlyph slug={univ.slug} />
+                  <UniverseGlyph slug={univ.slug} iconPngUrl={univ.iconPngUrl} />
                 </span>
               </FourPointStarFrame>
             </Link>

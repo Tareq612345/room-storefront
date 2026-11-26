@@ -1,6 +1,6 @@
 /**
  * @file src/modules/universe-organizer/schema.ts
- * @purpose Zod schemas and TypeScript contracts for the isolated Admin Universe Organizer module (universes, PNG icons, and multi-universe product/offer assignments).
+ * @purpose Zod schemas and TypeScript contracts for the isolated Universe Data Manager module (universes, PNG icons, multi-universe product/offer assignments, and storefront resolved DTOs).
  */
 
 import { z } from "zod";
@@ -46,6 +46,7 @@ export const SiteProductSourceSchema = z.object({
   isNewArrival: z.boolean(),
   totalStock: z.number().int(),
   isVaulted: z.boolean(),
+  defaultVariantId: z.string().nullable().optional(),
 });
 
 export type SiteProductSource = z.infer<typeof SiteProductSourceSchema>;
@@ -75,4 +76,10 @@ export interface UniverseOrganizerBootstrap {
   hasPersistedRecord: boolean;
   initialProducts: SiteProductSource[];
   initialOffers: SiteOfferBannerSource[];
+}
+
+export interface ResolvedUniverseDetail {
+  universe: OrganizedUniverse | null;
+  products: SiteProductSource[];
+  offers: SiteOfferBannerSource[];
 }

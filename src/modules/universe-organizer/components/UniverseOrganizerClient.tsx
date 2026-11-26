@@ -5,7 +5,6 @@
 
 "use client";
 
-import { sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
 import { generateClientId } from "@shared/utils/client-auth";
 import {
   ArrowLeft,
@@ -31,11 +30,11 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  fetchOrganizerDataSnapshot,
+  saveIsolatedRegistry,
+} from "../client-api";
+import {
   ORGANIZER_LOCAL_STORAGE_KEY,
-  ORGANIZER_PAGE_KEY,
-  ORGANIZER_RECORD_ID,
-  buildInitialRegistryFromSources,
-  extractPromoOffersFromSectionConfigs,
   slugifyUniverseName,
 } from "../helpers";
 import {
@@ -242,39 +241,13 @@ export function UniverseOrganizerClient({
     exists = recordExistsInDb
   ) => {
     setSaveState("saving");
-    const validated = OrganizerRegistrySchema.parse(nextRegistry);
-
     try {
-      localStorage.setItem(ORGANIZER_LOCAL_STORAGE_KEY, JSON.stringify(validated));
-    } catch {
-      // Ignore storage quota errors
-    }
-
-    try {
-      const nowIso = new Date().toISOString();
-      if (exists) {
-        await sbPatch(
-          "page_sections",
-          `pageKey=eq.${encodeURIComponent(ORGANIZER_PAGE_KEY)}`,
-          {
-            config: validated,
-            isVisible: false,
-            updatedAt: nowIso,
-          }
-        );
-      } else {
-        await sbInsert("page_sections", {
-          id: ORGANIZER_RECORD_ID,
-          storeId: targetStoreId,
-          pageKey: ORGANIZER_PAGE_KEY,
-          type: "UNIVERSE_QUICK_BAR",
-          title: "Isolated Universe Organizer Data",
-          subtitle: "Standalone Universe Organizer Registry",
-          sortOrder: 9999,
-          isVisible: false,
-          config: validated,
-          updatedAt: nowIso,
-        });
+      await saveIsolatedRegistry({
+        storeId: targetStoreId,
+        registry: nextRegistry,
+        recordExistsInDb: exists,
+      });
+      if (!exists) {
         setRecordExistsInDb(true);
       }
       setSaveState("saved");
@@ -284,172 +257,22 @@ export function UniverseOrganizerClient({
     }
   };
 
-  // Load isolated registry & read-only site products/offers live from Supabase
+  // Load isolated registry & read-only site products/offers via the isolated Data Manager
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const [sbStores, sbIsolated, sbUniverses, sbProducts, sbVariants, sbBundles, sbHomeSections] =
-          await Promise.all([
-            sbSelect<{ id: string }>("store_configs", "select=id&slug=eq.room-egypt"),
-            sbSelect<{ id: string; config: unknown }>(
-              "page_sections",
-              `select=id,config&pageKey=eq.${encodeURIComponent(ORGANIZER_PAGE_KEY)}`
-            ),
-            sbSelect<{
-              id: string;
-              slug: string;
-              name: string;
-              tagline: string | null;
-              description: string | null;
-              accentColor: string;
-              bannerUrl: string | null;
-              sortOrder: number;
-              isActive: boolean;
-            }>("universes", "select=id,slug,name,tagline,description,accentColor,bannerUrl,sortOrder,isActive&order=sortOrder.asc"),
-            sbSelect<{
-              id: string;
-              universeId: string;
-              slug: string;
-              name: string;
-              subtitle: string | null;
-              basePrice: number | string;
-              compareAtPrice: number | string | null;
-              thumbnailUrl: string;
-              isNewArrival: boolean;
-              isActive: boolean;
-            }>(
-              "products",
-              "select=id,universeId,slug,name,subtitle,basePrice,compareAtPrice,thumbnailUrl,isNewArrival,isActive&isActive=eq.true&order=createdAt.desc"
-            ),
-            sbSelect<{ productId: string; stock: number; isActive: boolean }>(
-              "product_variants",
-              "select=productId,stock,isActive&isActive=eq.true"
-            ),
-            sbSelect<{
-              id: string;
-              universeId: string | null;
-              slug: string;
-              name: string;
-              tagline: string | null;
-              fixedPrice: number | string | null;
-              isActive: boolean;
-            }>(
-              "bundles",
-              "select=id,universeId,slug,name,tagline,fixedPrice,isActive&isActive=eq.true&order=createdAt.desc"
-            ),
-            sbSelect<{
-              id: string;
-              type: string;
-              title: string | null;
-              subtitle: string | null;
-              config: unknown;
-            }>(
-              "page_sections",
-              "select=id,type,title,subtitle,config&pageKey=eq.home&order=sortOrder.asc"
-            ),
-          ]);
-
+        const snapshot = await fetchOrganizerDataSnapshot();
         if (!active) return;
 
-        const liveStoreId = sbStores[0]?.id ?? initialStoreId;
-        setStoreId(liveStoreId);
+        setStoreId(snapshot.storeId);
+        setProducts(snapshot.products);
+        setOffers(snapshot.offers);
+        setRegistry(snapshot.registry);
+        setRecordExistsInDb(snapshot.recordExistsInDb);
 
-        const mappedProducts: SiteProductSource[] =
-          sbProducts.length > 0
-            ? sbProducts.map((p) => {
-                const u = sbUniverses.find((un) => un.id === p.universeId);
-                const vars = sbVariants.filter((v) => v.productId === p.id);
-                const totalStock =
-                  vars.length > 0
-                    ? vars.reduce((sum, v) => sum + Number(v.stock), 0)
-                    : 10;
-                return {
-                  id: p.id,
-                  slug: p.slug,
-                  name: p.name,
-                  subtitle: p.subtitle,
-                  basePrice: Number(p.basePrice),
-                  compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
-                  thumbnailUrl: p.thumbnailUrl,
-                  universeId: p.universeId,
-                  universeSlug: u?.slug ?? "cars",
-                  originalAccentColor: u?.accentColor ?? "#c94b99",
-                  isNewArrival: p.isNewArrival,
-                  totalStock,
-                  isVaulted: totalStock <= 0,
-                };
-              })
-            : initialProducts;
-
-        const mappedBundles: SiteOfferBannerSource[] = sbBundles.map((b) => {
-          const u = sbUniverses.find((un) => un.id === b.universeId);
-          const finalPrice = b.fixedPrice ? Number(b.fixedPrice) : 2190;
-          const originalPrice = finalPrice + 450;
-          return {
-            id: b.id,
-            kind: "LOADOUT",
-            slug: b.slug,
-            title: b.name,
-            subtitle: b.tagline,
-            itemCount: 3,
-            originalPrice,
-            finalPrice,
-            savingsAmount: Math.max(0, originalPrice - finalPrice),
-            ctaLabel: "Add to Room",
-            ctaUrl: u?.slug ? `/universes/${u.slug}` : "/",
-            originalAccentColor: u?.accentColor ?? "#c94b99",
-            textColor: "#ffffff",
-            universeSlug: u?.slug ?? null,
-          };
-        });
-
-        const promoOffers = extractPromoOffersFromSectionConfigs(sbHomeSections);
-        const mappedOffers =
-          mappedBundles.length > 0 || promoOffers.length > 0
-            ? [...mappedBundles, ...promoOffers]
-            : initialOffers;
-
-        setProducts(mappedProducts);
-        setOffers(mappedOffers);
-
-        const isolatedRow = sbIsolated[0];
-        if (isolatedRow) {
-          const parsed = OrganizerRegistrySchema.safeParse(isolatedRow.config);
-          if (parsed.success) {
-            setRegistry(parsed.data);
-            setRecordExistsInDb(true);
-            try {
-              localStorage.setItem(
-                ORGANIZER_LOCAL_STORAGE_KEY,
-                JSON.stringify(parsed.data)
-              );
-            } catch {
-              // Ignore
-            }
-            return;
-          }
-        }
-
-        // Fallback to localStorage if Supabase row doesn't exist yet
-        const cachedRaw = localStorage.getItem(ORGANIZER_LOCAL_STORAGE_KEY);
-        if (cachedRaw) {
-          const parsedLocal = OrganizerRegistrySchema.safeParse(JSON.parse(cachedRaw));
-          if (parsedLocal.success) {
-            setRegistry(parsedLocal.data);
-            return;
-          }
-        }
-
-        // First-time bootstrap from live site data, then isolate immediately
-        if (sbUniverses.length > 0) {
-          const seeded = buildInitialRegistryFromSources({
-            universes: sbUniverses,
-            products: mappedProducts,
-            offers: mappedOffers,
-          });
-          setRegistry(seeded);
-          await persistRegistry(seeded, liveStoreId, false);
+        if (!snapshot.recordExistsInDb) {
+          await persistRegistry(snapshot.registry, snapshot.storeId, false);
         }
       } catch {
         // Offline fallback: check localStorage

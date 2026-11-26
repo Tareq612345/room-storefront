@@ -1,6 +1,6 @@
 /**
  * @file src/modules/bundles/components/LoadoutsSection.tsx
- * @purpose Displays bundled room Loadouts synced live with Supabase bundles table and adds them to the My Room bag.
+ * @purpose Displays bundled room Loadouts synced live with Supabase bundles table without stale fallback flash on load.
  */
 
 "use client";
@@ -23,9 +23,23 @@ export function LoadoutsSection({
   loadouts,
 }: LoadoutsSectionProps) {
   const addItem = useRoomBagStore((s) => s.addItem);
-  const [items, setItems] = useState<BundleSummaryDTO[]>(loadouts);
+  const [items, setItems] = useState<BundleSummaryDTO[]>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem("room_live_loadouts_v1");
+      if (cached) {
+        const parsed = JSON.parse(cached) as BundleSummaryDTO[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+          setReady(true);
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
     let active = true;
     (async () => {
       try {
@@ -49,41 +63,69 @@ export function LoadoutsSection({
           ),
         ]);
 
-        if (!active || sbBundles.length === 0) return;
+        if (!active) return;
 
-        setItems((prev) =>
-          sbBundles.map((b) => {
-            const existing = prev.find((p) => p.slug === b.slug || p.id === b.id);
-            const u = sbUnivs.find((un) => un.id === b.universeId);
-            const finalPrice = b.fixedPrice
-              ? Number(b.fixedPrice)
-              : existing?.finalPrice ?? 2190;
-            const originalPrice = existing?.originalPrice ?? finalPrice + 450;
+        if (sbBundles.length === 0) {
+          setItems(loadouts);
+          setReady(true);
+          return;
+        }
 
-            return {
-              id: b.id,
-              storeId: existing?.storeId ?? "store_room_egypt",
-              universeSlug: u?.slug ?? existing?.universeSlug ?? null,
-              universeAccentColor:
-                u?.accentColor ?? existing?.universeAccentColor ?? "#c94b99",
-              slug: b.slug,
-              name: b.name,
-              tagline: b.tagline,
-              itemCount: existing?.itemCount ?? 3,
-              originalPrice,
-              finalPrice,
-              savingsAmount: Math.max(0, originalPrice - finalPrice),
-            };
-          })
-        );
+        const mapped = sbBundles.map((b) => {
+          const existing = loadouts.find(
+            (p) => p.slug === b.slug || p.id === b.id
+          );
+          const u = sbUnivs.find((un) => un.id === b.universeId);
+          const finalPrice = b.fixedPrice
+            ? Number(b.fixedPrice)
+            : existing?.finalPrice ?? 2190;
+          const originalPrice = existing?.originalPrice ?? finalPrice + 450;
+
+          return {
+            id: b.id,
+            storeId: existing?.storeId ?? "store_room_egypt",
+            universeSlug: u?.slug ?? existing?.universeSlug ?? null,
+            universeAccentColor:
+              u?.accentColor ?? existing?.universeAccentColor ?? "#c94b99",
+            slug: b.slug,
+            name: b.name,
+            tagline: b.tagline,
+            itemCount: existing?.itemCount ?? 3,
+            originalPrice,
+            finalPrice,
+            savingsAmount: Math.max(0, originalPrice - finalPrice),
+          };
+        });
+
+        setItems(mapped);
+        setReady(true);
+        localStorage.setItem("room_live_loadouts_v1", JSON.stringify(mapped));
       } catch {
-        // Keep initial props
+        if (!active) return;
+        setItems((prev) => (prev.length > 0 ? prev : loadouts));
+        setReady(true);
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadouts]);
+
+  if (!ready) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10 pb-16">
+        <div className="mb-6 h-12 w-64 animate-pulse rounded-xl bg-white/5" />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {[1, 2, 3].map((slot) => (
+            <div
+              key={slot}
+              className="h-56 animate-pulse rounded-2xl border border-[var(--color-border-subtle)] bg-[#0b0815]/75"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   if (items.length === 0) return null;
 

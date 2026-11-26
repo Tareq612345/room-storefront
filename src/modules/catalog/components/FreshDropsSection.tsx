@@ -1,6 +1,6 @@
 /**
  * @file src/modules/catalog/components/FreshDropsSection.tsx
- * @purpose Homepage Fresh Drops grid synced live with Supabase products (including newly added products in Admin), variants stock, and Universe accent colors.
+ * @purpose Homepage Fresh Drops grid synced live with Supabase products, variants stock, and Universe accent colors without stale Vaulted flash on load.
  */
 
 "use client";
@@ -50,7 +50,8 @@ export function FreshDropsSection({
   subtitle = "High-craft themed bedsheets engineered for Cairo & New Cairo setups",
   products,
 }: FreshDropsSectionProps) {
-  const [items, setItems] = useState<ProductSummaryDTO[]>(products);
+  const [items, setItems] = useState<ProductSummaryDTO[]>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -59,6 +60,7 @@ export function FreshDropsSection({
         const parsed = JSON.parse(cached) as ProductSummaryDTO[];
         if (Array.isArray(parsed) && parsed.length > 0) {
           setItems(parsed);
+          setReady(true);
         }
       }
     } catch {
@@ -76,7 +78,13 @@ export function FreshDropsSection({
           sbSelect<SbVariantRow>("product_variants", "select=id,productId,stock,isDefault"),
           sbSelect<SbUniverseRow>("universes", "select=id,slug,accentColor"),
         ]);
-        if (!active || prodRows.length === 0) return;
+        if (!active) return;
+
+        if (prodRows.length === 0) {
+          setItems(products);
+          setReady(true);
+          return;
+        }
 
         const mapped: ProductSummaryDTO[] = prodRows.map((pRow) => {
           const uRow = univRows.find((u) => u.id === pRow.universeId);
@@ -108,15 +116,34 @@ export function FreshDropsSection({
         });
 
         setItems(mapped);
+        setReady(true);
         localStorage.setItem("room_live_products_v1", JSON.stringify(mapped));
       } catch {
-        // Keep cached/initial props
+        if (!active) return;
+        setItems((prev) => (prev.length > 0 ? prev : products));
+        setReady(true);
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [products]);
+
+  if (!ready) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="mb-6 h-12 w-56 animate-pulse rounded-xl bg-white/5" />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((slot) => (
+            <div
+              key={slot}
+              className="h-80 animate-pulse rounded-2xl border border-[var(--color-border-subtle)] bg-[#0b0815]/75"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   if (items.length === 0) return null;
 

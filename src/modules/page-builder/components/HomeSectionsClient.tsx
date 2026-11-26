@@ -1,6 +1,6 @@
 /**
  * @file src/modules/page-builder/components/HomeSectionsClient.tsx
- * @purpose Dynamically renders and reorders Homepage Blocks & Widgets synced live from Supabase page_sections table.
+ * @purpose Dynamically renders and reorders Homepage Blocks & Widgets synced live from Supabase page_sections table without stale default flash.
  */
 
 "use client";
@@ -72,9 +72,23 @@ export function HomeSectionsClient({
   freshDrops,
   loadouts,
 }: HomeSectionsClientProps) {
-  const [blocks, setBlocks] = useState<RenderedBlock[]>(DEFAULT_BLOCKS);
+  const [blocks, setBlocks] = useState<RenderedBlock[]>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem("room_live_home_sections_v1");
+      if (cached) {
+        const parsed = JSON.parse(cached) as RenderedBlock[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setBlocks(parsed);
+          setReady(true);
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
     let active = true;
     (async () => {
       try {
@@ -90,45 +104,70 @@ export function HomeSectionsClient({
           "page_sections",
           "select=id,type,title,subtitle,isVisible,sortOrder,config&pageKey=eq.home&order=sortOrder.asc"
         );
-        if (!active || rows.length === 0) return;
+        if (!active) return;
 
-        setBlocks(
-          rows.map((r) => {
-            const cfg =
-              r.config && typeof r.config === "object" ? r.config : {};
-            const hasWidgets =
-              Array.isArray(cfg.widgets) && cfg.widgets.length > 0;
-            const fallbackWidgets = hasWidgets
-              ? cfg.widgets
-              : r.type === "UNIVERSE_QUICK_BAR"
-                ? [{ id: `${r.id}_w`, kind: "UNIVERSE_CARDS" as const }]
-                : r.type === "NEW_ARRIVALS"
-                  ? [{ id: `${r.id}_w`, kind: "PRODUCT_CARDS" as const }]
-                  : r.type === "FEATURED_BUNDLES"
-                    ? [{ id: `${r.id}_w`, kind: "LOADOUT_CARDS" as const }]
-                    : [];
+        if (rows.length === 0) {
+          setBlocks(DEFAULT_BLOCKS);
+          setReady(true);
+          return;
+        }
 
-            return {
-              id: r.id,
-              type: r.type,
-              title: r.title ?? "",
-              subtitle: r.subtitle ?? "",
-              visible: r.isVisible,
-              config: {
-                ...cfg,
-                widgets: fallbackWidgets,
-              },
-            };
-          })
-        );
+        const mapped = rows.map((r) => {
+          const cfg =
+            r.config && typeof r.config === "object" ? r.config : {};
+          const hasWidgets =
+            Array.isArray(cfg.widgets) && cfg.widgets.length > 0;
+          const fallbackWidgets = hasWidgets
+            ? cfg.widgets
+            : r.type === "UNIVERSE_QUICK_BAR"
+              ? [{ id: `${r.id}_w`, kind: "UNIVERSE_CARDS" as const }]
+              : r.type === "NEW_ARRIVALS"
+                ? [{ id: `${r.id}_w`, kind: "PRODUCT_CARDS" as const }]
+                : r.type === "FEATURED_BUNDLES"
+                  ? [{ id: `${r.id}_w`, kind: "LOADOUT_CARDS" as const }]
+                  : [];
+
+          return {
+            id: r.id,
+            type: r.type,
+            title: r.title ?? "",
+            subtitle: r.subtitle ?? "",
+            visible: r.isVisible,
+            config: {
+              ...cfg,
+              widgets: fallbackWidgets,
+            },
+          };
+        });
+
+        setBlocks(mapped);
+        setReady(true);
+        localStorage.setItem("room_live_home_sections_v1", JSON.stringify(mapped));
       } catch {
-        // Keep default blocks
+        if (!active) return;
+        setBlocks((prev) => (prev.length > 0 ? prev : DEFAULT_BLOCKS));
+        setReady(true);
       }
     })();
     return () => {
       active = false;
     };
   }, []);
+
+  if (!ready) {
+    return (
+      <div className="mx-auto w-full max-w-6xl space-y-10 px-4 py-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
+          {[1, 2, 3].map((slot) => (
+            <div
+              key={slot}
+              className="h-[420px] animate-pulse rounded-[22px] border border-[var(--color-border-subtle)] bg-[#0b0815]/75"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

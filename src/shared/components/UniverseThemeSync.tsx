@@ -1,15 +1,17 @@
 /**
  * @file src/shared/components/UniverseThemeSync.tsx
- * @purpose Syncs full Supabase theme tokens (background gradient, default accent, and Universe colors) and caches a pre-paint snapshot to prevent refresh flash.
+ * @purpose Syncs store theme tokens and dynamic Universe accent colors from the isolated Universe Data Manager (@modules/universe-organizer), supporting both static and dynamic Universe routes.
  */
 
 "use client";
 
+import {
+  extractSlugFromLocation,
+  fetchResolvedUniversesForStorefront,
+} from "@modules/universe-organizer";
 import { sbSelect } from "@shared/db/supabase-rest";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-
-const KNOWN_UNIVERSES = new Set(["cars", "gaming", "anime"]);
 
 interface StoreThemeJson {
   bgPrimary?: string;
@@ -23,20 +25,17 @@ export function UniverseThemeSync() {
 
   useEffect(() => {
     let active = true;
-    const match = pathname?.match(/\/universes\/([^/]+)/);
-    const slug = match?.[1];
+    const search = typeof window !== "undefined" ? window.location.search : null;
+    const slug = extractSlugFromLocation(pathname, search);
 
     (async () => {
       try {
-        const [stores, universes] = await Promise.all([
+        const [stores, organizedUniverses] = await Promise.all([
           sbSelect<{ defaultAccentColor: string; themeTokens: StoreThemeJson }>(
             "store_configs",
             "select=defaultAccentColor,themeTokens&slug=eq.room-egypt"
           ),
-          sbSelect<{ slug: string; accentColor: string }>(
-            "universes",
-            "select=slug,accentColor"
-          ),
+          fetchResolvedUniversesForStorefront(),
         ]);
 
         if (!active) return;
@@ -59,16 +58,13 @@ export function UniverseThemeSync() {
         );
 
         const universeMap: Record<string, string> = {};
-        for (const u of universes) {
+        for (const u of organizedUniverses) {
           universeMap[u.slug] = u.accentColor;
         }
 
-        if (slug && KNOWN_UNIVERSES.has(slug)) {
+        if (slug && universeMap[slug]) {
           root.setAttribute("data-universe", slug);
-          const uColor = universeMap[slug];
-          if (uColor) {
-            root.style.setProperty("--color-accent", uColor);
-          }
+          root.style.setProperty("--color-accent", universeMap[slug]);
         } else {
           root.removeAttribute("data-universe");
           root.style.setProperty("--color-accent", defaultAccent);

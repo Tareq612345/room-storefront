@@ -1,11 +1,16 @@
 /**
  * @file src/modules/universes/components/UniverseShowcaseGrid.tsx
- * @purpose 3-card Universe showcase with instant cached hydration + live Supabase PostgreSQL sync (zero refresh flash).
+ * @purpose 3-card (or dynamic) Universe showcase powered by the isolated Universe Data Manager (@modules/universe-organizer), preventing stale fallback flash on load.
  */
 
 "use client";
 
-import { sbSelect } from "@shared/db/supabase-rest";
+import {
+  fetchResolvedUniversesForStorefront,
+  getCachedOrganizerUniverses,
+  getUniverseHref,
+  type OrganizedUniverse,
+} from "@modules/universe-organizer";
 import { getAssetPath } from "@shared/utils/asset-path";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -13,99 +18,119 @@ import type { UniverseDTO } from "../schema";
 
 interface UniverseShowcaseGridProps {
   universes: UniverseDTO[];
-}
-
-interface SbUniverseRow {
-  id: string;
-  slug: string;
-  name: string;
-  tagline: string | null;
-  accentColor: string;
-  isActive: boolean;
-  sortOrder: number;
+  disableRemoteSync?: boolean;
 }
 
 function buildUniverseGradient(accentColor: string): string {
   return `linear-gradient(180deg, #030305 0%, #0d0818 52%, ${accentColor} 100%)`;
 }
 
-export function UniverseShowcaseGrid({ universes }: UniverseShowcaseGridProps) {
-  const [items, setItems] = useState<UniverseDTO[]>(universes);
-  const [ready, setReady] = useState(false);
+function toOrganizedFallback(universes: UniverseDTO[]): OrganizedUniverse[] {
+  const now = new Date().toISOString();
+  return universes
+    .filter((u) => u.isActive)
+    .map((u) => ({
+      id: u.id,
+      slug: u.slug,
+      name: u.name,
+      tagline: u.tagline ?? "",
+      description: u.description ?? "",
+      accentColor: u.accentColor,
+      iconPngUrl: null,
+      bannerUrl: u.bannerUrl,
+      sortOrder: u.sortOrder,
+      isActive: u.isActive,
+      productIds: [],
+      offerIds: [],
+      createdAt: now,
+      updatedAt: now,
+    }));
+}
+
+export function UniverseShowcaseGrid({
+  universes,
+  disableRemoteSync = false,
+}: UniverseShowcaseGridProps) {
+  const [items, setItems] = useState<OrganizedUniverse[]>(() =>
+    disableRemoteSync ? toOrganizedFallback(universes) : []
+  );
+  const [ready, setReady] = useState(disableRemoteSync);
 
   useEffect(() => {
-    // 1. Instant local snapshot read to avoid flash
-    try {
-      const cached = localStorage.getItem("room_live_universes_v1");
-      if (cached) {
-        const parsed = JSON.parse(cached) as UniverseDTO[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setItems(parsed);
-        }
-      }
-    } catch {
-      // Ignore
+    if (disableRemoteSync) {
+      setItems(toOrganizedFallback(universes));
+      setReady(true);
+      return;
     }
-    setReady(true);
 
-    // 2. Live Supabase sync
+    const cached = getCachedOrganizerUniverses();
+    if (cached && cached.length > 0) {
+      setItems(cached);
+      setReady(true);
+    }
+
     let active = true;
     (async () => {
       try {
-        const rows = await sbSelect<SbUniverseRow>(
-          "universes",
-          "select=id,slug,name,tagline,accentColor,isActive,sortOrder&order=sortOrder.asc"
-        );
-        if (!active || rows.length === 0) return;
-
-        const merged = universes
-          .map((u) => {
-            const match = rows.find((r) => r.slug === u.slug || r.id === u.id);
-            if (!match) return u;
-            return {
-              ...u,
-              name: match.name,
-              tagline: match.tagline,
-              accentColor: match.accentColor,
-              isActive: match.isActive,
-            };
-          })
-          .filter((u) => u.isActive);
-
-        setItems(merged);
-        localStorage.setItem("room_live_universes_v1", JSON.stringify(merged));
+        const resolved = await fetchResolvedUniversesForStorefront();
+        if (!active) return;
+        setItems(resolved);
+        setReady(true);
       } catch {
-        // Keep cached/SSR props
+        if (!active) return;
+        setItems((prev) =>
+          prev.length > 0 ? prev : toOrganizedFallback(universes)
+        );
+        setReady(true);
       }
     })();
     return () => {
       active = false;
     };
-  }, [universes]);
+  }, [universes, disableRemoteSync]);
+
+  if (!ready) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
+          {[1, 2, 3].map((slot) => (
+            <div
+              key={slot}
+              className="h-[420px] animate-pulse rounded-[22px] border border-[var(--color-border-subtle)] bg-[#0b0815]/75"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (items.length === 0) return null;
 
   return (
-    <section
-      className={`mx-auto w-full max-w-6xl px-4 py-6 md:py-10 transition-opacity duration-200 ${
-        ready ? "opacity-100" : "opacity-95"
-      }`}
-    >
+    <section className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
         {items.map((universe) => {
           const gradient = buildUniverseGradient(universe.accentColor);
+          const bannerSrc = universe.bannerUrl
+            ? universe.bannerUrl.startsWith("data:") ||
+              universe.bannerUrl.startsWith("http")
+              ? universe.bannerUrl
+              : getAssetPath(universe.bannerUrl)
+            : null;
 
           return (
             <Link
               key={universe.id}
-              href={`/universes/${universe.slug}`}
+              href={getUniverseHref(universe.slug)}
               className="group relative flex h-[420px] flex-col justify-between overflow-hidden rounded-[22px] border border-[var(--color-border-subtle)] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--color-border-strong)]"
               style={{
                 background: gradient,
                 boxShadow: "var(--shadow-card)",
               }}
             >
-              {universe.bannerUrl ? (
+              {bannerSrc ? (
                 <img
-                  src={getAssetPath(universe.bannerUrl)}
+                  src={bannerSrc}
                   alt={universe.name}
                   className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45 mix-blend-luminosity transition-transform duration-500 group-hover:scale-105"
                 />
@@ -128,6 +153,18 @@ export function UniverseShowcaseGrid({ universes }: UniverseShowcaseGridProps) {
                   Enter →
                 </span>
               </div>
+
+              {universe.iconPngUrl ? (
+                <div className="relative z-10 my-auto flex items-center justify-center">
+                  <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-white/15 bg-black/35 p-3 backdrop-blur-sm">
+                    <img
+                      src={universe.iconPngUrl}
+                      alt={`${universe.name} symbol`}
+                      className="max-h-full max-w-full object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.75)]"
+                    />
+                  </div>
+                </div>
+              ) : null}
 
               <div
                 className="relative z-10 mt-auto rounded-xl border border-white/15 px-5 py-4 text-center backdrop-blur-md transition-colors duration-300 group-hover:border-white/30"

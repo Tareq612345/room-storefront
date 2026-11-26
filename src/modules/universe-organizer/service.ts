@@ -1,13 +1,12 @@
 /**
  * @file src/modules/universe-organizer/service.ts
- * @purpose Server-side bootstrap service for the isolated Admin Universe Organizer (reads initial site snapshot & existing isolated record via repository).
+ * @purpose Self-contained server-side bootstrap service for the isolated Universe Data Manager (zero cross-module dependencies).
  */
 
-import { computeBundleFinalPrice, listFeaturedLoadouts } from "@modules/bundles";
-import { listFreshDrops } from "@modules/catalog";
-import { getActiveStoreConfig } from "@modules/store-config";
-import { listStoreUniverses } from "@modules/universes";
 import {
+  DEFAULT_ORGANIZER_OFFERS,
+  DEFAULT_ORGANIZER_PRODUCTS,
+  DEFAULT_ORGANIZER_UNIVERSES,
   buildInitialRegistryFromSources,
   extractPromoOffersFromSectionConfigs,
 } from "./helpers";
@@ -25,12 +24,29 @@ import {
   type UniverseOrganizerBootstrap,
 } from "./schema";
 
-export async function getUniverseOrganizerBootstrap(): Promise<UniverseOrganizerBootstrap> {
-  const fallbackStore = await getActiveStoreConfig();
+function computeFinalPrice(params: {
+  originalPrice: number;
+  pricingType: "FIXED_PRICE" | "PERCENTAGE_DISCOUNT" | "AMOUNT_DISCOUNT";
+  fixedPrice: number | null;
+  discountPercent: number | null;
+  discountAmount: number | null;
+}): number {
+  if (params.pricingType === "FIXED_PRICE" && params.fixedPrice !== null) {
+    return Math.max(0, params.fixedPrice);
+  }
+  if (params.pricingType === "PERCENTAGE_DISCOUNT" && params.discountPercent !== null) {
+    return Math.max(0, params.originalPrice * (1 - params.discountPercent / 100));
+  }
+  if (params.pricingType === "AMOUNT_DISCOUNT" && params.discountAmount !== null) {
+    return Math.max(0, params.originalPrice - params.discountAmount);
+  }
+  return params.originalPrice;
+}
 
+export async function getUniverseOrganizerBootstrap(): Promise<UniverseOrganizerBootstrap> {
   try {
     const dbStore = await findActiveStoreForOrganizer("room-egypt");
-    const storeId = dbStore?.id ?? fallbackStore.id;
+    const storeId = dbStore?.id ?? "store_room_egypt";
     const [existingRecord, snapshot] = await Promise.all([
       findIsolatedOrganizerRecord(storeId),
       findReadOnlySiteSnapshot(storeId),
@@ -61,7 +77,7 @@ export async function getUniverseOrganizerBootstrap(): Promise<UniverseOrganizer
           (sum, item) => sum + Number(item.product.basePrice) * item.quantity,
           0
         );
-        const finalPrice = computeBundleFinalPrice({
+        const finalPrice = computeFinalPrice({
           originalPrice,
           pricingType: b.pricingType,
           fixedPrice: b.fixedPrice ? Number(b.fixedPrice) : null,
@@ -111,61 +127,18 @@ export async function getUniverseOrganizerBootstrap(): Promise<UniverseOrganizer
       };
     }
   } catch {
-    // Static build without live DB connection falls back to module services
+    // Static build without DATABASE_URL uses clean self-contained fallback defaults
   }
 
-  const [fallbackUniverses, fallbackProducts, fallbackLoadouts] = await Promise.all([
-    listStoreUniverses(fallbackStore.id),
-    listFreshDrops(fallbackStore.id, 20),
-    listFeaturedLoadouts(fallbackStore.id, 20),
-  ]);
-
-  const products: SiteProductSource[] = fallbackProducts.map((p) =>
-    SiteProductSourceSchema.parse({
-      id: p.id,
-      slug: p.slug,
-      name: p.name,
-      subtitle: p.subtitle,
-      basePrice: p.basePrice,
-      compareAtPrice: p.compareAtPrice,
-      thumbnailUrl: p.thumbnailUrl,
-      universeId: p.universeId,
-      universeSlug: p.universeSlug,
-      originalAccentColor: p.universeAccentColor,
-      isNewArrival: p.isNewArrival,
-      totalStock: p.totalStock,
-      isVaulted: p.isVaulted,
-    })
-  );
-
-  const offers: SiteOfferBannerSource[] = fallbackLoadouts.map((l) =>
-    SiteOfferBannerSourceSchema.parse({
-      id: l.id,
-      kind: "LOADOUT",
-      slug: l.slug,
-      title: l.name,
-      subtitle: l.tagline,
-      itemCount: l.itemCount,
-      originalPrice: l.originalPrice,
-      finalPrice: l.finalPrice,
-      savingsAmount: l.savingsAmount,
-      ctaLabel: "Add to Room",
-      ctaUrl: l.universeSlug ? `/universes/${l.universeSlug}` : "/",
-      originalAccentColor: l.universeAccentColor,
-      textColor: "#ffffff",
-      universeSlug: l.universeSlug,
-    })
-  );
-
   return {
-    storeId: fallbackStore.id,
+    storeId: "store_room_egypt",
     hasPersistedRecord: false,
     initialRegistry: buildInitialRegistryFromSources({
-      universes: fallbackUniverses,
-      products,
-      offers,
+      universes: DEFAULT_ORGANIZER_UNIVERSES,
+      products: DEFAULT_ORGANIZER_PRODUCTS,
+      offers: DEFAULT_ORGANIZER_OFFERS,
     }),
-    initialProducts: products,
-    initialOffers: offers,
+    initialProducts: DEFAULT_ORGANIZER_PRODUCTS,
+    initialOffers: DEFAULT_ORGANIZER_OFFERS,
   };
 }

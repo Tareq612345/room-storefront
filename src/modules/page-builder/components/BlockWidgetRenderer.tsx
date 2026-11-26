@@ -109,7 +109,12 @@ export function BlockWidgetRenderer({
 
   // Legacy/Built-in quick blocks when no custom widgets array is defined
   if (widgets.length === 0 && block.type === "UNIVERSE_QUICK_BAR") {
-    return <UniverseShowcaseGrid universes={universes} />;
+    return (
+      <UniverseShowcaseGrid
+        universes={universes}
+        disableRemoteSync={isEmptyEditorPlaceholder}
+      />
+    );
   }
   if (widgets.length === 0 && block.type === "FEATURED_BUNDLES") {
     return (
@@ -177,7 +182,10 @@ export function BlockWidgetRenderer({
             if (widget.kind === "UNIVERSE_CARDS") {
               return (
                 <div key={widget.id} className="col-span-full -mx-4">
-                  <UniverseShowcaseGrid universes={universes} />
+                  <UniverseShowcaseGrid
+                    universes={universes}
+                    disableRemoteSync={isEmptyEditorPlaceholder}
+                  />
                 </div>
               );
             }

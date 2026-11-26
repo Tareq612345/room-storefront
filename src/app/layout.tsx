@@ -49,6 +49,9 @@ const PRE_PAINT_THEME_SCRIPT = `
     var path = window.location.pathname || '';
     var match = path.match(/\\/universes\\/([^\\/]+)/);
     var slug = match && match[1];
+    if (!slug && path.indexOf('/universe') !== -1 && window.location.search) {
+      slug = new URLSearchParams(window.location.search).get('slug');
+    }
     if (slug && snap.universes && snap.universes[slug]) {
       root.setAttribute('data-universe', slug);
       root.style.setProperty('--color-accent', snap.universes[slug]);
