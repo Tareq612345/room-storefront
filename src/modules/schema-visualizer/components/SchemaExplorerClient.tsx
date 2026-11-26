@@ -36,12 +36,32 @@ interface SchemaExplorerClientProps {
 
 type Lang = "en" | "ar";
 
+const RETIRED_LEGACY_MODELS = new Set([
+  "Universe",
+  "Product",
+  "ProductVariant",
+  "ProductStoryBlock",
+  "Bundle",
+  "BundleItem",
+]);
+
+const ACTIVE_NODE_POSITIONS: Record<string, { x: number; y: number }> = {
+  StoreConfig: { x: 40, y: 40 },
+  User: { x: 40, y: 380 },
+  AdminInvite: { x: 40, y: 740 },
+  PageSection: { x: 410, y: 40 },
+  ShippingZone: { x: 410, y: 400 },
+  LoyaltyAccount: { x: 410, y: 740 },
+  Order: { x: 780, y: 40 },
+  OrderItem: { x: 780, y: 580 },
+  IsolatedUniverses: { x: 1150, y: 40 },
+  IsolatedProducts: { x: 1150, y: 380 },
+  IsolatedPackages: { x: 1150, y: 720 },
+};
+
 const DOMAIN_COLORS: Record<string, string> = {
   "Core & Multi-Tenant": "#38bdf8",
-  Universes: "#c94b99",
   "Dynamic Page Builder": "#a855f7",
-  "Catalog & A+ Story": "#6366f1",
-  "Loadouts (Bundles)": "#f59e0b",
   "Orders & Cairo Shipping": "#ef4444",
   "Loyalty & Rewards": "#22c55e",
   "Isolated Organizers": "#10b981",
@@ -50,25 +70,16 @@ const DOMAIN_COLORS: Record<string, string> = {
 const DOMAIN_LABELS_AR: Record<string, string> = {
   ALL: "الكل",
   "Core & Multi-Tenant": "الأساس وتعدد المتاجر",
-  Universes: "الأقسام (Universes)",
   "Dynamic Page Builder": "بناء الصفحة الرئيسية",
-  "Catalog & A+ Story": "الكتالوج وقصة المنتج",
-  "Loadouts (Bundles)": "الباقات (Loadouts)",
   "Orders & Cairo Shipping": "الطلبات وشحن القاهرة",
   "Loyalty & Rewards": "نقاط الولاء",
-  "Isolated Organizers": "المخازن المعزولة",
+  "Isolated Organizers": "المخازن المعزولة الفعالة",
 };
 
 const MODEL_PURPOSE_AR: Record<string, string> = {
   StoreConfig: "إعدادات المتجر والألوان والعملة وتعدد المتاجر (storeId)",
   User: "بيانات العملاء والموظفين والمديرين",
   AdminInvite: "دعوات المشرفين لمرة واحدة لمدة 48 ساعة",
-  Universe: "جدول الأقسام الأساسي القديم في قاعدة البيانات",
-  Product: "جدول المنتجات الأساسي في قاعدة البيانات",
-  ProductVariant: "المقاسات والألوان والمخزون والسعر لكل نسخة",
-  ProductStoryBlock: "بلوكات القصة المتسلسلة للمنتج بنظام Oraimo A+",
-  Bundle: "جدول باقات الغرفة الأساسية في قاعدة البيانات",
-  BundleItem: "المنتجات المكونة لكل باقة وكمياتها",
   PageSection: "أقسام الصفحة الرئيسية + استضافة المخازن المعزولة عبر pageKey",
   ShippingZone: "مناطق الشحن في القاهرة والقاهرة الجديدة وتكلفتها",
   Order: "الطلبات وحالات الدفع (COD / أونلاين) وحالة التوصيل",
@@ -244,29 +255,46 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
   const [viewMode, setViewMode] = useState<"flow" | "graph">("flow");
   const [zoom, setZoom] = useState(0.85);
 
-  const allModels = useMemo(
-    () => [...meta.models, ...VIRTUAL_ISOLATED_MODELS],
+  const activePrismaModels = useMemo(
+    () => meta.models.filter((m) => !RETIRED_LEGACY_MODELS.has(m.name)),
     [meta.models]
   );
 
+  const allModels = useMemo(
+    () =>
+      [...activePrismaModels, ...VIRTUAL_ISOLATED_MODELS].map((m) => ({
+        ...m,
+        position: ACTIVE_NODE_POSITIONS[m.name] ?? m.position,
+      })),
+    [activePrismaModels]
+  );
+
+  const activeNames = useMemo(
+    () => new Set(allModels.map((m) => m.name)),
+    [allModels]
+  );
+
   const allEdges = useMemo(
-    () => [...meta.edges, ...VIRTUAL_EDGES],
-    [meta.edges]
+    () =>
+      [...meta.edges, ...VIRTUAL_EDGES].filter(
+        (e) => activeNames.has(e.from) && activeNames.has(e.to)
+      ),
+    [meta.edges, activeNames]
   );
 
   const [positions, setPositions] = useState<
     Record<string, { x: number; y: number }>
   >(() =>
     Object.fromEntries(
-      [...meta.models, ...VIRTUAL_ISOLATED_MODELS].map((m) => [
-        m.name,
-        { ...m.position },
-      ])
+      [
+        ...meta.models.filter((m) => !RETIRED_LEGACY_MODELS.has(m.name)),
+        ...VIRTUAL_ISOLATED_MODELS,
+      ].map((m) => [m.name, { ...(ACTIVE_NODE_POSITIONS[m.name] ?? m.position) }])
     )
   );
 
   const [selectedModelName, setSelectedModelName] = useState<string | null>(
-    "Product"
+    "IsolatedProducts"
   );
   const [flowSourceId, setFlowSourceId] = useState<string | null>(null);
   const [hoveredModelName, setHoveredModelName] = useState<string | null>(null);
@@ -332,7 +360,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
   const fetchAllRowCounts = useCallback(async () => {
     try {
       const results = await Promise.all(
-        meta.models.map(async (m) => {
+        activePrismaModels.map(async (m) => {
           try {
             const rows = await sbSelect<{ id: string }>(m.tableName, "select=id");
             return [m.name, rows.length] as const;
@@ -360,7 +388,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
     } catch {
       // Ignore count fetch failures
     }
-  }, [meta.models]);
+  }, [activePrismaModels]);
 
   const fetchLiveModelData = useCallback(
     async (model: ModelMeta) => {
@@ -448,7 +476,12 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
 
   const handleResetLayout = () => {
     setPositions(
-      Object.fromEntries(allModels.map((m) => [m.name, { ...m.position }]))
+      Object.fromEntries(
+        allModels.map((m) => [
+          m.name,
+          { ...(ACTIVE_NODE_POSITIONS[m.name] ?? m.position) },
+        ])
+      )
     );
     setZoom(0.85);
   };
@@ -494,7 +527,8 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               </div>
               <p className="text-[11px] text-white/55">
                 {meta.provider} • {allModels.length} {t.tables} •{" "}
-                {allEdges.length} {t.relations} • {meta.stats.fieldsCount}{" "}
+                {allEdges.length} {t.relations} •{" "}
+                {allModels.reduce((acc, m) => acc + m.fields.length, 0)}{" "}
                 {t.fields}
               </p>
             </div>
@@ -663,8 +697,8 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
             <div
               className="relative origin-top-left p-6"
               style={{
-                width: 1860,
-                height: 1320,
+                width: 1520,
+                height: 1120,
                 transform: `scale(${zoom})`,
               }}
             >

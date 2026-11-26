@@ -5,7 +5,7 @@
 
 "use client";
 
-import { sbDelete, sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
+import { sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
 import { formatEgp } from "@shared/types/common";
 import {
   generateClientId,
@@ -54,9 +54,6 @@ type Lang = "ar" | "en";
 type AdminTab =
   | "overview"
   | "store"
-  | "universes"
-  | "catalog"
-  | "loadouts"
   | "orders"
   | "sections"
   | "shipping"
@@ -103,16 +100,6 @@ interface AdminOrderRow {
   createdAt: string;
 }
 
-interface AdminLoadoutRow {
-  id: string;
-  slug: string;
-  name: string;
-  tagline: string;
-  fixedPrice: number;
-  isFeatured: boolean;
-  isActive: boolean;
-}
-
 const ROOM_DEFAULT_PRESET: ThemePreset = {
   id: "preset_room_default",
   name: "ROOM Default (Original)",
@@ -133,19 +120,6 @@ const INITIAL_OWNERS: LocalAdminAccount[] = [
   { id: "owner_adegddn", email: "adegddn@gmail.com", username: "adegddn", name: "Partner (Owner)", role: "OWNER", passwordHash: "" },
 ];
 
-const INITIAL_UNIVERSES = [
-  { id: "univ_cars", slug: "cars", name: "GARAGE & CARS", tagline: "Midnight Touge & Supercar Bedroom Loadouts", description: "High-craft automotive bedsheets and pit-lane setups.", accentColor: "#d92323", isActive: true },
-  { id: "univ_gaming", slug: "gaming", name: "GAMING ARENA", tagline: "Obsidian RGB & Next-Gen Battle Stations", description: "Stealth dark-mode bedsheets engineered for gaming setups.", accentColor: "#6366f1", isActive: true },
-  { id: "univ_anime", slug: "anime", name: "ANIME REALM", tagline: "Shonen Arcs, Katana & Neo-Tokyo Vibes", description: "Signature anime-inspired bedsheets and collector Loadouts.", accentColor: "#c94b99", isActive: true },
-];
-
-const INITIAL_PRODUCTS = [
-  { id: "prod_touge", name: "Midnight Touge Carbon Bedsheet", subtitle: "300TC Matte Obsidian Cotton • Pit-Lane Red Piping", universeId: "univ_cars", universe: "cars", price: 1450, compareAtPrice: 1750, stock: 18, thumbnailUrl: "/mockups/products/sheet-midnight-touge.svg", isFreshDrop: true },
-  { id: "prod_ranked", name: "Obsidian Ranked Arena Bedsheet", subtitle: "Stealth Micro-Weave • Indigo Stitch Matrix", universeId: "univ_gaming", universe: "gaming", price: 1390, compareAtPrice: 0, stock: 12, thumbnailUrl: "/mockups/products/sheet-obsidian-ranked.svg", isFreshDrop: true },
-  { id: "prod_eclipse", name: "Neo-Tokyo Eclipse Bedsheet", subtitle: "Brushed Dark Sateen • Orchid Embroidered Crest", universeId: "univ_anime", universe: "anime", price: 1550, compareAtPrice: 1890, stock: 9, thumbnailUrl: "/mockups/products/sheet-neo-tokyo.svg", isFreshDrop: true },
-  { id: "prod_apex", name: "Apex GT Twin Pillowcase Pair", subtitle: "Limited Cairo Drop • Heavyweight Weave", universeId: "univ_cars", universe: "cars", price: 590, compareAtPrice: 0, stock: 0, thumbnailUrl: "/mockups/products/pillows-apex-gt.svg", isFreshDrop: true },
-];
-
 const INITIAL_ZONES = [
   { id: "z1", name: "New Cairo (5th Settlement / Rehab)", fee: 65, freeThreshold: 2500, days: "1-2 Days", active: true },
   { id: "z2", name: "Nasr City & Heliopolis", fee: 60, freeThreshold: 2500, days: "1-2 Days", active: true },
@@ -159,13 +133,6 @@ const INITIAL_SECTIONS = [
   { id: "s3", type: "FEATURED_BUNDLES", title: "Signature Loadouts", visible: true },
   { id: "s4", type: "FLASH_DEALS", title: "Midnight Flash Deals", visible: false },
   { id: "s5", type: "CUSTOMER_SETUPS", title: "Cairo Room Setups", visible: false },
-];
-
-const MOCKUP_OPTIONS = [
-  { label: "Cars Bedsheet (Midnight Touge)", value: "/mockups/products/sheet-midnight-touge.svg" },
-  { label: "Gaming Bedsheet (Obsidian Ranked)", value: "/mockups/products/sheet-obsidian-ranked.svg" },
-  { label: "Anime Bedsheet (Neo-Tokyo)", value: "/mockups/products/sheet-neo-tokyo.svg" },
-  { label: "Pillowcase Pair (Apex GT)", value: "/mockups/products/pillows-apex-gt.svg" },
 ];
 
 const SESSION_KEY = "room_admin_session_v1";
@@ -405,22 +372,16 @@ export function AdminPortalClient() {
   const [presets, setPresets] = useState<ThemePreset[]>([ROOM_DEFAULT_PRESET]);
   const [newPresetName, setNewPresetName] = useState("");
 
-  // Domain Data
-  const [universes, setUniverses] = useState(INITIAL_UNIVERSES);
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
-  const [loadouts, setLoadouts] = useState<AdminLoadoutRow[]>([]);
+  // Domain Data (synced from live Isolated Organizers & Core Tables)
+  const [universes, setUniverses] = useState<
+    Array<{ id: string; slug: string; name: string; accentColor: string; isActive: boolean }>
+  >([]);
+  const [products, setProducts] = useState<
+    Array<{ id: string; name: string; stock: number }>
+  >([]);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [zones, setZones] = useState(INITIAL_ZONES);
   const [sections, setSections] = useState(INITIAL_SECTIONS);
-
-  // Add Product form
-  const [newProdName, setNewProdName] = useState("");
-  const [newProdSub, setNewProdSub] = useState("");
-  const [newProdUnivSlug, setNewProdUnivSlug] = useState("cars");
-  const [newProdPrice, setNewProdPrice] = useState(1490);
-  const [newProdOldPrice, setNewProdOldPrice] = useState(0);
-  const [newProdStock, setNewProdStock] = useState(15);
-  const [newProdThumb, setNewProdThumb] = useState(MOCKUP_OPTIONS[0]?.value ?? "");
 
   // Add Shipping Zone form
   const [newZoneName, setNewZoneName] = useState("");
@@ -448,10 +409,7 @@ export function AdminPortalClient() {
       try {
         const [
           sbStores,
-          sbUnivs,
-          sbProds,
-          sbVars,
-          sbBundles,
+          sbIsolated,
           sbZones,
           sbUsers,
           sbInvites,
@@ -474,46 +432,11 @@ export function AdminPortalClient() {
             "select=id,name,whatsappNumber,defaultAccentColor,themeTokens&slug=eq.room-egypt"
           ),
           sbSelect<{
-            id: string;
-            slug: string;
-            name: string;
-            tagline: string | null;
-            description: string | null;
-            accentColor: string;
-            isActive: boolean;
+            pageKey: string;
+            config: Record<string, unknown>;
           }>(
-            "universes",
-            "select=id,slug,name,tagline,description,accentColor,isActive&order=sortOrder.asc"
-          ),
-          sbSelect<{
-            id: string;
-            universeId: string;
-            slug: string;
-            name: string;
-            subtitle: string | null;
-            basePrice: number | string;
-            compareAtPrice: number | string | null;
-            thumbnailUrl: string;
-            isNewArrival: boolean;
-          }>(
-            "products",
-            "select=id,universeId,slug,name,subtitle,basePrice,compareAtPrice,thumbnailUrl,isNewArrival&isActive=eq.true&order=createdAt.asc"
-          ),
-          sbSelect<{ id: string; productId: string; stock: number }>(
-            "product_variants",
-            "select=id,productId,stock"
-          ),
-          sbSelect<{
-            id: string;
-            slug: string;
-            name: string;
-            tagline: string | null;
-            fixedPrice: number | string | null;
-            isFeatured: boolean;
-            isActive: boolean;
-          }>(
-            "bundles",
-            "select=id,slug,name,tagline,fixedPrice,isFeatured,isActive&order=createdAt.asc"
+            "page_sections",
+            "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__)"
           ),
           sbSelect<{
             id: string;
@@ -573,52 +496,32 @@ export function AdminPortalClient() {
           ]);
         }
 
-        if (sbUnivs.length > 0) {
+        const uRow = sbIsolated.find(
+          (r) => r.pageKey === "__isolated_universe_organizer_v1__"
+        );
+        const rawUnivs = uRow?.config?.universes;
+        if (Array.isArray(rawUnivs)) {
           setUniverses(
-            sbUnivs.map((u) => ({
-              id: u.id,
-              slug: u.slug,
-              name: u.name,
-              tagline: u.tagline ?? "",
-              description: u.description ?? "",
-              accentColor: u.accentColor,
-              isActive: u.isActive,
+            rawUnivs.map((u: Record<string, unknown>) => ({
+              id: String(u.id ?? ""),
+              slug: String(u.slug ?? ""),
+              name: String(u.name ?? ""),
+              accentColor: String(u.accentColor ?? "#c94b99"),
+              isActive: u.isActive !== false,
             }))
           );
         }
 
-        if (sbProds.length > 0) {
+        const pRow = sbIsolated.find(
+          (r) => r.pageKey === "__isolated_product_organizer_v1__"
+        );
+        const rawProds = pRow?.config?.products;
+        if (Array.isArray(rawProds)) {
           setProducts(
-            sbProds.map((p) => {
-              const pVars = sbVars.filter((v) => v.productId === p.id);
-              const totalStock = pVars.reduce((sum, v) => sum + Number(v.stock), 0);
-              const matchedUniv = sbUnivs.find((u) => u.id === p.universeId);
-              return {
-                id: p.id,
-                name: p.name,
-                subtitle: p.subtitle ?? "",
-                universeId: p.universeId,
-                universe: matchedUniv?.slug ?? "cars",
-                price: Number(p.basePrice),
-                compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : 0,
-                stock: totalStock,
-                thumbnailUrl: p.thumbnailUrl,
-                isFreshDrop: p.isNewArrival,
-              };
-            })
-          );
-        }
-
-        if (sbBundles.length > 0) {
-          setLoadouts(
-            sbBundles.map((b) => ({
-              id: b.id,
-              slug: b.slug,
-              name: b.name,
-              tagline: b.tagline ?? "",
-              fixedPrice: b.fixedPrice ? Number(b.fixedPrice) : 2190,
-              isFeatured: b.isFeatured,
-              isActive: b.isActive,
+            rawProds.map((p: Record<string, unknown>) => ({
+              id: String(p.id ?? ""),
+              name: String(p.name ?? ""),
+              stock: typeof p.stock === "number" ? p.stock : 0,
             }))
           );
         }
@@ -685,16 +588,6 @@ export function AdminPortalClient() {
     () => products.filter((p) => p.stock <= 5),
     [products]
   );
-
-  const filteredProducts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.universe.toLowerCase().includes(q)
-    );
-  }, [products, searchQuery]);
 
   const markSaved = (tab: AdminTab) => {
     setSavedSection(tab);
@@ -773,12 +666,10 @@ export function AdminPortalClient() {
     setBgElevated(preset.bgElevated);
     setDefaultAccent(preset.defaultAccent);
 
-    const nextUnivs = preset.isDefault
-      ? INITIAL_UNIVERSES.map((def) => ({ ...def }))
-      : universes.map((u) => ({
-          ...u,
-          accentColor: preset.universeColors[u.slug] ?? u.accentColor,
-        }));
+    const nextUnivs = universes.map((u) => ({
+      ...u,
+      accentColor: preset.universeColors[u.slug] ?? u.accentColor,
+    }));
 
     if (preset.isDefault) {
       setStoreName("ROOM");
@@ -786,34 +677,18 @@ export function AdminPortalClient() {
     setUniverses(nextUnivs);
 
     try {
-      await Promise.all([
-        sbPatch("store_configs", "slug=eq.room-egypt", {
-          ...(preset.isDefault ? { name: "ROOM" } : {}),
-          defaultAccentColor: preset.defaultAccent,
-          themeTokens: {
-            bgPrimary: preset.bgPrimary,
-            bgSecondary: preset.bgSecondary,
-            bgElevated: preset.bgElevated,
-            defaultAccent: preset.defaultAccent,
-            presets: presets.filter((p) => !p.isDefault),
-          },
-          updatedAt: new Date().toISOString(),
-        }),
-        ...nextUnivs.map((u) =>
-          sbPatch("universes", `slug=eq.${encodeURIComponent(u.slug)}`, {
-            ...(preset.isDefault
-              ? {
-                  name: u.name,
-                  tagline: u.tagline,
-                  description: u.description,
-                  isActive: u.isActive,
-                }
-              : {}),
-            accentColor: u.accentColor,
-            updatedAt: new Date().toISOString(),
-          })
-        ),
-      ]);
+      await sbPatch("store_configs", "slug=eq.room-egypt", {
+        ...(preset.isDefault ? { name: "ROOM" } : {}),
+        defaultAccentColor: preset.defaultAccent,
+        themeTokens: {
+          bgPrimary: preset.bgPrimary,
+          bgSecondary: preset.bgSecondary,
+          bgElevated: preset.bgElevated,
+          defaultAccent: preset.defaultAccent,
+          presets: presets.filter((p) => !p.isDefault),
+        },
+        updatedAt: new Date().toISOString(),
+      });
       syncThemeSnapshotLocally(
         preset.bgPrimary,
         preset.bgSecondary,
@@ -826,176 +701,6 @@ export function AdminPortalClient() {
       // Ignore
     }
     markSaved("store");
-  };
-
-  const handleSaveUniverses = async () => {
-    try {
-      await Promise.all(
-        universes.map((u) =>
-          sbPatch("universes", `slug=eq.${encodeURIComponent(u.slug)}`, {
-            name: u.name,
-            tagline: u.tagline,
-            description: u.description,
-            accentColor: u.accentColor,
-            isActive: u.isActive,
-            updatedAt: new Date().toISOString(),
-          })
-        )
-      );
-      syncThemeSnapshotLocally(bgPrimary, bgSecondary, bgElevated, defaultAccent, universes);
-      localStorage.removeItem("room_live_universes_v1");
-    } catch {
-      // Ignore
-    }
-    markSaved("universes");
-  };
-
-  const handleSaveCatalog = async () => {
-    try {
-      await Promise.all(
-        products.map(async (p) => {
-          await sbPatch("products", `id=eq.${encodeURIComponent(p.id)}`, {
-            name: p.name,
-            subtitle: p.subtitle,
-            basePrice: p.price,
-            compareAtPrice: p.compareAtPrice > 0 ? p.compareAtPrice : null,
-            isNewArrival: p.isFreshDrop,
-            updatedAt: new Date().toISOString(),
-          });
-          await sbPatch(
-            "product_variants",
-            `productId=eq.${encodeURIComponent(p.id)}&isDefault=eq.true`,
-            { stock: p.stock, updatedAt: new Date().toISOString() }
-          );
-        })
-      );
-      localStorage.removeItem("room_live_products_v1");
-    } catch {
-      // Ignore
-    }
-    markSaved("catalog");
-  };
-
-  const handleQuickRestock = async (prodId: string) => {
-    const target = products.find((p) => p.id === prodId);
-    if (!target) return;
-    const nextStock = target.stock + 10;
-    setProducts((prev) =>
-      prev.map((p) => (p.id === prodId ? { ...p, stock: nextStock } : p))
-    );
-    try {
-      await sbPatch(
-        "product_variants",
-        `productId=eq.${encodeURIComponent(prodId)}&isDefault=eq.true`,
-        { stock: nextStock, updatedAt: new Date().toISOString() }
-      );
-      localStorage.removeItem("room_live_products_v1");
-    } catch {
-      // Ignore
-    }
-  };
-
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProdName.trim()) return;
-
-    const targetUniv =
-      universes.find((u) => u.slug === newProdUnivSlug) ?? universes[0];
-    if (!targetUniv) return;
-
-    const prodId = generateClientId("prod");
-    const varId = generateClientId("var");
-    const slug = `${newProdName
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString().slice(-4)}`;
-    const nowIso = new Date().toISOString();
-
-    try {
-      await sbInsert("products", {
-        id: prodId,
-        storeId,
-        universeId: targetUniv.id,
-        slug,
-        name: newProdName.trim(),
-        subtitle: newProdSub.trim() || "Limited Cairo Drop",
-        basePrice: newProdPrice,
-        compareAtPrice: newProdOldPrice > 0 ? newProdOldPrice : null,
-        thumbnailUrl: newProdThumb,
-        images: [newProdThumb],
-        isFeatured: true,
-        isNewArrival: true,
-        isActive: true,
-        updatedAt: nowIso,
-      });
-
-      await sbInsert("product_variants", {
-        id: varId,
-        storeId,
-        productId: prodId,
-        sku: `RM-${Date.now().toString().slice(-6)}`,
-        name: "King / 240x220 cm",
-        size: "King",
-        price: newProdPrice,
-        stock: newProdStock,
-        isDefault: true,
-        isActive: true,
-        updatedAt: nowIso,
-      });
-
-      setProducts((prev) => [
-        ...prev,
-        {
-          id: prodId,
-          name: newProdName.trim(),
-          subtitle: newProdSub.trim() || "Limited Cairo Drop",
-          universeId: targetUniv.id,
-          universe: targetUniv.slug,
-          price: newProdPrice,
-          compareAtPrice: newProdOldPrice,
-          stock: newProdStock,
-          thumbnailUrl: newProdThumb,
-          isFreshDrop: true,
-        },
-      ]);
-      localStorage.removeItem("room_live_products_v1");
-      setNewProdName("");
-      setNewProdSub("");
-      setNewProdOldPrice(0);
-      markSaved("catalog");
-    } catch {
-      // Ignore
-    }
-  };
-
-  const handleDeleteProduct = async (prodId: string) => {
-    try {
-      await sbDelete("products", `id=eq.${encodeURIComponent(prodId)}`);
-      setProducts((prev) => prev.filter((p) => p.id !== prodId));
-      localStorage.removeItem("room_live_products_v1");
-    } catch {
-      // Ignore
-    }
-  };
-
-  const handleSaveLoadouts = async () => {
-    try {
-      await Promise.all(
-        loadouts.map((l) =>
-          sbPatch("bundles", `id=eq.${encodeURIComponent(l.id)}`, {
-            name: l.name,
-            tagline: l.tagline,
-            fixedPrice: l.fixedPrice,
-            isFeatured: l.isFeatured,
-            isActive: l.isActive,
-            updatedAt: new Date().toISOString(),
-          })
-        )
-      );
-    } catch {
-      // Ignore
-    }
-    markSaved("loadouts");
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
@@ -1338,9 +1043,6 @@ export function AdminPortalClient() {
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: t.tabs.overview, icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: "store", label: t.tabs.store, icon: <Palette className="h-4 w-4" /> },
-    { id: "universes", label: t.tabs.universes, icon: <Sparkles className="h-4 w-4" /> },
-    { id: "catalog", label: t.tabs.catalog, icon: <Package className="h-4 w-4" /> },
-    { id: "loadouts", label: t.tabs.loadouts, icon: <Boxes className="h-4 w-4" /> },
     { id: "orders", label: t.tabs.orders, icon: <ShoppingBag className="h-4 w-4" /> },
     { id: "sections", label: t.tabs.sections, icon: <Layers className="h-4 w-4" /> },
     { id: "shipping", label: t.tabs.shipping, icon: <Truck className="h-4 w-4" /> },
@@ -1520,12 +1222,7 @@ export function AdminPortalClient() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (e.target.value && activeTab === "overview") {
-                    setActiveTab("catalog");
-                  }
-                }}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.searchPlaceholder}
                 className="h-9 w-48 rounded-full border border-white/15 bg-black/60 pl-9 pr-3 text-xs text-white placeholder:text-white/40 focus:border-white/45 focus:outline-none"
               />
@@ -1634,14 +1331,13 @@ export function AdminPortalClient() {
                 <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
                   <h2 className="font-serif text-lg font-semibold">{t.quickActions}</h2>
                   <div className="mt-4 grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("catalog")}
+                    <Link
+                      href="/admin/products/"
                       className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
                     >
                       <Plus className="h-4 w-4 text-cyan-300" />
                       <span>{t.addProductTitle}</span>
-                    </button>
+                    </Link>
                     <button
                       type="button"
                       onClick={() => setActiveTab("store")}
@@ -1697,13 +1393,12 @@ export function AdminPortalClient() {
                               {t.stock}: {p.stock} {p.stock <= 0 ? `(${t.vaulted})` : ""}
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => void handleQuickRestock(p.id)}
+                          <Link
+                            href="/admin/products/"
                             className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3 py-1 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/25"
                           >
-                            {t.restockOneClick}
-                          </button>
+                            {lang === "ar" ? "تعديل المخزون" : "Edit Stock"}
+                          </Link>
                         </div>
                       ))
                     )}
@@ -1947,409 +1642,6 @@ export function AdminPortalClient() {
           ) : null}
 
           {/* UNIVERSES */}
-          {activeTab === "universes" ? (
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">
-                  {t.universesTitle}
-                  <InfoHint
-                    id="univ-header"
-                    ar="كل قسم له لون خاص ينعكس على بطاقته في الرئيسية، وعلى صفحة القسم، وعلى منتجاته، وعلى نجمة MY ROOM عند الدخول إليه."
-                    en="Each Universe has its own accent color applied to its Home card, Universe page, products, and the MY ROOM star icon."
-                  />
-                </h2>
-                <SaveButton tab="universes" onClick={() => void handleSaveUniverses()} />
-              </div>
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                {universes.map((u) => (
-                  <div
-                    key={u.id}
-                    className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
-                    style={{
-                      borderTop: `3px solid ${u.accentColor}`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs text-white/55" dir="ltr">
-                        /{u.slug}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setUniverses((prev) =>
-                              prev.map((x) =>
-                                x.id === u.id ? { ...x, isActive: !x.isActive } : x
-                              )
-                            )
-                          }
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                            u.isActive
-                              ? "bg-emerald-500/20 text-emerald-300"
-                              : "bg-white/10 text-white/45"
-                          }`}
-                        >
-                          {u.isActive ? t.active : t.hidden}
-                        </button>
-                        <input
-                          type="color"
-                          value={u.accentColor}
-                          onChange={(e) =>
-                            setUniverses((prev) =>
-                              prev.map((x) =>
-                                x.id === u.id ? { ...x, accentColor: e.target.value } : x
-                              )
-                            )
-                          }
-                          className="h-7 w-10 rounded border border-white/15 bg-transparent"
-                        />
-                      </div>
-                    </div>
-                    <input
-                      value={u.name}
-                      onChange={(e) =>
-                        setUniverses((prev) =>
-                          prev.map((x) =>
-                            x.id === u.id ? { ...x, name: e.target.value } : x
-                          )
-                        )
-                      }
-                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-sm font-semibold"
-                    />
-                    <input
-                      value={u.tagline}
-                      onChange={(e) =>
-                        setUniverses((prev) =>
-                          prev.map((x) =>
-                            x.id === u.id ? { ...x, tagline: e.target.value } : x
-                          )
-                        )
-                      }
-                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-xs text-white/80"
-                    />
-                    <textarea
-                      rows={2}
-                      value={u.description}
-                      onChange={(e) =>
-                        setUniverses((prev) =>
-                          prev.map((x) =>
-                            x.id === u.id ? { ...x, description: e.target.value } : x
-                          )
-                        )
-                      }
-                      className="w-full rounded-lg border border-white/15 bg-black/50 p-2.5 text-xs text-white/75"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <TabGuideBanner
-                arPoints={[
-                  "لون القسم يغيّر تدرج البطاقة في الرئيسية، وخلفية رأس صفحة القسم، وشارات المنتجات، ولون نجمة MY ROOM عند دخول القسم.",
-                  "الاسم والسطر التعريفي يظهران داخل الكبسولة الزجاجية أسفل بطاقة القسم في الرئيسية.",
-                  "زر (مفعل / مخفي) يتحكم في ظهور القسم أو إخفائه من الصفحة الرئيسية."
-                ]}
-                enPoints={[
-                  "Universe Color updates the Home card gradient, Universe detail banner, product badges, and MY ROOM star icon inside that Universe.",
-                  "Name and Tagline appear inside the frosted pill on the Home Universe card.",
-                  "Active/Hidden toggles whether the Universe appears on the Storefront."
-                ]}
-              />
-            </div>
-          ) : null}
-
-          {/* CATALOG & PRODUCTS */}
-          {activeTab === "catalog" ? (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">
-                  {t.catalogTitle}
-                  <InfoHint
-                    id="cat-header"
-                    ar="أي منتج تضيفه أو تعدل سعره/مخزونه هنا يُحفظ في Supabase ويظهر في قسم Fresh Drops وصفحة القسم التابع له."
-                    en="Products added or edited here sync to Supabase and appear in Fresh Drops and their Universe page."
-                  />
-                </h2>
-                <SaveButton tab="catalog" onClick={() => void handleSaveCatalog()} />
-              </div>
-
-              {/* Add Product Form */}
-              <form
-                onSubmit={handleAddProduct}
-                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5 sm:grid-cols-2 lg:grid-cols-7"
-              >
-                <div className="lg:col-span-2">
-                  <label className="mb-1 block text-[11px] text-white/65">{t.prodName}</label>
-                  <input
-                    required
-                    value={newProdName}
-                    onChange={(e) => setNewProdName(e.target.value)}
-                    placeholder="e.g. Akatsuki Night Bedsheet"
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                  />
-                </div>
-                <div className="lg:col-span-2">
-                  <label className="mb-1 block text-[11px] text-white/65">{t.prodSub}</label>
-                  <input
-                    value={newProdSub}
-                    onChange={(e) => setNewProdSub(e.target.value)}
-                    placeholder="300TC Matte Sateen • Limited"
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] text-white/65">Universe</label>
-                  <select
-                    value={newProdUnivSlug}
-                    onChange={(e) => setNewProdUnivSlug(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
-                  >
-                    {universes.map((u) => (
-                      <option key={u.id} value={u.slug}>
-                        {u.slug.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] text-white/65">{t.prodPrice}</label>
-                  <input
-                    type="number"
-                    value={newProdPrice}
-                    onChange={(e) => setNewProdPrice(Number(e.target.value))}
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] text-white/65">{t.prodStock}</label>
-                  <input
-                    type="number"
-                    value={newProdStock}
-                    onChange={(e) => setNewProdStock(Number(e.target.value))}
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                  />
-                </div>
-                <div className="lg:col-span-3">
-                  <label className="mb-1 block text-[11px] text-white/65">{t.prodMockup}</label>
-                  <select
-                    value={newProdThumb}
-                    onChange={(e) => setNewProdThumb(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
-                  >
-                    {MOCKUP_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="lg:col-span-2">
-                  <label className="mb-1 block text-[11px] text-white/65">{t.prodOldPrice}</label>
-                  <input
-                    type="number"
-                    value={newProdOldPrice}
-                    onChange={(e) => setNewProdOldPrice(Number(e.target.value))}
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                  />
-                </div>
-                <div className="flex items-end lg:col-span-2">
-                  <button
-                    type="submit"
-                    className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-white px-4 text-xs font-bold text-black hover:opacity-90"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {t.addProdBtn}
-                  </button>
-                </div>
-              </form>
-
-              {/* Product List */}
-              <div className="space-y-3">
-                {filteredProducts.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
-                  >
-                    <div className="min-w-[220px] flex-1 space-y-1.5">
-                      <input
-                        value={p.name}
-                        onChange={(e) =>
-                          setProducts((prev) =>
-                            prev.map((x) =>
-                              x.id === p.id ? { ...x, name: e.target.value } : x
-                            )
-                          )
-                        }
-                        className="h-8 w-full rounded-lg border border-white/10 bg-black/40 px-2.5 text-sm font-semibold"
-                      />
-                      <input
-                        value={p.subtitle}
-                        onChange={(e) =>
-                          setProducts((prev) =>
-                            prev.map((x) =>
-                              x.id === p.id ? { ...x, subtitle: e.target.value } : x
-                            )
-                          )
-                        }
-                        className="h-7 w-full rounded-lg border border-white/10 bg-black/30 px-2.5 text-xs text-white/70"
-                      />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="text-xs text-white/60">
-                        {t.egp}
-                        <input
-                          type="number"
-                          value={p.price}
-                          onChange={(e) =>
-                            setProducts((prev) =>
-                              prev.map((x) =>
-                                x.id === p.id ? { ...x, price: Number(e.target.value) } : x
-                              )
-                            )
-                          }
-                          className="mx-1.5 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
-                        />
-                      </label>
-                      <label className="text-xs text-white/60">
-                        {t.stock}
-                        <input
-                          type="number"
-                          value={p.stock}
-                          onChange={(e) =>
-                            setProducts((prev) =>
-                              prev.map((x) =>
-                                x.id === p.id ? { ...x, stock: Number(e.target.value) } : x
-                              )
-                            )
-                          }
-                          className="mx-1.5 h-8 w-16 rounded-lg border border-white/15 bg-black/50 px-2 text-xs text-white"
-                        />
-                      </label>
-                      <span
-                        className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${
-                          p.stock <= 0
-                            ? "bg-zinc-700 text-white"
-                            : "bg-emerald-500/20 text-emerald-300"
-                        }`}
-                      >
-                        {p.stock <= 0 ? t.vaulted : t.inStock}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteProduct(p.id)}
-                        className="rounded-lg border border-red-500/25 p-1.5 text-red-300 hover:bg-red-500/20"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <TabGuideBanner
-                arPoints={[
-                  "نموذج إضافة المنتج ينشئ المنتج مع النسخة الافتراضية والمخزون في جدول products و product_variants مباشرة.",
-                  "تعديل السعر أو الوصف (سطر واحد) ينعكس فوراً في كروت المنتجات وصفحة القسم.",
-                  "تصفير المخزون (0) يحوّل حالة المنتج تلقائياً إلى Vaulted (نفد المخزون) ويعطل زر Claim Yours."
-                ]}
-                enPoints={[
-                  "Add Product inserts both the product and its default variant/stock into Supabase.",
-                  "Editing price or 1-line subtitle updates Fresh Drops and Universe product cards.",
-                  "Setting stock to 0 automatically marks the product as Vaulted and disables Claim Yours."
-                ]}
-              />
-            </div>
-          ) : null}
-
-          {/* LOADOUTS (BUNDLES) */}
-          {activeTab === "loadouts" ? (
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">{t.loadoutsTitle}</h2>
-                <SaveButton tab="loadouts" onClick={() => void handleSaveLoadouts()} />
-              </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {loadouts.map((l) => (
-                  <div
-                    key={l.id}
-                    className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
-                  >
-                    <input
-                      value={l.name}
-                      onChange={(e) =>
-                        setLoadouts((prev) =>
-                          prev.map((x) =>
-                            x.id === l.id ? { ...x, name: e.target.value } : x
-                          )
-                        )
-                      }
-                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-sm font-semibold"
-                    />
-                    <input
-                      value={l.tagline}
-                      onChange={(e) =>
-                        setLoadouts((prev) =>
-                          prev.map((x) =>
-                            x.id === l.id ? { ...x, tagline: e.target.value } : x
-                          )
-                        )
-                      }
-                      className="h-9 w-full rounded-lg border border-white/15 bg-black/50 px-3 text-xs text-white/80"
-                    />
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-xs text-white/60">
-                        {t.egp}
-                        <input
-                          type="number"
-                          value={l.fixedPrice}
-                          onChange={(e) =>
-                            setLoadouts((prev) =>
-                              prev.map((x) =>
-                                x.id === l.id
-                                  ? { ...x, fixedPrice: Number(e.target.value) }
-                                  : x
-                              )
-                            )
-                          }
-                          className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLoadouts((prev) =>
-                            prev.map((x) =>
-                              x.id === l.id ? { ...x, isFeatured: !x.isFeatured } : x
-                            )
-                          )
-                        }
-                        className={`rounded-full px-3 py-1 text-[10px] font-bold ${
-                          l.isFeatured
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : "bg-white/10 text-white/50"
-                        }`}
-                      >
-                        {l.isFeatured ? t.visible : t.hidden}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <TabGuideBanner
-                arPoints={[
-                  "الباقات (Loadouts) تظهر في قسم Signature Loadouts أسفل الصفحة الرئيسية.",
-                  "تعديل السعر أو الوصف أو إخفاء الباقة ينعكس مباشرة على المتجر وسلة MY ROOM."
-                ]}
-                enPoints={[
-                  "Loadouts appear in the Signature Loadouts section on the Homepage.",
-                  "Editing price, tagline, or visibility updates the Storefront and My Room bag."
-                ]}
-              />
-            </div>
-          ) : null}
-
           {/* ORDERS & WHATSAPP */}
           {activeTab === "orders" ? (
             <div className="space-y-5">

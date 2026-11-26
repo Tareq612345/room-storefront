@@ -10,41 +10,12 @@ import {
   PRODUCT_ORGANIZER_PAGE_KEY,
   PRODUCT_ORGANIZER_RECORD_ID,
   buildInitialProductRegistry,
-  type ProductSeedInput,
 } from "./helpers";
 import {
   ProductRegistrySchema,
   type OrganizedProduct,
   type ProductRegistry,
 } from "./schema";
-
-interface SbProductRow {
-  id: string;
-  universeId: string;
-  slug: string;
-  name: string;
-  subtitle: string | null;
-  description: string | null;
-  basePrice: number | string;
-  compareAtPrice: number | string | null;
-  thumbnailUrl: string;
-  images: string[] | null;
-  isNewArrival: boolean;
-  isFeatured: boolean;
-  isActive: boolean;
-}
-
-interface SbVariantRow {
-  productId: string;
-  stock: number;
-  isActive: boolean;
-}
-
-interface SbUniverseRow {
-  id: string;
-  slug: string;
-  accentColor: string;
-}
 
 function cacheProductRegistryLocally(registry: ProductRegistry): void {
   if (typeof window === "undefined") return;
@@ -115,23 +86,13 @@ export async function fetchProductOrganizerSnapshot(): Promise<{
   registry: ProductRegistry;
   recordExistsInDb: boolean;
 }> {
-  const [sbStores, sbIsolated, sbProducts, sbVariants, sbUniverses] =
-    await Promise.all([
-      sbSelect<{ id: string }>("store_configs", "select=id&slug=eq.room-egypt"),
-      sbSelect<{ id: string; config: unknown }>(
-        "page_sections",
-        `select=id,config&pageKey=eq.${encodeURIComponent(PRODUCT_ORGANIZER_PAGE_KEY)}`
-      ),
-      sbSelect<SbProductRow>(
-        "products",
-        "select=id,universeId,slug,name,subtitle,description,basePrice,compareAtPrice,thumbnailUrl,images,isNewArrival,isFeatured,isActive&isActive=eq.true&order=createdAt.desc"
-      ),
-      sbSelect<SbVariantRow>(
-        "product_variants",
-        "select=productId,stock,isActive&isActive=eq.true"
-      ),
-      sbSelect<SbUniverseRow>("universes", "select=id,slug,accentColor"),
-    ]);
+  const [sbStores, sbIsolated] = await Promise.all([
+    sbSelect<{ id: string }>("store_configs", "select=id&slug=eq.room-egypt"),
+    sbSelect<{ id: string; config: unknown }>(
+      "page_sections",
+      `select=id,config&pageKey=eq.${encodeURIComponent(PRODUCT_ORGANIZER_PAGE_KEY)}`
+    ),
+  ]);
 
   const storeId = sbStores[0]?.id ?? "store_room_egypt";
 
@@ -148,38 +109,7 @@ export async function fetchProductOrganizerSnapshot(): Promise<{
     }
   }
 
-  const seeds: ProductSeedInput[] =
-    sbProducts.length > 0
-      ? sbProducts.map((p) => {
-          const u = sbUniverses.find((un) => un.id === p.universeId);
-          const vars = sbVariants.filter((v) => v.productId === p.id);
-          const stock =
-            vars.length > 0
-              ? vars.reduce((sum, v) => sum + Number(v.stock), 0)
-              : 10;
-          return {
-            id: p.id,
-            slug: p.slug,
-            name: p.name,
-            subtitle: p.subtitle,
-            description: p.description,
-            basePrice: Number(p.basePrice),
-            compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
-            thumbnailUrl: p.thumbnailUrl,
-            images:
-              Array.isArray(p.images) && p.images.length > 0
-                ? p.images
-                : [p.thumbnailUrl],
-            universeSlug: u?.slug ?? "cars",
-            accentColor: u?.accentColor ?? "#c94b99",
-            isNewArrival: p.isNewArrival,
-            isFeatured: p.isFeatured,
-            stock,
-          };
-        })
-      : DEFAULT_PRODUCT_SEEDS;
-
-  const seeded = buildInitialProductRegistry(seeds);
+  const seeded = buildInitialProductRegistry(DEFAULT_PRODUCT_SEEDS);
   cacheProductRegistryLocally(seeded);
 
   return {

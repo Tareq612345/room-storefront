@@ -40,8 +40,6 @@ type DomainKey =
   | "isolated"
   | "core"
   | "builder"
-  | "catalog"
-  | "bundles"
   | "orders"
   | "loyalty";
 
@@ -99,18 +97,6 @@ const DOMAIN_GROUPS: DomainGroupMeta[] = [
     color: "#a855f7",
   },
   {
-    key: "catalog",
-    labelAr: "الكتالوج والمنتجات",
-    labelEn: "Catalog & A+ Story",
-    color: "#6366f1",
-  },
-  {
-    key: "bundles",
-    labelAr: "الباقات ومكوناتها",
-    labelEn: "Bundles & Loadouts",
-    color: "#f59e0b",
-  },
-  {
     key: "orders",
     labelAr: "الطلبات وشحن القاهرة",
     labelEn: "Orders & Cairo Shipping",
@@ -153,7 +139,7 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
       { label: "Dynamic Universe Page (/universe/)", href: "/universe/" },
       { label: "Static Universe Routes (/universes/cars)", href: "/universes/cars" },
     ],
-    relatedSourceIds: ["isolated_products", "isolated_packages", "page_sections", "universes"],
+    relatedSourceIds: ["isolated_products", "isolated_packages", "page_sections"],
     previewColumns: ["name", "slug", "accentColor", "isActive", "updatedAt"],
   },
   {
@@ -170,7 +156,7 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
     descEn: "Isolated JSON registry for product cards, prices, stock, gallery images, specs, and detail layouts.",
     accentColor: "#6366f1",
     writers: [
-      { label: "Product Organizer UI", route: "/admin/products/", detail: "saveIsolatedProductOrganizer()" },
+      { label: "Product Organizer UI", route: "/admin/products/", detail: "saveIsolatedProductRegistry()" },
     ],
     storageSummary:
       "page_sections[id=porg_isolated_registry_v1, pageKey=__isolated_product_organizer_v1__] + localStorage",
@@ -183,7 +169,7 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
       { label: "Product Detail Page (/product/)", href: "/product/" },
       { label: "Universe & Package Pages", href: "/universe/" },
     ],
-    relatedSourceIds: ["isolated_universes", "isolated_packages", "page_sections", "products"],
+    relatedSourceIds: ["isolated_universes", "isolated_packages", "page_sections", "order_items"],
     previewColumns: ["name", "slug", "basePrice", "stock", "isActive"],
   },
   {
@@ -200,7 +186,7 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
     descEn: "Isolated JSON registry for bundles/collections, hero/banner artwork, pricing, and member products.",
     accentColor: "#f59e0b",
     writers: [
-      { label: "Packages Organizer UI", route: "/admin/packages/", detail: "saveIsolatedPackageOrganizer()" },
+      { label: "Packages Organizer UI", route: "/admin/packages/", detail: "saveIsolatedPackageRegistry()" },
     ],
     storageSummary:
       "page_sections[id=korg_isolated_registry_v1, pageKey=__isolated_package_organizer_v1__] + localStorage",
@@ -213,7 +199,7 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
       { label: "Package Detail Page (/package/)", href: "/package/" },
       { label: "Universe Detail Page", href: "/universe/" },
     ],
-    relatedSourceIds: ["isolated_universes", "isolated_products", "page_sections", "bundles"],
+    relatedSourceIds: ["isolated_universes", "isolated_products", "page_sections", "order_items"],
     previewColumns: ["name", "slug", "kind", "finalPrice", "isActive"],
   },
 
@@ -243,7 +229,7 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
       { label: "Admin Portal", href: "/admin/" },
       { label: "Visual Editor", href: "/admin/editor/" },
     ],
-    relatedSourceIds: ["users", "page_sections", "universes", "products", "orders", "shipping_zones"],
+    relatedSourceIds: ["users", "page_sections", "orders", "shipping_zones"],
     previewColumns: ["name", "slug", "currency", "defaultAccentColor", "isActive"],
   },
   {
@@ -328,159 +314,7 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
     previewColumns: ["pageKey", "type", "title", "sortOrder", "isVisible"],
   },
 
-  // 4. CATALOG & A+ STORY
-  {
-    id: "universes",
-    kind: "table",
-    domainKey: "catalog",
-    modelName: "Universe",
-    tableName: "universes",
-    labelAr: "جدول اليونيفيرس الأساسي",
-    labelEn: "Universes (Core Table)",
-    descAr: "جدول اليونيفيرس العلائقي الأساسي في قاعدة البيانات (مرجع و Fallback).",
-    descEn: "Relational PostgreSQL table for core storefront universes and seed/fallback data.",
-    accentColor: "#ec4899",
-    writers: [
-      { label: "Legacy Admin & Editor", route: "/admin/", detail: "sbPatch('universes')" },
-    ],
-    storageSummary: "PostgreSQL / Supabase table: universes",
-    readerApis: [
-      { mod: "@modules/universes", fn: "getActiveUniverses() / sbSelect('universes')" },
-    ],
-    consumers: [
-      { label: "Static SSG Routes", href: "/universes/cars" },
-      { label: "Isolated Organizer Fallback", href: "/admin/universes/" },
-    ],
-    relatedSourceIds: ["store_configs", "products", "bundles", "isolated_universes"],
-    previewColumns: ["name", "slug", "accentColor", "sortOrder", "isActive"],
-  },
-  {
-    id: "products",
-    kind: "table",
-    domainKey: "catalog",
-    modelName: "Product",
-    tableName: "products",
-    labelAr: "جدول المنتجات الأساسي",
-    labelEn: "Products (Core Table)",
-    descAr: "جدول المنتجات الأساسي في PostgreSQL المرتبط باليونيفيرس والنسخ والباقات.",
-    descEn: "Relational product catalog rows with basePrice, compareAtPrice, images, and flags.",
-    accentColor: "#818cf8",
-    writers: [
-      { label: "Admin Portal Catalog", route: "/admin/", detail: "sbInsert/Patch/Delete('products')" },
-    ],
-    storageSummary: "PostgreSQL / Supabase table: products (FK -> store_configs, universes)",
-    readerApis: [
-      { mod: "@modules/catalog", fn: "getFreshDrops() & product-organizer fallback" },
-    ],
-    consumers: [
-      { label: "Admin Inventory Tab", href: "/admin/" },
-      { label: "Isolated Product Fallback", href: "/admin/products/" },
-    ],
-    relatedSourceIds: ["universes", "product_variants", "product_story_blocks", "bundle_items", "order_items"],
-    previewColumns: ["name", "slug", "basePrice", "universeId", "isActive"],
-  },
-  {
-    id: "product_variants",
-    kind: "table",
-    domainKey: "catalog",
-    modelName: "ProductVariant",
-    tableName: "product_variants",
-    labelAr: "نسخ ومخزون المنتجات",
-    labelEn: "Product Variants & Stock",
-    descAr: "رموز SKU والألوان والمقاسات والكمية المتاحة في المخزون لكل نسخة منتج.",
-    descEn: "Product SKUs, colors, sizes, variant pricing, and live inventory stock counts.",
-    accentColor: "#4f46e5",
-    writers: [
-      { label: "Admin Inventory Quick-Edit", route: "/admin/", detail: "sbInsert/Patch('product_variants')" },
-    ],
-    storageSummary: "PostgreSQL / Supabase table: product_variants (FK -> products)",
-    readerApis: [
-      { mod: "@modules/product-organizer", fn: "sbSelect('product_variants') stock merge" },
-    ],
-    consumers: [
-      { label: "Admin Stock Control", href: "/admin/" },
-      { label: "Product Organizer Stock Hydrator", href: "/admin/products/" },
-    ],
-    relatedSourceIds: ["products", "bundle_items", "order_items"],
-    previewColumns: ["sku", "name", "price", "stock", "isActive"],
-  },
-  {
-    id: "product_story_blocks",
-    kind: "table",
-    domainKey: "catalog",
-    modelName: "ProductStoryBlock",
-    tableName: "product_story_blocks",
-    labelAr: "بلوكات قصة المنتج A+",
-    labelEn: "Product Story Blocks",
-    descAr: "أقسام القصة البصرية للمنتج (Full Bleed / Split / Spec Grid / Video Banner).",
-    descEn: "Oraimo-style A+ storytelling blocks attached to products with layoutType and mediaUrl.",
-    accentColor: "#6d28d9",
-    writers: [
-      { label: "Prisma Catalog / Seed", detail: "ProductStoryBlock records per productId" },
-    ],
-    storageSummary: "PostgreSQL / Supabase table: product_story_blocks (FK -> products)",
-    readerApis: [
-      { mod: "@modules/catalog", fn: "product detail & story queries" },
-    ],
-    consumers: [
-      { label: "Product Detail Story Sections", href: "/product/" },
-    ],
-    relatedSourceIds: ["products", "store_configs"],
-    previewColumns: ["title", "layoutType", "productId", "sortOrder", "isActive"],
-  },
-
-  // 5. BUNDLES & LOADOUTS
-  {
-    id: "bundles",
-    kind: "table",
-    domainKey: "bundles",
-    modelName: "Bundle",
-    tableName: "bundles",
-    labelAr: "جدول الباقات الأساسي",
-    labelEn: "Bundles (Core Table)",
-    descAr: "باقات التجميع الأساسية وأسعارها الثابتة أو نسبة الخصم.",
-    descEn: "Core Loadout bundles supporting FIXED_PRICE, PERCENTAGE_DISCOUNT, or AMOUNT_DISCOUNT.",
-    accentColor: "#f59e0b",
-    writers: [
-      { label: "Admin Portal Loadouts", route: "/admin/", detail: "sbPatch('bundles')" },
-    ],
-    storageSummary: "PostgreSQL / Supabase table: bundles (FK -> store_configs, universes)",
-    readerApis: [
-      { mod: "@modules/bundles", fn: "getFeaturedLoadouts() & package-organizer fallback" },
-    ],
-    consumers: [
-      { label: "Homepage Loadouts / Admin", href: "/admin/" },
-      { label: "Isolated Packages Fallback", href: "/admin/packages/" },
-    ],
-    relatedSourceIds: ["universes", "bundle_items", "order_items", "isolated_packages"],
-    previewColumns: ["name", "slug", "pricingType", "fixedPrice", "isActive"],
-  },
-  {
-    id: "bundle_items",
-    kind: "table",
-    domainKey: "bundles",
-    modelName: "BundleItem",
-    tableName: "bundle_items",
-    labelAr: "عناصر داخل الباقات",
-    labelEn: "Bundle Items",
-    descAr: "جدول الربط بين كل باقة والمنتجات أو النسخ الموجودة داخلها مع الكميات.",
-    descEn: "Join table linking each Bundle to its member Products/Variants and quantities.",
-    accentColor: "#d97706",
-    writers: [
-      { label: "Bundles Service / Seed", detail: "BundleItem mapping rows" },
-    ],
-    storageSummary: "PostgreSQL / Supabase table: bundle_items (FK -> bundles, products, product_variants)",
-    readerApis: [
-      { mod: "@modules/package-organizer", fn: "sbSelect('bundle_items')" },
-    ],
-    consumers: [
-      { label: "Bundle Item Composition", href: "/package/" },
-    ],
-    relatedSourceIds: ["bundles", "products", "product_variants"],
-    previewColumns: ["bundleId", "productId", "quantity", "sortOrder", "isRequired"],
-  },
-
-  // 6. ORDERS & CAIRO SHIPPING
+  // 4. ORDERS & CAIRO SHIPPING
   {
     id: "shipping_zones",
     kind: "table",
@@ -545,14 +379,14 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
     writers: [
       { label: "Checkout Order Processor", detail: "OrderItem rows attached to Order" },
     ],
-    storageSummary: "PostgreSQL / Supabase table: order_items (FK -> orders, products, bundles)",
+    storageSummary: "PostgreSQL / Supabase table: order_items (FK -> orders)",
     readerApis: [
       { mod: "@modules/admin", fn: "Order line-item breakdown queries" },
     ],
     consumers: [
       { label: "Admin Order Details", href: "/admin/" },
     ],
-    relatedSourceIds: ["orders", "products", "product_variants", "bundles"],
+    relatedSourceIds: ["orders", "isolated_products", "isolated_packages"],
     previewColumns: ["orderId", "itemType", "titleSnapshot", "quantity", "lineTotal"],
   },
 
@@ -591,9 +425,9 @@ const UNIQUE_PRISMA_TABLES = Array.from(
 
 const COPY = {
   ar: {
-    heading: "مركز التحكم وتتبع الداتابيز الكاملة (Full Database Explorer)",
+    heading: "مركز التحكم وتتبع الداتابيز الفعالة (Active Database Explorer)",
     subheading:
-      "الداتابيز بالكامل بين إيديك ومنظّمة حسب المجالات: الـ 14 جدول الأساسيين + الـ 3 مخازن معزولة. اضغط على أي جدول أو أي صف حي لتتبع مصدر التعديل ودوال القراءة وصفحات العرض والعلاقات المرتبطة.",
+      "يعرض فقط الجداول والمخازن المستخدمة فعلياً في الموقع الآن (3 مخازن معزولة + 8 جداول تشغيلية فعالة) بدون الجداول القديمة غير المستخدمة.",
     searchPlaceholder: "ابحث في كل الجداول والسجلات (اسم، إيميل، slug، رقم طلب، ID)...",
     refresh: "تحديث كل الداتابيز",
     lastSync: "آخر مزامنة",
@@ -623,11 +457,11 @@ const COPY = {
     inspectAction: "فحص",
   },
   en: {
-    heading: "Full-Database Organized Flow & Live Inspector",
+    heading: "Active Database Flow & Live Inspector",
     subheading:
-      "Every data source in your project in one organized control center: all 14 PostgreSQL/Supabase tables plus the 3 isolated storefront registries. Select any source or live row to inspect Writers, Storage, Reader APIs, Consumers, and FK links.",
-    searchPlaceholder: "Search across ALL 17 sources & live records (name, slug, email, order, id)...",
-    refresh: "Refresh Full DB",
+      "Displays only the live active sources powering the site (8 active operational tables + 3 isolated storefront registries) with retired legacy tables removed.",
+    searchPlaceholder: "Search across all 11 active sources & live records (name, slug, email, order, id)...",
+    refresh: "Refresh Active DB",
     lastSync: "Synced",
     allDomains: "All",
     sourcesCount: "Sources",
@@ -650,7 +484,7 @@ const COPY = {
     selectedRecordTitle: "Selected Live Record Inspector",
     clearRecord: "Close Row",
     rawJson: "Full Raw JSON Payload",
-    loading: "Syncing all 14 tables & 3 isolated registries from Supabase...",
+    loading: "Syncing all active tables & 3 isolated registries from Supabase...",
     rowsWord: "rows",
     inspectAction: "Inspect",
   },

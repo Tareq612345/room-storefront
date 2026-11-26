@@ -10,38 +10,12 @@ import {
   PACKAGE_ORGANIZER_PAGE_KEY,
   PACKAGE_ORGANIZER_RECORD_ID,
   buildInitialPackageRegistry,
-  type PackageSeedInput,
 } from "./helpers";
 import {
   PackageRegistrySchema,
   type OrganizedPackage,
   type PackageRegistry,
 } from "./schema";
-
-interface SbBundleRow {
-  id: string;
-  universeId: string | null;
-  slug: string;
-  name: string;
-  tagline: string | null;
-  description: string | null;
-  thumbnailUrl: string;
-  bannerUrl: string | null;
-  fixedPrice: number | string | null;
-  isFeatured: boolean;
-  isActive: boolean;
-}
-
-interface SbBundleItemRow {
-  bundleId: string;
-  productId: string;
-}
-
-interface SbUniverseRow {
-  id: string;
-  slug: string;
-  accentColor: string;
-}
 
 function cachePackageRegistryLocally(registry: PackageRegistry): void {
   if (typeof window === "undefined") return;
@@ -112,20 +86,13 @@ export async function fetchPackageOrganizerSnapshot(): Promise<{
   registry: PackageRegistry;
   recordExistsInDb: boolean;
 }> {
-  const [sbStores, sbIsolated, sbBundles, sbBundleItems, sbUniverses] =
-    await Promise.all([
-      sbSelect<{ id: string }>("store_configs", "select=id&slug=eq.room-egypt"),
-      sbSelect<{ id: string; config: unknown }>(
-        "page_sections",
-        `select=id,config&pageKey=eq.${encodeURIComponent(PACKAGE_ORGANIZER_PAGE_KEY)}`
-      ),
-      sbSelect<SbBundleRow>(
-        "bundles",
-        "select=id,universeId,slug,name,tagline,description,thumbnailUrl,bannerUrl,fixedPrice,isFeatured,isActive&isActive=eq.true&order=createdAt.desc"
-      ),
-      sbSelect<SbBundleItemRow>("bundle_items", "select=bundleId,productId"),
-      sbSelect<SbUniverseRow>("universes", "select=id,slug,accentColor"),
-    ]);
+  const [sbStores, sbIsolated] = await Promise.all([
+    sbSelect<{ id: string }>("store_configs", "select=id&slug=eq.room-egypt"),
+    sbSelect<{ id: string; config: unknown }>(
+      "page_sections",
+      `select=id,config&pageKey=eq.${encodeURIComponent(PACKAGE_ORGANIZER_PAGE_KEY)}`
+    ),
+  ]);
 
   const storeId = sbStores[0]?.id ?? "store_room_egypt";
 
@@ -142,37 +109,7 @@ export async function fetchPackageOrganizerSnapshot(): Promise<{
     }
   }
 
-  const seeds: PackageSeedInput[] =
-    sbBundles.length > 0
-      ? sbBundles.map((b) => {
-          const u = sbUniverses.find((un) => un.id === b.universeId);
-          const finalPrice = b.fixedPrice ? Number(b.fixedPrice) : 2190;
-          const originalPrice = finalPrice + 450;
-          const productIds = sbBundleItems
-            .filter((item) => item.bundleId === b.id)
-            .map((item) => item.productId);
-          return {
-            id: b.id,
-            slug: b.slug,
-            kind: "PACKAGE" as const,
-            name: b.name,
-            tagline: b.tagline ?? "",
-            description:
-              b.description ??
-              (b.tagline || `${b.name} — Curated ROOM setup collection.`),
-            accentColor: u?.accentColor ?? "#c94b99",
-            universeSlug: u?.slug ?? null,
-            bannerImageUrl: b.thumbnailUrl,
-            heroImageUrl: b.bannerUrl || b.thumbnailUrl,
-            originalPrice,
-            finalPrice,
-            productIds,
-            isFeatured: b.isFeatured,
-          };
-        })
-      : DEFAULT_PACKAGE_SEEDS;
-
-  const seeded = buildInitialPackageRegistry(seeds);
+  const seeded = buildInitialPackageRegistry(DEFAULT_PACKAGE_SEEDS);
   cachePackageRegistryLocally(seeded);
 
   return {

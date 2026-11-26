@@ -26,49 +26,6 @@ import {
 const ISOLATED_PRODUCT_PAGE_KEY = "__isolated_product_organizer_v1__";
 const ISOLATED_PACKAGE_PAGE_KEY = "__isolated_package_organizer_v1__";
 
-interface SbUniverseRow {
-  id: string;
-  slug: string;
-  name: string;
-  tagline: string | null;
-  description: string | null;
-  accentColor: string;
-  bannerUrl: string | null;
-  sortOrder: number;
-  isActive: boolean;
-}
-
-interface SbProductRow {
-  id: string;
-  universeId: string;
-  slug: string;
-  name: string;
-  subtitle: string | null;
-  basePrice: number | string;
-  compareAtPrice: number | string | null;
-  thumbnailUrl: string;
-  isNewArrival: boolean;
-  isActive: boolean;
-}
-
-interface SbVariantRow {
-  id: string;
-  productId: string;
-  stock: number;
-  isDefault: boolean;
-  isActive: boolean;
-}
-
-interface SbBundleRow {
-  id: string;
-  universeId: string | null;
-  slug: string;
-  name: string;
-  tagline: string | null;
-  fixedPrice: number | string | null;
-  isActive: boolean;
-}
-
 interface SbHomeSectionRow {
   id: string;
   type: string;
@@ -189,10 +146,6 @@ export async function fetchOrganizerDataSnapshot(): Promise<{
     sbIsolated,
     sbIsolatedProducts,
     sbIsolatedPackages,
-    sbUniverses,
-    sbProducts,
-    sbVariants,
-    sbBundles,
     sbHomeSections,
   ] = await Promise.all([
     sbSelect<{ id: string }>("store_configs", "select=id&slug=eq.room-egypt"),
@@ -208,22 +161,6 @@ export async function fetchOrganizerDataSnapshot(): Promise<{
       "page_sections",
       `select=id,config&pageKey=eq.${encodeURIComponent(ISOLATED_PACKAGE_PAGE_KEY)}`
     ),
-    sbSelect<SbUniverseRow>(
-      "universes",
-      "select=id,slug,name,tagline,description,accentColor,bannerUrl,sortOrder,isActive&order=sortOrder.asc"
-    ),
-    sbSelect<SbProductRow>(
-      "products",
-      "select=id,universeId,slug,name,subtitle,basePrice,compareAtPrice,thumbnailUrl,isNewArrival,isActive&isActive=eq.true&order=createdAt.desc"
-    ),
-    sbSelect<SbVariantRow>(
-      "product_variants",
-      "select=id,productId,stock,isDefault,isActive&isActive=eq.true"
-    ),
-    sbSelect<SbBundleRow>(
-      "bundles",
-      "select=id,universeId,slug,name,tagline,fixedPrice,isActive&isActive=eq.true&order=createdAt.desc"
-    ),
     sbSelect<SbHomeSectionRow>(
       "page_sections",
       "select=id,type,title,subtitle,config&pageKey=eq.home&order=sortOrder.asc"
@@ -232,7 +169,7 @@ export async function fetchOrganizerDataSnapshot(): Promise<{
 
   const storeId = sbStores[0]?.id ?? "store_room_egypt";
 
-  // Prefer active products from the isolated Product Organizer when present
+  // Read active products from the isolated Product Organizer
   const rawProdCfg = sbIsolatedProducts[0]?.config as RawIsolatedProductConfig | undefined;
   const isolatedProductList = Array.isArray(rawProdCfg?.products)
     ? rawProdCfg.products
@@ -266,36 +203,9 @@ export async function fetchOrganizerDataSnapshot(): Promise<{
               defaultVariantId: null,
             };
           })
-      : sbProducts.length > 0
-        ? sbProducts.map((p) => {
-            const u = sbUniverses.find((un) => un.id === p.universeId);
-            const vars = sbVariants.filter((v) => v.productId === p.id);
-            const totalStock =
-              vars.length > 0
-                ? vars.reduce((sum, v) => sum + Number(v.stock), 0)
-                : 10;
-            const defaultVar = vars.find((v) => v.isDefault) ?? vars[0] ?? null;
+      : DEFAULT_ORGANIZER_PRODUCTS;
 
-            return {
-              id: p.id,
-              slug: p.slug,
-              name: p.name,
-              subtitle: p.subtitle,
-              basePrice: Number(p.basePrice),
-              compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
-              thumbnailUrl: p.thumbnailUrl,
-              universeId: p.universeId,
-              universeSlug: u?.slug ?? "cars",
-              originalAccentColor: u?.accentColor ?? "#c94b99",
-              isNewArrival: p.isNewArrival,
-              totalStock,
-              isVaulted: totalStock <= 0,
-              defaultVariantId: defaultVar?.id ?? null,
-            };
-          })
-        : DEFAULT_ORGANIZER_PRODUCTS;
-
-  // Prefer active Packages & Collections from the isolated Package Organizer when present
+  // Read active Packages & Collections from the isolated Package Organizer
   const rawPkgCfg = sbIsolatedPackages[0]?.config as RawIsolatedPackageConfig | undefined;
   const isolatedPkgList = Array.isArray(rawPkgCfg?.packages)
     ? rawPkgCfg.packages
@@ -358,28 +268,7 @@ export async function fetchOrganizerDataSnapshot(): Promise<{
                 typeof pk.universeSlug === "string" ? pk.universeSlug : null,
             };
           })
-      : sbBundles.map((b) => {
-          const u = sbUniverses.find((un) => un.id === b.universeId);
-          const finalPrice = b.fixedPrice ? Number(b.fixedPrice) : 2190;
-          const originalPrice = finalPrice + 450;
-          return {
-            id: b.id,
-            kind: "LOADOUT",
-            slug: b.slug,
-            title: b.name,
-            subtitle: b.tagline,
-            itemCount: 3,
-            originalPrice,
-            finalPrice,
-            savingsAmount: Math.max(0, originalPrice - finalPrice),
-            ctaLabel: "Add to Room",
-            ctaUrl: `/package/?slug=${encodeURIComponent(b.slug)}`,
-            bannerImageUrl: null,
-            originalAccentColor: u?.accentColor ?? "#c94b99",
-            textColor: "#ffffff",
-            universeSlug: u?.slug ?? null,
-          };
-        });
+      : [];
 
   const promoOffers = extractPromoOffersFromSectionConfigs(sbHomeSections);
   const mappedOffers =
@@ -403,7 +292,7 @@ export async function fetchOrganizerDataSnapshot(): Promise<{
   }
 
   const seeded = buildInitialRegistryFromSources({
-    universes: sbUniverses.length > 0 ? sbUniverses : DEFAULT_ORGANIZER_UNIVERSES,
+    universes: DEFAULT_ORGANIZER_UNIVERSES,
     products: mappedProducts,
     offers: mappedOffers,
   });
