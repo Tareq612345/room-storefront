@@ -1,6 +1,6 @@
 /**
  * @file src/modules/admin/components/AdminPortalClient.tsx
- * @purpose Luxury Dark Command Center for ROOM: Complete site control (Store & Live Theme Preview, Event Presets, Universes, Catalog + Add/Delete, Loadouts, Orders + WhatsApp, Home Builder, Cairo Shipping, 48h Invites, Profile).
+ * @purpose Luxury Dark Command Center for ROOM: Complete site control (Store & Live Theme Preview, Event Presets, Universes, Catalog + Add/Delete, Loadouts, Orders + WhatsApp, Home Builder, Cairo Shipping, 48h Invites, Profile, and quick link to /admin/universes/).
  */
 
 "use client";
@@ -1532,6 +1532,14 @@ export function AdminPortalClient() {
             </div>
 
             <LangToggleButton />
+
+            <Link
+              href="/admin/universes/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-3.5 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "تنظيم اليونيفيرسز" : "Universe Organizer"}</span>
+            </Link>
 
             <Link
               href="/admin/editor/"
