@@ -7,6 +7,7 @@
 
 import { sbSelect } from "@shared/db/supabase-rest";
 import {
+  ArrowLeft,
   Check,
   Copy,
   Database,
@@ -49,16 +50,26 @@ const ACTIVE_NODE_POSITIONS: Record<string, { x: number; y: number }> = {
   StoreConfig: { x: 40, y: 40 },
   User: { x: 40, y: 380 },
   AdminInvite: { x: 40, y: 740 },
+  SupportTicket: { x: 40, y: 1080 },
   PageSection: { x: 410, y: 40 },
-  ShippingZone: { x: 410, y: 400 },
-  LoyaltyAccount: { x: 410, y: 740 },
+  ShippingZone: { x: 410, y: 380 },
+  PromoCode: { x: 410, y: 720 },
+  LoyaltyAccount: { x: 410, y: 1060 },
   Order: { x: 780, y: 40 },
-  OrderItem: { x: 780, y: 580 },
-  IsolatedUniverses: { x: 1150, y: 40 },
-  IsolatedProducts: { x: 1150, y: 340 },
-  IsolatedPackages: { x: 1150, y: 640 },
-  IsolatedElements: { x: 1150, y: 940 },
-  IsolatedHomeLayout: { x: 1520, y: 440 },
+  OrderItem: { x: 780, y: 440 },
+  PaymentTransaction: { x: 780, y: 800 },
+  ShipmentDispatch: { x: 780, y: 1120 },
+  AnalyticsSession: { x: 1150, y: 40 },
+  AnalyticsEvent: { x: 1150, y: 380 },
+  NotificationLog: { x: 1150, y: 760 },
+  IsolatedUniverses: { x: 1520, y: 40 },
+  IsolatedProducts: { x: 1520, y: 340 },
+  IsolatedPackages: { x: 1520, y: 640 },
+  IsolatedElements: { x: 1520, y: 940 },
+  IsolatedHomeLayout: { x: 1890, y: 180 },
+  IsolatedCartCheckout: { x: 1890, y: 520 },
+  IsolatedAnalytics: { x: 1890, y: 840 },
+  IsolatedFutureOps: { x: 1890, y: 1140 },
 };
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -66,6 +77,8 @@ const DOMAIN_COLORS: Record<string, string> = {
   "Dynamic Page Builder": "#a855f7",
   "Orders & Cairo Shipping": "#ef4444",
   "Loyalty & Rewards": "#22c55e",
+  "Analytics & Telemetry": "#06b6d4",
+  "Future Ops (Payments/Dispatch/Support)": "#f59e0b",
   "Isolated Organizers": "#10b981",
 };
 
@@ -73,8 +86,10 @@ const DOMAIN_LABELS_AR: Record<string, string> = {
   ALL: "الكل",
   "Core & Multi-Tenant": "الأساس وتعدد المتاجر",
   "Dynamic Page Builder": "بناء الصفحة الرئيسية",
-  "Orders & Cairo Shipping": "الطلبات وشحن القاهرة",
+  "Orders & Cairo Shipping": "الطلبات والشحن والخصم",
   "Loyalty & Rewards": "نقاط الولاء",
+  "Analytics & Telemetry": "الإحصائيات وتتبع الزوار",
+  "Future Ops (Payments/Dispatch/Support)": "العمليات المستقبلية (دفع/شحن/دعم)",
   "Isolated Organizers": "المخازن المعزولة الفعالة",
 };
 
@@ -86,18 +101,36 @@ const MODEL_PURPOSE_AR: Record<string, string> = {
   ShippingZone: "مناطق الشحن في القاهرة والقاهرة الجديدة وتكلفتها",
   Order: "الطلبات وحالات الدفع (COD / أونلاين) وحالة التوصيل",
   OrderItem: "تفاصيل المنتجات والباقات داخل كل طلب",
+  PromoCode: "أكواد الخصم وشروط الحد الأدنى والاستخدام",
   LoyaltyAccount: "حساب نقاط الولاء والمستويات وكود الإحالة",
+  AnalyticsSession: "جلسات الزوار ومصادر الزيارات UTM ومؤشرات التحويل",
+  AnalyticsEvent: "أحداث التتبع (مشاهدة/سلة/شراء) المربوطة بالطلبات والمناطق",
+  PaymentTransaction: "سجل عمليات الدفع وربطها ببوابات الدفع مستقبلاً",
+  ShipmentDispatch: "تجهيز بوالص الشحن وربطها بشركات التوصيل مستقبلاً",
+  SupportTicket: "تذاكر دعم العملاء والطلبات المربوطة بالطلب والعميل",
+  NotificationLog: "سجل إشعارات التاجر والعميل (واتساب / تليجرام / إيميل)",
   IsolatedUniverses: "المخزن المعزول الفعلي لليونيفيرسز (/admin/universes/) — pageKey=__isolated_universe_organizer_v1__",
   IsolatedProducts: "المخزن المعزول الفعلي للمنتجات (/admin/products/) — pageKey=__isolated_product_organizer_v1__",
   IsolatedPackages: "المخزن المعزول الفعلي للباكدجات والكوليكشنز (/admin/packages/) — pageKey=__isolated_package_organizer_v1__",
   IsolatedElements: "المخزن المعزول لبطاقات القراءة والأزرار (/admin/elements/) — pageKey=__isolated_element_organizer_v1__",
   IsolatedHomeLayout: "منسّق الصفحة الرئيسية المعزول (/admin/home/) — البوابة الوحيدة لعرض الرئيسية (/)",
+  IsolatedCartCheckout: "مخزن السلة والدفع المعزول (/admin/checkout/) — pageKey=__isolated_cart_checkout_v1__",
+  IsolatedAnalytics: "مخزن الإحصائيات الفعلي الحي — pageKey=__isolated_analytics_v1__",
+  IsolatedFutureOps: "سجل العمليات المستقبلية الحي (مدفوعات/شحن/إشعارات/عملاء/دعم) — pageKey=__isolated_future_ops_v1__",
 };
 
 const VIRTUAL_ISOLATED_MODELS: Array<
   ModelMeta & {
     isolatedPageKey: string;
-    isolatedArrayKey: "universes" | "products" | "packages" | "elements" | "blocks";
+    isolatedArrayKey:
+      | "universes"
+      | "products"
+      | "packages"
+      | "elements"
+      | "blocks"
+      | "checkout"
+      | "analytics"
+      | "future_ops";
   }
 > = [
   {
@@ -186,6 +219,58 @@ const VIRTUAL_ISOLATED_MODELS: Array<
     indexes: ["pageKey = __isolated_home_composer_v1__"],
     uniques: ["hcomp_isolated_registry_v1"],
   },
+  {
+    name: "IsolatedCartCheckout",
+    tableName: "page_sections[ckorg]",
+    domain: "Isolated Organizers",
+    position: { x: 1890, y: 520 },
+    isolatedPageKey: "__isolated_cart_checkout_v1__",
+    isolatedArrayKey: "checkout",
+    fields: [
+      { name: "id", type: "String", rawType: "String", isList: false, isOptional: false, isId: true, isUnique: true, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "pageKey", type: "String", rawType: "__isolated_cart_checkout_v1__", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: true, defaultValue: null, relationTo: "PageSection", relationFields: ["pageKey"] },
+      { name: "config.paymentMethods", type: "Json", rawType: "PaymentMethodOption[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "config.promoCodes", type: "Json", rawType: "PromoCodeItem[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "config.rules", type: "Json", rawType: "CheckoutRules", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+    ],
+    indexes: ["pageKey = __isolated_cart_checkout_v1__"],
+    uniques: ["ckorg_isolated_registry_v1"],
+  },
+  {
+    name: "IsolatedAnalytics",
+    tableName: "page_sections[anorg]",
+    domain: "Analytics & Telemetry",
+    position: { x: 1890, y: 840 },
+    isolatedPageKey: "__isolated_analytics_v1__",
+    isolatedArrayKey: "analytics",
+    fields: [
+      { name: "id", type: "String", rawType: "String", isList: false, isOptional: false, isId: true, isUnique: true, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "pageKey", type: "String", rawType: "__isolated_analytics_v1__", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: true, defaultValue: null, relationTo: "PageSection", relationFields: ["pageKey"] },
+      { name: "config.config", type: "Json", rawType: "AnalyticsConfig", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "config.events", type: "Json", rawType: "AnalyticsEventRecord[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+    ],
+    indexes: ["pageKey = __isolated_analytics_v1__"],
+    uniques: ["anorg_isolated_registry_v1"],
+  },
+  {
+    name: "IsolatedFutureOps",
+    tableName: "page_sections[fops]",
+    domain: "Future Ops (Payments/Dispatch/Support)",
+    position: { x: 1890, y: 1140 },
+    isolatedPageKey: "__isolated_future_ops_v1__",
+    isolatedArrayKey: "future_ops",
+    fields: [
+      { name: "id", type: "String", rawType: "String", isList: false, isOptional: false, isId: true, isUnique: true, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "pageKey", type: "String", rawType: "__isolated_future_ops_v1__", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: true, defaultValue: null, relationTo: "PageSection", relationFields: ["pageKey"] },
+      { name: "paymentTransactions", type: "Json", rawType: "PaymentTxRecord[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "shipmentDispatches", type: "Json", rawType: "ShipmentDispatchRecord[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "notificationQueue", type: "Json", rawType: "NotificationQueueRecord[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "customerDirectory", type: "Json", rawType: "CustomerDirectoryRecord[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "supportTickets", type: "Json", rawType: "SupportTicketRecord[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+    ],
+    indexes: ["pageKey = __isolated_future_ops_v1__"],
+    uniques: ["fops_isolated_registry_v1"],
+  },
 ];
 
 const VIRTUAL_EDGES: EdgeMeta[] = [
@@ -272,6 +357,69 @@ const VIRTUAL_EDGES: EdgeMeta[] = [
     to: "IsolatedProducts",
     field: "productIds[]",
     fkFields: ["productIds"],
+  },
+  {
+    id: "IsolatedCartCheckout->PageSection:isolated_ckorg",
+    from: "IsolatedCartCheckout",
+    to: "PageSection",
+    field: "pageKey=ckorg",
+    fkFields: ["pageKey"],
+  },
+  {
+    id: "IsolatedCartCheckout->Order:checkout",
+    from: "IsolatedCartCheckout",
+    to: "Order",
+    field: "submits",
+    fkFields: ["shippingZoneId", "paymentMethod"],
+  },
+  {
+    id: "IsolatedAnalytics->PageSection:isolated_anorg",
+    from: "IsolatedAnalytics",
+    to: "PageSection",
+    field: "pageKey=anorg",
+    fkFields: ["pageKey"],
+  },
+  {
+    id: "IsolatedAnalytics->Order:revenue",
+    from: "IsolatedAnalytics",
+    to: "Order",
+    field: "orderId",
+    fkFields: ["orderId"],
+  },
+  {
+    id: "IsolatedAnalytics->ShippingZone:zone",
+    from: "IsolatedAnalytics",
+    to: "ShippingZone",
+    field: "shippingZoneId",
+    fkFields: ["shippingZoneId"],
+  },
+  {
+    id: "IsolatedAnalytics->IsolatedProducts:views",
+    from: "IsolatedAnalytics",
+    to: "IsolatedProducts",
+    field: "entityId",
+    fkFields: ["entityId"],
+  },
+  {
+    id: "IsolatedAnalytics->IsolatedUniverses:views",
+    from: "IsolatedAnalytics",
+    to: "IsolatedUniverses",
+    field: "entitySlug",
+    fkFields: ["entitySlug"],
+  },
+  {
+    id: "IsolatedFutureOps->Order:ops",
+    from: "IsolatedFutureOps",
+    to: "Order",
+    field: "orderId",
+    fkFields: ["orderId"],
+  },
+  {
+    id: "IsolatedFutureOps->PageSection:isolated_fops",
+    from: "IsolatedFutureOps",
+    to: "PageSection",
+    field: "pageKey=fops",
+    fkFields: ["pageKey"],
   },
 ];
 
@@ -456,7 +604,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
         config: Record<string, unknown>;
       }>(
         "page_sections",
-        "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__)"
+        "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__,__isolated_cart_checkout_v1__,__isolated_analytics_v1__,__isolated_future_ops_v1__)"
       ).catch(() => []);
 
       const countsMap: Record<string, number> = Object.fromEntries(results);
@@ -468,6 +616,27 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
           countsMap[v.name] =
             (Array.isArray(tb) ? tb.length : 0) +
             (Array.isArray(bt) ? bt.length : 0);
+        } else if (v.isolatedArrayKey === "checkout") {
+          const pms = found?.config?.paymentMethods;
+          const prs = found?.config?.promoCodes;
+          countsMap[v.name] =
+            (Array.isArray(pms) ? pms.length : 0) +
+            (Array.isArray(prs) ? prs.length : 0);
+        } else if (v.isolatedArrayKey === "analytics") {
+          const evs = found?.config?.events;
+          countsMap[v.name] = Array.isArray(evs) ? evs.length : 0;
+        } else if (v.isolatedArrayKey === "future_ops") {
+          const keys = [
+            "paymentTransactions",
+            "shipmentDispatches",
+            "notificationQueue",
+            "customerDirectory",
+            "supportTickets",
+          ];
+          countsMap[v.name] = keys.reduce((acc, k) => {
+            const arr = found?.config?.[k];
+            return acc + (Array.isArray(arr) ? arr.length : 0);
+          }, 0);
         } else {
           const arr = found?.config?.[v.isolatedArrayKey];
           countsMap[v.name] = Array.isArray(arr) ? arr.length : 0;
@@ -498,6 +667,44 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
             items = [
               ...(Array.isArray(tb) ? (tb as Record<string, unknown>[]) : []),
               ...(Array.isArray(bt) ? (bt as Record<string, unknown>[]) : []),
+            ];
+          } else if (virtualMeta.isolatedArrayKey === "checkout") {
+            const pms = rows[0]?.config?.paymentMethods;
+            const prs = rows[0]?.config?.promoCodes;
+            items = [
+              ...(Array.isArray(pms)
+                ? (pms as Record<string, unknown>[]).map((x) => ({
+                    _kind: "PAYMENT_METHOD",
+                    ...x,
+                  }))
+                : []),
+              ...(Array.isArray(prs)
+                ? (prs as Record<string, unknown>[]).map((x) => ({
+                    _kind: "PROMO_CODE",
+                    ...x,
+                  }))
+                : []),
+            ];
+          } else if (virtualMeta.isolatedArrayKey === "analytics") {
+            const evs = rows[0]?.config?.events;
+            items = Array.isArray(evs)
+              ? (evs as Record<string, unknown>[])
+              : [];
+          } else if (virtualMeta.isolatedArrayKey === "future_ops") {
+            const c = rows[0]?.config ?? {};
+            const tag = (kind: string, arr: unknown) =>
+              Array.isArray(arr)
+                ? (arr as Record<string, unknown>[]).map((x) => ({
+                    _kind: kind,
+                    ...x,
+                  }))
+                : [];
+            items = [
+              ...tag("PAYMENT_TX", c.paymentTransactions),
+              ...tag("SHIPMENT", c.shipmentDispatches),
+              ...tag("NOTIFICATION", c.notificationQueue),
+              ...tag("CUSTOMER", c.customerDirectory),
+              ...tag("SUPPORT_TICKET", c.supportTickets),
             ];
           } else {
             const list = rows[0]?.config?.[virtualMeta.isolatedArrayKey];
@@ -611,6 +818,13 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070510]/85 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            <Link
+              href="/admin/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/80 hover:bg-white/15"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "لوحة الإدارة" : "Admin"}</span>
+            </Link>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/35 bg-cyan-500/10 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
               <Database className="h-5 w-5 text-cyan-300" />
             </div>

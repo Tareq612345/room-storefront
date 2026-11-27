@@ -5,6 +5,7 @@
 
 "use client";
 
+import { trackStorefrontEvent } from "@modules/analytics";
 import { useRoomBagStore } from "@modules/cart-checkout";
 import { formatEgp } from "@shared/types/common";
 import { getAssetPath } from "@shared/utils/asset-path";
@@ -59,6 +60,15 @@ export function ProductDetailClient({ slug }: ProductDetailClientProps) {
         if (!active) return;
         setProduct(found);
         setReady(true);
+        if (found) {
+          void trackStorefrontEvent({
+            eventType: "VIEW_PRODUCT",
+            path: `/product/?slug=${encodeURIComponent(slug)}`,
+            entityType: "PRODUCT",
+            entityId: found.id,
+            entitySlug: found.slug,
+          });
+        }
       } catch {
         if (!active) return;
         setReady(true);
@@ -88,18 +98,24 @@ export function ProductDetailClient({ slug }: ProductDetailClientProps) {
       ? product.compareAtPrice - product.basePrice
       : 0;
 
-  const handleAdd = () => {
+  const handleAdd = (openAsCheckout = false) => {
     if (!product || isOutOfStock) return;
     for (let i = 0; i < quantity; i += 1) {
-      addItem({
-        id: product.id,
-        itemType: "PRODUCT",
-        title: product.name,
-        subtitle: product.subtitle,
-        unitPrice: product.basePrice,
-        accentColor: product.accentColor,
-        imageUrl: product.cardImageUrl,
-      });
+      addItem(
+        {
+          id: product.id,
+          entityId: product.id,
+          slug: product.slug,
+          itemType: "PRODUCT",
+          title: product.name,
+          subtitle: product.subtitle,
+          unitPrice: product.basePrice,
+          maxStock: product.stock,
+          accentColor: product.accentColor,
+          imageUrl: product.cardImageUrl,
+        },
+        openAsCheckout
+      );
     }
   };
 
@@ -322,7 +338,7 @@ export function ProductDetailClient({ slug }: ProductDetailClientProps) {
               <button
                 type="button"
                 disabled={isOutOfStock}
-                onClick={handleAdd}
+                onClick={() => handleAdd(false)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-full px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
                 style={{
                   backgroundColor: isOutOfStock
@@ -342,7 +358,7 @@ export function ProductDetailClient({ slug }: ProductDetailClientProps) {
                 <button
                   type="button"
                   disabled={isOutOfStock}
-                  onClick={handleAdd}
+                  onClick={() => handleAdd(true)}
                   className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/25 bg-white px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Zap className="h-4 w-4" />

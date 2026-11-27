@@ -1,11 +1,20 @@
 /**
  * @file src/modules/admin/components/AdminPortalClient.tsx
- * @purpose Luxury Dark Command Center for ROOM: Complete site control (Store & Live Theme Preview, Event Presets, Universes, Catalog + Add/Delete, Loadouts, Orders + WhatsApp, Home Builder, Cairo Shipping, 48h Invites, Profile, and quick link to /admin/universes/).
+ * @purpose Restructured ROOM Command Center (/admin/): practical operational hub with live search, advanced Orders+OrderItems CRM, full Shipping Zones CRUD, Analytics Prep & Live Funnel readout, Store Identity & Theme Presets synced to __isolated_universe_organizer_v1__, RBAC Team/Invites, and direct Studio links.
  */
 
 "use client";
 
-import { sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
+import {
+  buildInitialAnalyticsRegistry,
+  buildInitialFutureOpsRegistry,
+  fetchAnalyticsRegistry,
+  fetchFutureOpsRegistry,
+  saveAnalyticsRegistry,
+  type AnalyticsRegistry,
+  type FutureOpsRegistry,
+} from "@modules/analytics";
+import { sbDelete, sbInsert, sbPatch, sbSelect } from "@shared/db/supabase-rest";
 import { formatEgp } from "@shared/types/common";
 import {
   generateClientId,
@@ -13,13 +22,15 @@ import {
   verifyPasswordWeb,
 } from "@shared/utils/client-auth";
 import {
+  Activity,
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
+  BarChart3,
   BookmarkPlus,
-  Boxes,
+  ChevronDown,
+  ChevronUp,
   Check,
   Copy,
+  CreditCard,
   Database,
   ExternalLink,
   Info,
@@ -33,6 +44,7 @@ import {
   Package,
   Palette,
   Plus,
+  RefreshCw,
   RotateCcw,
   Save,
   Search,
@@ -42,21 +54,22 @@ import {
   Sparkles,
   Trash2,
   Truck,
+  Type,
   UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Lang = "ar" | "en";
 
 type AdminTab =
   | "overview"
-  | "store"
   | "orders"
-  | "sections"
   | "shipping"
+  | "analytics"
+  | "store"
   | "team"
   | "profile";
 
@@ -66,6 +79,7 @@ interface LocalAdminAccount {
   username: string;
   name: string;
   role: "OWNER" | "ADMIN" | "STAFF";
+  isActive: boolean;
   passwordHash: string;
 }
 
@@ -89,53 +103,68 @@ interface ThemePreset {
   universeColors: Record<string, string>;
 }
 
+interface AdminOrderItemRow {
+  id: string;
+  orderId: string;
+  itemType: string;
+  titleSnapshot: string;
+  variantSnapshot: string | null;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+}
+
 interface AdminOrderRow {
   id: string;
   orderNumber: string;
+  shippingZoneId: string;
   customerName: string;
   customerPhone: string;
+  customerWhatsapp: string | null;
+  customerEmail: string | null;
+  shippingAddress: string;
+  city: string;
+  notes: string | null;
   status: string;
   paymentMethod: string;
+  paymentStatus: string;
+  paymentReference: string | null;
+  subtotal: number;
+  shippingFee: number;
+  discountAmount: number;
   total: number;
   createdAt: string;
 }
 
-const ROOM_DEFAULT_PRESET: ThemePreset = {
-  id: "preset_room_default",
-  name: "ROOM Default (Original)",
-  isDefault: true,
-  bgPrimary: "#05030a",
-  bgSecondary: "#0b0617",
-  bgElevated: "#140b29",
-  defaultAccent: "#ffffff",
-  universeColors: {
-    cars: "#d92323",
-    gaming: "#6366f1",
-    anime: "#c94b99",
-  },
-};
-
-const INITIAL_OWNERS: LocalAdminAccount[] = [
-  { id: "owner_tareq", email: "tareq612345@gmail.com", username: "tareq", name: "Tareq (Owner)", role: "OWNER", passwordHash: "" },
-  { id: "owner_adegddn", email: "adegddn@gmail.com", username: "adegddn", name: "Partner (Owner)", role: "OWNER", passwordHash: "" },
-];
-
-const INITIAL_ZONES = [
-  { id: "z1", name: "New Cairo (5th Settlement / Rehab)", fee: 65, freeThreshold: 2500, days: "1-2 Days", active: true },
-  { id: "z2", name: "Nasr City & Heliopolis", fee: 60, freeThreshold: 2500, days: "1-2 Days", active: true },
-  { id: "z3", name: "Maadi & Zamalek", fee: 65, freeThreshold: 2500, days: "1-2 Days", active: true },
-  { id: "z4", name: "6th of October & Sheikh Zayed", fee: 85, freeThreshold: 3000, days: "2-3 Days", active: true },
-];
-
-const INITIAL_SECTIONS = [
-  { id: "s1", type: "UNIVERSE_QUICK_BAR", title: "3-Card Universe Showcase", visible: true },
-  { id: "s2", type: "NEW_ARRIVALS", title: "Fresh Drops", visible: true },
-  { id: "s3", type: "FEATURED_BUNDLES", title: "Signature Loadouts", visible: true },
-  { id: "s4", type: "FLASH_DEALS", title: "Midnight Flash Deals", visible: false },
-  { id: "s5", type: "CUSTOMER_SETUPS", title: "Cairo Room Setups", visible: false },
-];
+interface ShippingZoneRow {
+  id: string;
+  name: string;
+  city: string;
+  fee: number;
+  freeThreshold: number;
+  days: string;
+  active: boolean;
+}
 
 const SESSION_KEY = "room_admin_session_v1";
+
+const ORDER_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "PACKING",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+  "CANCELLED",
+  "RETURNED",
+] as const;
+
+const PAYMENT_STATUSES = [
+  "PENDING",
+  "PAID",
+  "COD_COLLECTED",
+  "FAILED",
+  "REFUNDED",
+] as const;
 
 const I18N = {
   en: {
@@ -143,204 +172,62 @@ const I18N = {
     supabaseLive: "Supabase Live",
     loginSub: "Sign in with Username or Email",
     identifierLabel: "Username or Email",
-    identifierPlaceholder: "tareq or tareq612345@gmail.com",
+    identifierPlaceholder: "username or email@domain.com",
     passwordLabel: "Password",
     loginBtn: "Enter Command Center",
-    loginErr: "Invalid username/email or password",
-    seededTitle: "Seeded Owners:",
-    initialPassNote: "Initial password:",
-    changeInProfile: "(change in Profile)",
-    searchPlaceholder: "Quick search...",
+    loginErr: "Invalid credentials or deactivated account",
+    searchPlaceholder: "Search orders, products, zones...",
     tabs: {
-      overview: "Command Overview",
-      store: "Themes & Brand",
-      universes: "Universes",
-      catalog: "Products & Stock",
-      loadouts: "Loadouts (Bundles)",
-      orders: "Orders & WhatsApp",
-      sections: "Home Builder",
-      shipping: "Cairo Shipping",
-      team: "Owners & Invites",
+      overview: "Command Hub",
+      orders: "Orders & CRM",
+      shipping: "Shipping Zones",
+      analytics: "Analytics Prep",
+      store: "Store & Themes",
+      team: "Team & Invites",
       profile: "My Profile",
     },
-    viewStore: "Live Storefront",
-    viewSchema: "DB Schema",
+    viewStore: "Storefront",
+    viewSchema: "DB Map",
     signOut: "Sign Out",
-    welcome: "Command Center",
-    signedInAs: "Active session:",
-    quickActions: "Quick Actions",
-    vaultedAlerts: "Stock & Vaulted Alerts",
-    restockOneClick: "+10 Restock",
-    allHealthy: "All products are well-stocked.",
-    stats: {
-      universes: "Active Universes",
-      products: "Live Products",
-      orders: "Total Orders",
-      team: "Owners & Admins",
-    },
-    storeTitle: "Brand, Live Preview & Event Themes",
-    livePreview: "Live Theme Preview",
-    storeName: "Store Name",
-    whatsapp: "WhatsApp Order Number",
-    homeAccent: "Home Accent",
-    bgPrimary: "Canvas Top",
-    bgSecondary: "Canvas Mid",
-    bgElevated: "Canvas Bottom",
-    presetsTitle: "Event Theme Presets & Default Restore",
-    presetPlaceholder: "Event name (e.g. Ramadan Nights, Black Friday)",
-    savePresetBtn: "Save as Preset",
-    applyTheme: "Apply",
-    restoreDefault: "Restore ROOM Default",
-    universesTitle: "Universes Studio",
-    active: "Active",
-    hidden: "Hidden",
-    visible: "Visible",
-    catalogTitle: "Catalog & Inventory",
-    addProductTitle: "Add New Product",
-    prodName: "Product Name",
-    prodSub: "1-Line Subtitle",
-    prodPrice: "Price (EGP)",
-    prodOldPrice: "Old Price",
-    prodStock: "Stock",
-    prodMockup: "Mockup Visual",
-    addProdBtn: "Create Product",
-    loadoutsTitle: "Signature Loadouts (Bundles)",
-    egp: "EGP",
-    stock: "Stock",
-    vaulted: "Vaulted",
-    inStock: "In Stock",
-    ordersTitle: "Orders & WhatsApp Dispatch",
-    noOrders: "No orders placed yet. Orders from checkout will appear here live.",
-    whatsappBtn: "WhatsApp Update",
-    sectionsTitle: "Homepage Section Builder",
-    shippingTitle: "Cairo & New Cairo Shipping Zones",
-    addZoneTitle: "Add New Cairo Zone",
-    zoneNamePlaceholder: "e.g. Sheikh Zayed / Zamalek",
-    addZoneBtn: "Add Zone",
-    fee: "Fee (EGP)",
-    freeAbove: "Free Above",
-    teamTitle: "Owners & Admin Team",
-    teamSub: "Invite a new admin by email to generate a 48-hour single-use onboarding link.",
-    adminEmail: "Admin Email",
-    role: "Role",
-    genInvite: "Generate 48h Invite",
-    inviteLinksTitle: "Single-Use Invite Links (48 Hours)",
-    expires: "Expires",
-    used: "Used",
-    expired: "Expired",
-    copyLink: "Copy Link",
-    copied: "Copied",
-    activeAccounts: "Active Accounts",
-    profileTitle: "My Profile & Username",
-    profileSub: "Set a custom username so you can sign in with Username + Password without needing your email.",
-    displayName: "Display Name",
-    usernameLabel: "Username (Login without Email)",
-    emailLabel: "Email",
-    newPasswordLabel: "New Password (optional)",
     saveBtn: "Save Changes",
     savedBtn: "Saved!",
+    studiosHubTitle: "Isolated Feature Studios (Strict Boundaries)",
+    lowStockTitle: "Low Stock Alerts (<= 5)",
+    allHealthy: "All active products have healthy stock (> 5).",
+    noOrders: "No orders placed yet. Test Checkout from My Room bag to see live orders here.",
+    whatsappBtn: "WhatsApp",
+    teamSub: "Invite admins with a 48h single-use link, or manage existing access roles.",
   },
   ar: {
     brand: "مركز تحكم ROOM",
     supabaseLive: "متصل بـ Supabase",
     loginSub: "سجّل الدخول باسم المستخدم أو البريد الإلكتروني",
     identifierLabel: "اسم المستخدم أو البريد الإلكتروني",
-    identifierPlaceholder: "tareq أو tareq612345@gmail.com",
+    identifierPlaceholder: "اسم المستخدم أو البريد الإلكتروني",
     passwordLabel: "كلمة المرور",
     loginBtn: "دخول مركز التحكم",
-    loginErr: "اسم المستخدم/البريد أو كلمة المرور غير صحيحة",
-    seededTitle: "حسابات المالكين المسجلة:",
-    initialPassNote: "كلمة المرور الأولية:",
-    changeInProfile: "(يمكن تغييرها من الملف الشخصي)",
-    searchPlaceholder: "بحث سريع...",
+    loginErr: "بيانات الدخول غير صحيحة أو الحساب معطّل",
+    searchPlaceholder: "بحث في الطلبات والمنتجات والمناطق...",
     tabs: {
-      overview: "نظرة عامة",
-      store: "الثيمات والهوية",
-      universes: "الأقسام (Universes)",
-      catalog: "المنتجات والمخزون",
-      loadouts: "الباقات (Loadouts)",
-      orders: "الطلبات والواتساب",
-      sections: "بناء الرئيسية",
-      shipping: "شحن القاهرة",
-      team: "المالكون والدعوات",
+      overview: "مركز القيادة",
+      orders: "الطلبات والعملاء",
+      shipping: "مناطق الشحن",
+      analytics: "الإحصائيات والبيانات",
+      store: "هوية المتجر والثيمات",
+      team: "الفريق والصلاحيات",
       profile: "ملفي الشخصي",
     },
-    viewStore: "عرض المتجر",
+    viewStore: "المتجر",
     viewSchema: "خريطة الداتا بيز",
     signOut: "خروج",
-    welcome: "مركز التحكم",
-    signedInAs: "الجلسة الحالية:",
-    quickActions: "إجراءات سريعة",
-    vaultedAlerts: "تنبيهات المخزون والمنتجات النافدة",
-    restockOneClick: "+10 للمخزون",
-    allHealthy: "كل المنتجات متوفرة بمخزون جيد.",
-    stats: {
-      universes: "الأقسام النشطة",
-      products: "المنتجات المتاحة",
-      orders: "إجمالي الطلبات",
-      team: "المالكون والأدمن",
-    },
-    storeTitle: "الهوية البصرية والمعاينة وثيمات الإيفنتات",
-    livePreview: "معاينة حية للثيم",
-    storeName: "اسم المتجر",
-    whatsapp: "رقم واتساب الطلبات",
-    homeAccent: "لون الرئيسية",
-    bgPrimary: "خلفية علوي",
-    bgSecondary: "خلفية أوسط",
-    bgElevated: "خلفية سفلي",
-    presetsTitle: "ثيمات الإيفنتات المحفوظة والثيم الأساسي",
-    presetPlaceholder: "اسم الإيفنت (مثال: رمضان، بلاك فرايداي)",
-    savePresetBtn: "حفظ كثيم إيفنت",
-    applyTheme: "تطبيق",
-    restoreDefault: "استرجاع ثيم ROOM الأساسي",
-    universesTitle: "استوديو الأقسام (Universes)",
-    active: "مفعل",
-    hidden: "مخفي",
-    visible: "ظاهر",
-    catalogTitle: "إدارة المنتجات والمخزون",
-    addProductTitle: "إضافة منتج جديد",
-    prodName: "اسم المنتج",
-    prodSub: "وصف سطر واحد",
-    prodPrice: "السعر (ج.م)",
-    prodOldPrice: "السعر قبل الخصم",
-    prodStock: "المخزون",
-    prodMockup: "صورة الموكاب",
-    addProdBtn: "إضافة المنتج",
-    loadoutsTitle: "إدارة الباقات (Loadouts)",
-    egp: "ج.م",
-    stock: "المخزون",
-    vaulted: "نفد (Vaulted)",
-    inStock: "متاح",
-    ordersTitle: "الطلبات والتواصل عبر واتساب",
-    noOrders: "لا توجد طلبات مسجلة بعد. أي طلب جديد سيظهر هنا مباشرة.",
-    whatsappBtn: "تحديث واتساب",
-    sectionsTitle: "ترتيب وإظهار أقسام الرئيسية",
-    shippingTitle: "مناطق الشحن (القاهرة والقاهرة الجديدة)",
-    addZoneTitle: "إضافة منطقة شحن جديدة",
-    zoneNamePlaceholder: "مثال: مدينتي أو التجمع الأول",
-    addZoneBtn: "إضافة منطقة",
-    fee: "تكلفة الشحن",
-    freeAbove: "مجاني فوق",
-    teamTitle: "المالكون وفريق الإدارة",
-    teamSub: "أضف إيميل أدمن جديد لتوليد رابط دعوة صالح ليومين (48 ساعة) للاستخدام مرة واحدة فقط.",
-    adminEmail: "البريد الإلكتروني للأدمن",
-    role: "الصلاحية",
-    genInvite: "توليد رابط (48 ساعة)",
-    inviteLinksTitle: "روابط الدعوة (48 ساعة • استخدام مرة واحدة)",
-    expires: "ينتهي في",
-    used: "مُستخدم",
-    expired: "منتهي",
-    copyLink: "نسخ الرابط",
-    copied: "تم النسخ",
-    activeAccounts: "الحسابات النشطة",
-    profileTitle: "الملف الشخصي واسم المستخدم",
-    profileSub: "حدد اسم مستخدم (Username) لتتمكن من تسجيل الدخول به مع كلمة المرور بدون كتابة الإيميل.",
-    displayName: "الاسم الظاهر",
-    usernameLabel: "اسم المستخدم (للدخول بدون إيميل)",
-    emailLabel: "البريد الإلكتروني",
-    newPasswordLabel: "كلمة مرور جديدة (اختياري)",
     saveBtn: "حفظ التغييرات",
     savedBtn: "تم الحفظ!",
+    studiosHubTitle: "الاستوديوهات المعزولة (كل نظام يُدار من مكانه المستقل فقط)",
+    lowStockTitle: "تنبيهات نقص المخزون (5 أو أقل)",
+    allHealthy: "كل المنتجات النشطة بمخزون آمن.",
+    noOrders: "لا توجد طلبات مسجلة بعد. جرّب إتمام طلب من سلة المتجر ليظهر هنا فوراً بكل تفاصيله.",
+    whatsappBtn: "تحديث واتساب",
+    teamSub: "أنشئ روابط دعوة لمدة 48 ساعة أو تحكم في صلاحيات وتفعيل أعضاء الفريق.",
   },
 } as const;
 
@@ -349,9 +236,10 @@ export function AdminPortalClient() {
   const t = I18N[lang];
 
   const [storeId, setStoreId] = useState<string>("store_room_egypt");
-  const [accounts, setAccounts] = useState<LocalAdminAccount[]>(INITIAL_OWNERS);
+  const [accounts, setAccounts] = useState<LocalAdminAccount[]>([]);
   const [invites, setInvites] = useState<LocalInvite[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -360,32 +248,52 @@ export function AdminPortalClient() {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [savedSection, setSavedSection] = useState<AdminTab | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openHintId, setOpenHintId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Store & Theme state
-  const [storeName, setStoreName] = useState("ROOM");
-  const [whatsapp, setWhatsapp] = useState("+201000000000");
+  // Store & Theme state (DB-driven footer + identity + colors)
+  const [storeName, setStoreName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [footerTagline, setFooterTagline] = useState("");
   const [defaultAccent, setDefaultAccent] = useState("#ffffff");
   const [bgPrimary, setBgPrimary] = useState("#05030a");
   const [bgSecondary, setBgSecondary] = useState("#0b0617");
   const [bgElevated, setBgElevated] = useState("#140b29");
-  const [presets, setPresets] = useState<ThemePreset[]>([ROOM_DEFAULT_PRESET]);
+  const [presets, setPresets] = useState<ThemePreset[]>([]);
   const [newPresetName, setNewPresetName] = useState("");
 
-  // Domain Data (synced from live Isolated Organizers & Core Tables)
+  // Live Isolated Vault summaries + Operational tables
   const [universes, setUniverses] = useState<
     Array<{ id: string; slug: string; name: string; accentColor: string; isActive: boolean }>
   >([]);
   const [products, setProducts] = useState<
-    Array<{ id: string; name: string; stock: number }>
+    Array<{ id: string; slug: string; name: string; stock: number; isActive: boolean }>
   >([]);
+  const [packagesCount, setPackagesCount] = useState(0);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
-  const [zones, setZones] = useState(INITIAL_ZONES);
-  const [sections, setSections] = useState(INITIAL_SECTIONS);
+  const [orderItemsByOrder, setOrderItemsByOrder] = useState<
+    Record<string, AdminOrderItemRow[]>
+  >({});
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("ALL");
 
-  // Add Shipping Zone form
+  // Shipping CRUD state
+  const [zones, setZones] = useState<ShippingZoneRow[]>([]);
+  const [confirmDeleteZoneId, setConfirmDeleteZoneId] = useState<string | null>(null);
   const [newZoneName, setNewZoneName] = useState("");
-  const [newZoneFee, setNewZoneFee] = useState(70);
+  const [newZoneCity, setNewZoneCity] = useState("Cairo");
+  const [newZoneFee, setNewZoneFee] = useState(65);
+  const [newZoneThreshold, setNewZoneThreshold] = useState(2500);
+  const [newZoneDays, setNewZoneDays] = useState("1-2 Days");
+
+  // Analytics Prep & Future Ops telemetry state
+  const [analyticsRegistry, setAnalyticsRegistry] = useState<AnalyticsRegistry>(() =>
+    buildInitialAnalyticsRegistry()
+  );
+  const [futureOps, setFutureOps] = useState<FutureOpsRegistry>(() =>
+    buildInitialFutureOpsRegistry()
+  );
 
   // Invite & Profile
   const [inviteEmail, setInviteEmail] = useState("");
@@ -396,6 +304,222 @@ export function AdminPortalClient() {
   const [profileUsername, setProfileUsername] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
   const [profileNewPassword, setProfileNewPassword] = useState("");
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  const loadPortalData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [
+        sbStores,
+        sbIsolated,
+        sbZones,
+        sbUsers,
+        sbInvites,
+        sbOrders,
+        sbOrderItems,
+        anSnap,
+        fopsSnap,
+      ] = await Promise.all([
+        sbSelect<{
+          id: string;
+          name: string;
+          whatsappNumber: string | null;
+          supportEmail: string | null;
+          defaultAccentColor: string;
+          themeTokens: {
+            bgPrimary?: string;
+            bgSecondary?: string;
+            bgElevated?: string;
+            footerTagline?: string;
+            presets?: ThemePreset[];
+          };
+        }>(
+          "store_configs",
+          "select=id,name,whatsappNumber,supportEmail,defaultAccentColor,themeTokens&slug=eq.room-egypt"
+        ),
+        sbSelect<{
+          pageKey: string;
+          config: Record<string, unknown>;
+        }>(
+          "page_sections",
+          "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__)"
+        ),
+        sbSelect<{
+          id: string;
+          name: string;
+          city: string;
+          fee: number | string;
+          freeShippingThreshold: number | string | null;
+          estimatedDays: string;
+          isActive: boolean;
+        }>(
+          "shipping_zones",
+          "select=id,name,city,fee,freeShippingThreshold,estimatedDays,isActive&order=sortOrder.asc"
+        ),
+        sbSelect<{
+          id: string;
+          email: string | null;
+          username: string | null;
+          name: string;
+          role: "OWNER" | "ADMIN" | "STAFF";
+          isActive: boolean;
+          passwordHash: string | null;
+        }>(
+          "users",
+          "select=id,email,username,name,role,isActive,passwordHash&role=in.(OWNER,ADMIN,STAFF)&order=createdAt.asc"
+        ),
+        sbSelect<LocalInvite>(
+          "admin_invites",
+          "select=id,email,role,token,expiresAt,usedAt&order=createdAt.desc"
+        ),
+        sbSelect<AdminOrderRow>(
+          "orders",
+          "select=id,orderNumber,shippingZoneId,customerName,customerPhone,customerWhatsapp,customerEmail,shippingAddress,city,notes,status,paymentMethod,paymentStatus,paymentReference,subtotal,shippingFee,discountAmount,total,createdAt&order=createdAt.desc&limit=100"
+        ),
+        sbSelect<AdminOrderItemRow>(
+          "order_items",
+          "select=id,orderId,itemType,titleSnapshot,variantSnapshot,unitPrice,quantity,lineTotal&limit=300"
+        ),
+        fetchAnalyticsRegistry(),
+        fetchFutureOpsRegistry(),
+      ]);
+
+      let parsedUnivs: Array<{
+        id: string;
+        slug: string;
+        name: string;
+        accentColor: string;
+        isActive: boolean;
+      }> = [];
+
+      const uRow = sbIsolated.find(
+        (r) => r.pageKey === "__isolated_universe_organizer_v1__"
+      );
+      if (Array.isArray(uRow?.config?.universes)) {
+        parsedUnivs = uRow.config.universes.map((u: Record<string, unknown>) => ({
+          id: String(u.id ?? ""),
+          slug: String(u.slug ?? ""),
+          name: String(u.name ?? ""),
+          accentColor: String(u.accentColor ?? "#c94b99"),
+          isActive: u.isActive !== false,
+        }));
+        setUniverses(parsedUnivs);
+      }
+
+      const pRow = sbIsolated.find(
+        (r) => r.pageKey === "__isolated_product_organizer_v1__"
+      );
+      if (Array.isArray(pRow?.config?.products)) {
+        setProducts(
+          pRow.config.products.map((p: Record<string, unknown>) => ({
+            id: String(p.id ?? ""),
+            slug: String(p.slug ?? ""),
+            name: String(p.name ?? ""),
+            stock: typeof p.stock === "number" ? p.stock : 0,
+            isActive: p.isActive !== false,
+          }))
+        );
+      }
+
+      const kRow = sbIsolated.find(
+        (r) => r.pageKey === "__isolated_package_organizer_v1__"
+      );
+      if (Array.isArray(kRow?.config?.packages)) {
+        setPackagesCount(kRow.config.packages.length);
+      }
+
+      if (sbStores[0]) {
+        const st = sbStores[0];
+        setStoreId(st.id);
+        setStoreName(st.name);
+        setWhatsapp(st.whatsappNumber ?? "");
+        setSupportEmail(st.supportEmail ?? "");
+        setFooterTagline(st.themeTokens?.footerTagline ?? "");
+        setDefaultAccent(st.defaultAccentColor);
+        if (st.themeTokens?.bgPrimary) setBgPrimary(st.themeTokens.bgPrimary);
+        if (st.themeTokens?.bgSecondary) setBgSecondary(st.themeTokens.bgSecondary);
+        if (st.themeTokens?.bgElevated) setBgElevated(st.themeTokens.bgElevated);
+
+        const dynamicBaselineColors: Record<string, string> = {};
+        for (const u of parsedUnivs) {
+          dynamicBaselineColors[u.slug] = u.accentColor;
+        }
+        const defaultBaseline: ThemePreset = {
+          id: "preset_store_baseline",
+          name: `${st.name} Baseline`,
+          isDefault: true,
+          bgPrimary: "#05030a",
+          bgSecondary: "#0b0617",
+          bgElevated: "#140b29",
+          defaultAccent: "#ffffff",
+          universeColors: dynamicBaselineColors,
+        };
+        const savedPresets = st.themeTokens?.presets ?? [];
+        setPresets([
+          defaultBaseline,
+          ...savedPresets.filter((p) => p.id !== defaultBaseline.id),
+        ]);
+      }
+
+      setZones(
+        sbZones.map((z) => ({
+          id: z.id,
+          name: z.name,
+          city: z.city || "Cairo",
+          fee: Number(z.fee),
+          freeThreshold: z.freeShippingThreshold
+            ? Number(z.freeShippingThreshold)
+            : 2500,
+          days: z.estimatedDays || "1-2 Days",
+          active: z.isActive,
+        }))
+      );
+
+      setAccounts(
+        sbUsers.map((u) => ({
+          id: u.id,
+          email: u.email ?? "",
+          username: u.username ?? "",
+          name: u.name,
+          role: u.role,
+          isActive: u.isActive !== false,
+          passwordHash: u.passwordHash ?? "",
+        }))
+      );
+
+      setInvites(sbInvites);
+
+      setOrders(
+        sbOrders.map((o) => ({
+          ...o,
+          subtotal: Number(o.subtotal),
+          shippingFee: Number(o.shippingFee),
+          discountAmount: Number(o.discountAmount),
+          total: Number(o.total),
+        }))
+      );
+
+      const groupedItems: Record<string, AdminOrderItemRow[]> = {};
+      for (const item of sbOrderItems) {
+        const normalized: AdminOrderItemRow = {
+          ...item,
+          unitPrice: Number(item.unitPrice),
+          lineTotal: Number(item.lineTotal),
+        };
+        if (!groupedItems[item.orderId]) groupedItems[item.orderId] = [];
+        groupedItems[item.orderId]!.push(normalized);
+      }
+      setOrderItemsByOrder(groupedItems);
+
+      setAnalyticsRegistry(anSnap.registry);
+      setFutureOps(fopsSnap.registry);
+    } catch {
+      // Preserve loaded state on transient network failure
+    } finally {
+      setRefreshing(false);
+      setLoadingAuth(false);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -404,177 +528,12 @@ export function AdminPortalClient() {
     } catch {
       // Ignore
     }
+    void loadPortalData();
+  }, [loadPortalData]);
 
-    (async () => {
-      try {
-        const [
-          sbStores,
-          sbIsolated,
-          sbZones,
-          sbUsers,
-          sbInvites,
-          sbSections,
-          sbOrders,
-        ] = await Promise.all([
-          sbSelect<{
-            id: string;
-            name: string;
-            whatsappNumber: string | null;
-            defaultAccentColor: string;
-            themeTokens: {
-              bgPrimary?: string;
-              bgSecondary?: string;
-              bgElevated?: string;
-              presets?: ThemePreset[];
-            };
-          }>(
-            "store_configs",
-            "select=id,name,whatsappNumber,defaultAccentColor,themeTokens&slug=eq.room-egypt"
-          ),
-          sbSelect<{
-            pageKey: string;
-            config: Record<string, unknown>;
-          }>(
-            "page_sections",
-            "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__)"
-          ),
-          sbSelect<{
-            id: string;
-            name: string;
-            fee: number | string;
-            freeShippingThreshold: number | string | null;
-            estimatedDays: string;
-            isActive: boolean;
-          }>(
-            "shipping_zones",
-            "select=id,name,fee,freeShippingThreshold,estimatedDays,isActive&order=sortOrder.asc"
-          ),
-          sbSelect<{
-            id: string;
-            email: string | null;
-            username: string | null;
-            name: string;
-            role: "OWNER" | "ADMIN" | "STAFF";
-            passwordHash: string | null;
-          }>(
-            "users",
-            "select=id,email,username,name,role,passwordHash&role=in.(OWNER,ADMIN,STAFF)&order=createdAt.asc"
-          ),
-          sbSelect<LocalInvite>(
-            "admin_invites",
-            "select=id,email,role,token,expiresAt,usedAt&order=createdAt.desc"
-          ),
-          sbSelect<{
-            id: string;
-            type: string;
-            title: string | null;
-            isVisible: boolean;
-            sortOrder: number;
-          }>(
-            "page_sections",
-            "select=id,type,title,isVisible,sortOrder&pageKey=eq.home&order=sortOrder.asc"
-          ),
-          sbSelect<AdminOrderRow>(
-            "orders",
-            "select=id,orderNumber,customerName,customerPhone,status,paymentMethod,total,createdAt&order=createdAt.desc&limit=30"
-          ),
-        ]);
-
-        if (sbStores[0]) {
-          const st = sbStores[0];
-          setStoreId(st.id);
-          setStoreName(st.name);
-          if (st.whatsappNumber) setWhatsapp(st.whatsappNumber);
-          setDefaultAccent(st.defaultAccentColor);
-          if (st.themeTokens?.bgPrimary) setBgPrimary(st.themeTokens.bgPrimary);
-          if (st.themeTokens?.bgSecondary) setBgSecondary(st.themeTokens.bgSecondary);
-          if (st.themeTokens?.bgElevated) setBgElevated(st.themeTokens.bgElevated);
-          const savedPresets = st.themeTokens?.presets ?? [];
-          setPresets([
-            ROOM_DEFAULT_PRESET,
-            ...savedPresets.filter((p) => p.id !== ROOM_DEFAULT_PRESET.id),
-          ]);
-        }
-
-        const uRow = sbIsolated.find(
-          (r) => r.pageKey === "__isolated_universe_organizer_v1__"
-        );
-        const rawUnivs = uRow?.config?.universes;
-        if (Array.isArray(rawUnivs)) {
-          setUniverses(
-            rawUnivs.map((u: Record<string, unknown>) => ({
-              id: String(u.id ?? ""),
-              slug: String(u.slug ?? ""),
-              name: String(u.name ?? ""),
-              accentColor: String(u.accentColor ?? "#c94b99"),
-              isActive: u.isActive !== false,
-            }))
-          );
-        }
-
-        const pRow = sbIsolated.find(
-          (r) => r.pageKey === "__isolated_product_organizer_v1__"
-        );
-        const rawProds = pRow?.config?.products;
-        if (Array.isArray(rawProds)) {
-          setProducts(
-            rawProds.map((p: Record<string, unknown>) => ({
-              id: String(p.id ?? ""),
-              name: String(p.name ?? ""),
-              stock: typeof p.stock === "number" ? p.stock : 0,
-            }))
-          );
-        }
-
-        if (sbZones.length > 0) {
-          setZones(
-            sbZones.map((z) => ({
-              id: z.id,
-              name: z.name,
-              fee: Number(z.fee),
-              freeThreshold: z.freeShippingThreshold ? Number(z.freeShippingThreshold) : 2500,
-              days: z.estimatedDays,
-              active: z.isActive,
-            }))
-          );
-        }
-
-        if (sbUsers.length > 0) {
-          setAccounts(
-            sbUsers.map((u) => ({
-              id: u.id,
-              email: u.email ?? "",
-              username: u.username ?? "",
-              name: u.name,
-              role: u.role,
-              passwordHash: u.passwordHash ?? "",
-            }))
-          );
-        }
-
-        if (sbInvites.length > 0) setInvites(sbInvites);
-
-        if (sbSections.length > 0) {
-          setSections(
-            sbSections.map((s) => ({
-              id: s.id,
-              type: s.type,
-              title: s.title ?? s.type,
-              visible: s.isVisible,
-            }))
-          );
-        }
-
-        if (sbOrders.length > 0) {
-          setOrders(sbOrders.map((o) => ({ ...o, total: Number(o.total) })));
-        }
-      } catch {
-        // Fallback to defaults
-      }
-    })();
-  }, []);
-
-  const currentUser = accounts.find((a) => a.id === currentUserId) ?? null;
+  const currentUser = accounts.find(
+    (a) => a.id === currentUserId && a.isActive
+  ) ?? null;
 
   useEffect(() => {
     if (currentUser) {
@@ -584,10 +543,107 @@ export function AdminPortalClient() {
     }
   }, [currentUser]);
 
+  const isOwner = currentUser?.role === "OWNER";
+  const isStaffOnly = currentUser?.role === "STAFF";
+
   const lowStockProducts = useMemo(
-    () => products.filter((p) => p.stock <= 5),
+    () => products.filter((p) => p.isActive && p.stock <= 5),
     [products]
   );
+
+  const totalRevenue = useMemo(
+    () =>
+      orders
+        .filter((o) => o.status !== "CANCELLED")
+        .reduce((sum, o) => sum + o.total, 0),
+    [orders]
+  );
+
+  const pendingOrdersCount = useMemo(
+    () => orders.filter((o) => o.status === "PENDING").length,
+    [orders]
+  );
+
+  const filteredOrders = useMemo(() => {
+    const q = orderSearch.trim().toLowerCase();
+    return orders.filter((ord) => {
+      if (orderStatusFilter !== "ALL" && ord.status !== orderStatusFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        ord.orderNumber.toLowerCase().includes(q) ||
+        ord.customerName.toLowerCase().includes(q) ||
+        ord.customerPhone.toLowerCase().includes(q) ||
+        ord.city.toLowerCase().includes(q)
+      );
+    });
+  }, [orders, orderSearch, orderStatusFilter]);
+
+  const quickSearchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    const results: Array<{
+      id: string;
+      kindLabel: string;
+      title: string;
+      sub: string;
+      onSelect: () => void;
+    }> = [];
+
+    for (const o of orders) {
+      if (
+        o.orderNumber.toLowerCase().includes(q) ||
+        o.customerName.toLowerCase().includes(q) ||
+        o.customerPhone.toLowerCase().includes(q)
+      ) {
+        results.push({
+          id: `ord-${o.id}`,
+          kindLabel: lang === "ar" ? "طلب" : "Order",
+          title: `#${o.orderNumber} — ${o.customerName}`,
+          sub: `${formatEgp(o.total)} • ${o.status}`,
+          onSelect: () => {
+            setActiveTab("orders");
+            setOrderSearch(o.orderNumber);
+            setExpandedOrderId(o.id);
+            setSearchQuery("");
+          },
+        });
+      }
+    }
+
+    for (const p of products) {
+      if (p.name.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q)) {
+        results.push({
+          id: `prd-${p.id}`,
+          kindLabel: lang === "ar" ? "منتج" : "Product",
+          title: p.name,
+          sub: `Stock: ${p.stock}`,
+          onSelect: () => {
+            setActiveTab("overview");
+            setSearchQuery("");
+          },
+        });
+      }
+    }
+
+    for (const z of zones) {
+      if (z.name.toLowerCase().includes(q) || z.city.toLowerCase().includes(q)) {
+        results.push({
+          id: `zn-${z.id}`,
+          kindLabel: lang === "ar" ? "شحن" : "Zone",
+          title: z.name,
+          sub: `${z.city} • ${formatEgp(z.fee)}`,
+          onSelect: () => {
+            setActiveTab("shipping");
+            setSearchQuery("");
+          },
+        });
+      }
+    }
+
+    return results.slice(0, 8);
+  }, [searchQuery, orders, products, zones, lang]);
 
   const markSaved = (tab: AdminTab) => {
     setSavedSection(tab);
@@ -599,13 +655,17 @@ export function AdminPortalClient() {
     s: string,
     e: string,
     acc: string,
-    univList: typeof universes
+    univList: typeof universes,
+    nameOverride?: string,
+    taglineOverride?: string
   ) => {
     const univMap: Record<string, string> = {};
     for (const u of univList) univMap[u.slug] = u.accentColor;
     localStorage.setItem(
       "room_theme_snapshot_v1",
       JSON.stringify({
+        storeName: nameOverride ?? storeName,
+        footerTagline: taglineOverride ?? footerTagline,
         bgPrimary: p,
         bgSecondary: s,
         bgElevated: e,
@@ -618,29 +678,36 @@ export function AdminPortalClient() {
   const handleSaveStore = async (nextPresets = presets) => {
     try {
       await sbPatch("store_configs", "slug=eq.room-egypt", {
-        name: storeName,
-        whatsappNumber: whatsapp,
+        name: storeName.trim() || "ROOM",
+        whatsappNumber: whatsapp.trim() || null,
+        supportEmail: supportEmail.trim() || null,
         defaultAccentColor: defaultAccent,
         themeTokens: {
           bgPrimary,
           bgSecondary,
           bgElevated,
           defaultAccent,
+          footerTagline: footerTagline.trim(),
           presets: nextPresets.filter((p) => !p.isDefault),
         },
         updatedAt: new Date().toISOString(),
       });
-      syncThemeSnapshotLocally(bgPrimary, bgSecondary, bgElevated, defaultAccent, universes);
+      syncThemeSnapshotLocally(
+        bgPrimary,
+        bgSecondary,
+        bgElevated,
+        defaultAccent,
+        universes
+      );
+      markSaved("store");
     } catch {
       // Ignore
     }
-    markSaved("store");
   };
 
   const handleSavePreset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPresetName.trim()) return;
-
     const univColors: Record<string, string> = {};
     for (const u of universes) univColors[u.slug] = u.accentColor;
 
@@ -670,25 +737,45 @@ export function AdminPortalClient() {
       ...u,
       accentColor: preset.universeColors[u.slug] ?? u.accentColor,
     }));
-
-    if (preset.isDefault) {
-      setStoreName("ROOM");
-    }
     setUniverses(nextUnivs);
 
     try {
+      const nowIso = new Date().toISOString();
       await sbPatch("store_configs", "slug=eq.room-egypt", {
-        ...(preset.isDefault ? { name: "ROOM" } : {}),
         defaultAccentColor: preset.defaultAccent,
         themeTokens: {
           bgPrimary: preset.bgPrimary,
           bgSecondary: preset.bgSecondary,
           bgElevated: preset.bgElevated,
           defaultAccent: preset.defaultAccent,
+          footerTagline: footerTagline.trim(),
           presets: presets.filter((p) => !p.isDefault),
         },
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIso,
       });
+
+      // Persist Universe accent updates directly inside __isolated_universe_organizer_v1__
+      const uRows = await sbSelect<{ config: Record<string, unknown> }>(
+        "page_sections",
+        "select=config&pageKey=eq.__isolated_universe_organizer_v1__"
+      );
+      if (uRows[0]?.config && Array.isArray(uRows[0].config.universes)) {
+        const updatedUniversesConfig = {
+          ...uRows[0].config,
+          updatedAt: nowIso,
+          universes: uRows[0].config.universes.map((rawU: Record<string, unknown>) => {
+            const slug = String(rawU.slug ?? "");
+            const nextAccent = preset.universeColors[slug];
+            return nextAccent ? { ...rawU, accentColor: nextAccent, updatedAt: nowIso } : rawU;
+          }),
+        };
+        await sbPatch(
+          "page_sections",
+          "pageKey=eq.__isolated_universe_organizer_v1__",
+          { config: updatedUniversesConfig, updatedAt: nowIso }
+        );
+      }
+
       syncThemeSnapshotLocally(
         preset.bgPrimary,
         preset.bgSecondary,
@@ -697,81 +784,50 @@ export function AdminPortalClient() {
         nextUnivs
       );
       localStorage.removeItem("room_live_universes_v1");
+      markSaved("store");
     } catch {
       // Ignore
     }
-    markSaved("store");
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+  const handleUpdateOrderField = async (
+    orderId: string,
+    patch: { status?: string; paymentStatus?: string }
+  ) => {
     try {
       await sbPatch("orders", `id=eq.${encodeURIComponent(orderId)}`, {
-        status,
+        ...patch,
         updatedAt: new Date().toISOString(),
       });
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+        prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o))
       );
     } catch {
       // Ignore
     }
-  };
-
-  const handleSaveSections = async () => {
-    try {
-      const existing = await sbSelect<{ id: string }>(
-        "page_sections",
-        `select=id&storeId=eq.${encodeURIComponent(storeId)}&pageKey=eq.home`
-      );
-      const nowIso = new Date().toISOString();
-      if (existing.length === 0) {
-        await Promise.all(
-          sections.map((s, idx) =>
-            sbInsert("page_sections", {
-              id: generateClientId("sec"),
-              storeId,
-              pageKey: "home",
-              type: s.type,
-              title: s.title,
-              sortOrder: idx + 1,
-              isVisible: s.visible,
-              updatedAt: nowIso,
-            })
-          )
-        );
-      } else {
-        await Promise.all(
-          sections.map((s, idx) =>
-            sbPatch("page_sections", `id=eq.${encodeURIComponent(s.id)}`, {
-              isVisible: s.visible,
-              sortOrder: idx + 1,
-              updatedAt: nowIso,
-            })
-          )
-        );
-      }
-    } catch {
-      // Ignore
-    }
-    markSaved("sections");
   };
 
   const handleSaveZones = async () => {
     try {
+      const nowIso = new Date().toISOString();
       await Promise.all(
-        zones.map((z) =>
+        zones.map((z, idx) =>
           sbPatch("shipping_zones", `id=eq.${encodeURIComponent(z.id)}`, {
+            name: z.name.trim() || "Zone",
+            city: z.city.trim() || "Cairo",
             fee: z.fee,
             freeShippingThreshold: z.freeThreshold,
+            estimatedDays: z.days.trim() || "1-2 Days",
+            sortOrder: idx + 1,
             isActive: z.active,
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowIso,
           })
         )
       );
+      markSaved("shipping");
     } catch {
       // Ignore
     }
-    markSaved("shipping");
   };
 
   const handleAddZone = async (e: React.FormEvent) => {
@@ -784,10 +840,10 @@ export function AdminPortalClient() {
         id: zId,
         storeId,
         name: newZoneName.trim(),
-        city: "Cairo",
+        city: newZoneCity.trim() || "Cairo",
         fee: newZoneFee,
-        freeShippingThreshold: 2500,
-        estimatedDays: "1-2 Days",
+        freeShippingThreshold: newZoneThreshold,
+        estimatedDays: newZoneDays.trim() || "1-2 Days",
         sortOrder: zones.length + 1,
         isActive: true,
         updatedAt: nowIso,
@@ -797,9 +853,10 @@ export function AdminPortalClient() {
         {
           id: zId,
           name: newZoneName.trim(),
+          city: newZoneCity.trim() || "Cairo",
           fee: newZoneFee,
-          freeThreshold: 2500,
-          days: "1-2 Days",
+          freeThreshold: newZoneThreshold,
+          days: newZoneDays.trim() || "1-2 Days",
           active: true,
         },
       ]);
@@ -810,14 +867,31 @@ export function AdminPortalClient() {
     }
   };
 
-  const moveSection = (index: number, dir: -1 | 1) => {
-    const nextIdx = index + dir;
-    if (nextIdx < 0 || nextIdx >= sections.length) return;
-    const copy = [...sections];
-    const [item] = copy.splice(index, 1);
-    if (!item) return;
-    copy.splice(nextIdx, 0, item);
-    setSections(copy);
+  const handleDeleteZone = async (zoneId: string) => {
+    try {
+      await sbDelete("shipping_zones", `id=eq.${encodeURIComponent(zoneId)}`);
+      setZones((prev) => prev.filter((z) => z.id !== zoneId));
+      setConfirmDeleteZoneId(null);
+    } catch {
+      // Cannot delete if linked to existing Orders (Restrict FK) — deactivate instead
+      await sbPatch("shipping_zones", `id=eq.${encodeURIComponent(zoneId)}`, {
+        isActive: false,
+        updatedAt: new Date().toISOString(),
+      });
+      setZones((prev) =>
+        prev.map((z) => (z.id === zoneId ? { ...z, active: false } : z))
+      );
+      setConfirmDeleteZoneId(null);
+    }
+  };
+
+  const handleSaveAnalyticsConfig = async () => {
+    try {
+      await saveAnalyticsRegistry({ storeId, registry: analyticsRegistry });
+      markSaved("analytics");
+    } catch {
+      // Ignore
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -826,8 +900,9 @@ export function AdminPortalClient() {
     const idClean = identifier.trim().toLowerCase();
     const found = accounts.find(
       (a) =>
-        a.email.toLowerCase() === idClean ||
-        a.username.toLowerCase() === idClean
+        a.isActive &&
+        (a.email.toLowerCase() === idClean ||
+          a.username.toLowerCase() === idClean)
     );
 
     if (!found) {
@@ -853,7 +928,7 @@ export function AdminPortalClient() {
 
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
+    if (!inviteEmail.trim() || isStaffOnly) return;
 
     const token = Array.from(crypto.getRandomValues(new Uint8Array(18)))
       .map((b) => b.toString(16).padStart(2, "0"))
@@ -878,12 +953,44 @@ export function AdminPortalClient() {
         invitedById: currentUser?.id ?? null,
         expiresAt: newInvite.expiresAt,
       });
+      setInvites((prev) => [newInvite, ...prev]);
+      setInviteEmail("");
     } catch {
       // Ignore
     }
+  };
 
-    setInvites((prev) => [newInvite, ...prev]);
-    setInviteEmail("");
+  const handleToggleAccountActive = async (accId: string, nextActive: boolean) => {
+    if (!isOwner || accId === currentUser?.id) return;
+    try {
+      await sbPatch("users", `id=eq.${encodeURIComponent(accId)}`, {
+        isActive: nextActive,
+        updatedAt: new Date().toISOString(),
+      });
+      setAccounts((prev) =>
+        prev.map((a) => (a.id === accId ? { ...a, isActive: nextActive } : a))
+      );
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleChangeAccountRole = async (
+    accId: string,
+    role: "OWNER" | "ADMIN" | "STAFF"
+  ) => {
+    if (!isOwner || accId === currentUser?.id) return;
+    try {
+      await sbPatch("users", `id=eq.${encodeURIComponent(accId)}`, {
+        role,
+        updatedAt: new Date().toISOString(),
+      });
+      setAccounts((prev) =>
+        prev.map((a) => (a.id === accId ? { ...a, role } : a))
+      );
+    } catch {
+      // Ignore
+    }
   };
 
   const getInviteUrl = (token: string) => {
@@ -901,13 +1008,24 @@ export function AdminPortalClient() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+    setProfileError(null);
+
+    const pwTrimmed = profileNewPassword.trim();
+    if (pwTrimmed.length > 0 && pwTrimmed.length < 8) {
+      setProfileError(
+        lang === "ar"
+          ? "يجب أن تكون كلمة المرور 8 أحرف على الأقل."
+          : "Password must be at least 8 characters."
+      );
+      return;
+    }
 
     const nextName = profileName.trim() || currentUser.name;
     const nextUsername = profileUsername.trim() || currentUser.username;
     const nextEmail = profileEmail.trim().toLowerCase() || currentUser.email;
     const nextHash =
-      profileNewPassword.trim().length >= 6
-        ? await hashPasswordWeb(profileNewPassword.trim())
+      pwTrimmed.length >= 8
+        ? await hashPasswordWeb(pwTrimmed)
         : currentUser.passwordHash;
 
     try {
@@ -915,31 +1033,47 @@ export function AdminPortalClient() {
         name: nextName,
         username: nextUsername,
         email: nextEmail,
-        ...(profileNewPassword.trim().length >= 6
-          ? { passwordHash: nextHash }
-          : {}),
+        ...(pwTrimmed.length >= 8 ? { passwordHash: nextHash } : {}),
         updatedAt: new Date().toISOString(),
       });
+      setAccounts((prev) =>
+        prev.map((acc) =>
+          acc.id === currentUser.id
+            ? {
+                ...acc,
+                name: nextName,
+                username: nextUsername,
+                email: nextEmail,
+                passwordHash: nextHash,
+              }
+            : acc
+        )
+      );
+      setProfileNewPassword("");
+      markSaved("profile");
     } catch {
-      // Ignore
+      setProfileError(
+        lang === "ar" ? "تعذر حفظ التغييرات" : "Failed to save profile"
+      );
     }
-
-    setAccounts((prev) =>
-      prev.map((acc) =>
-        acc.id === currentUser.id
-          ? {
-              ...acc,
-              name: nextName,
-              username: nextUsername,
-              email: nextEmail,
-              passwordHash: nextHash,
-            }
-          : acc
-      )
-    );
-    setProfileNewPassword("");
-    markSaved("profile");
   };
+
+  const funnelCounts = useMemo(() => {
+    const counts = {
+      PAGE_VIEW: 0,
+      VIEW_UNIVERSE: 0,
+      VIEW_PRODUCT: 0,
+      VIEW_PACKAGE: 0,
+      ADD_TO_BAG: 0,
+      BEGIN_CHECKOUT: 0,
+      APPLY_PROMO: 0,
+      PURCHASE: 0,
+    };
+    for (const evt of analyticsRegistry.events) {
+      counts[evt.eventType] = (counts[evt.eventType] ?? 0) + 1;
+    }
+    return counts;
+  }, [analyticsRegistry.events]);
 
   const LangToggleButton = () => (
     <button
@@ -948,12 +1082,12 @@ export function AdminPortalClient() {
       className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-cyan-400/35 bg-cyan-500/10 px-3.5 text-xs font-bold text-cyan-200 transition-colors hover:bg-cyan-500/20"
     >
       <Languages className="h-3.5 w-3.5" />
-      <span>{lang === "ar" ? "English" : "عربي"}</span>
+      <span>{lang === "ar" ? "EN" : "عربي"}</span>
     </button>
   );
 
   // ============================================================================
-  // LOGIN SCREEN
+  // LOGIN SCREEN (Zero hardcoded credentials exposed)
   // ============================================================================
   if (!currentUser) {
     return (
@@ -1017,122 +1151,46 @@ export function AdminPortalClient() {
 
             <button
               type="submit"
-              className="h-11 w-full rounded-full bg-white text-xs font-bold uppercase tracking-[0.14em] text-black transition-opacity hover:opacity-90"
+              disabled={loadingAuth}
+              className="h-11 w-full rounded-full bg-white text-xs font-bold uppercase tracking-[0.14em] text-black transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {t.loginBtn}
+              {loadingAuth
+                ? lang === "ar"
+                  ? "جاري التحميل..."
+                  : "Connecting..."
+                : t.loginBtn}
             </button>
           </form>
-
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-[11px] text-white/60">
-            <p className="font-semibold text-white/85">{t.seededTitle}</p>
-            <p className="mt-1 font-mono" dir="ltr">
-              tareq612345@gmail.com (@tareq)
-            </p>
-            <p className="font-mono" dir="ltr">
-              adegddn@gmail.com (@adegddn)
-            </p>
-          </div>
         </div>
       </div>
     );
   }
 
   // ============================================================================
-  // COMMAND CENTER LAYOUT
+  // RESTRUCTURED COMMAND CENTER
   // ============================================================================
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: t.tabs.overview, icon: <LayoutDashboard className="h-4 w-4" /> },
-    { id: "store", label: t.tabs.store, icon: <Palette className="h-4 w-4" /> },
     { id: "orders", label: t.tabs.orders, icon: <ShoppingBag className="h-4 w-4" /> },
-    { id: "sections", label: t.tabs.sections, icon: <Layers className="h-4 w-4" /> },
     { id: "shipping", label: t.tabs.shipping, icon: <Truck className="h-4 w-4" /> },
-    { id: "team", label: t.tabs.team, icon: <Users className="h-4 w-4" /> },
+    { id: "analytics", label: t.tabs.analytics, icon: <BarChart3 className="h-4 w-4" /> },
+    ...(!isStaffOnly
+      ? [
+          { id: "store" as AdminTab, label: t.tabs.store, icon: <Palette className="h-4 w-4" /> },
+          { id: "team" as AdminTab, label: t.tabs.team, icon: <Users className="h-4 w-4" /> },
+        ]
+      : []),
     { id: "profile", label: t.tabs.profile, icon: <Settings className="h-4 w-4" /> },
   ];
 
-  const InfoHint = ({
-    id,
-    ar,
-    en,
-  }: {
-    id: string;
-    ar: string;
-    en: string;
-  }) => {
-    const isOpen = openHintId === id;
-    return (
-      <span className="relative inline-flex items-center align-middle">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setOpenHintId((prev) => (prev === id ? null : id));
-          }}
-          className={`mx-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] transition-colors ${
-            isOpen
-              ? "border-cyan-400 bg-cyan-500/25 text-cyan-200"
-              : "border-white/25 bg-white/5 text-white/60 hover:border-cyan-400/60 hover:text-cyan-200"
-          }`}
-          aria-label="Info"
-        >
-          <Info className="h-2.5 w-2.5" />
-        </button>
-        {isOpen ? (
-          <span className="absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-xl border border-cyan-400/35 bg-[#090714] p-2.5 text-[11px] font-normal leading-relaxed text-white/90 shadow-2xl">
-            {lang === "ar" ? ar : en}
-          </span>
-        ) : null}
-      </span>
-    );
-  };
-
-  const TabGuideBanner = ({
-    arPoints,
-    enPoints,
-  }: {
-    arPoints: string[];
-    enPoints: string[];
-  }) => {
-    const points = lang === "ar" ? arPoints : enPoints;
-    return (
-      <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.04] p-5">
-        <div className="flex items-center gap-2 text-xs font-bold text-cyan-200">
-          <Info className="h-4 w-4" />
-          <span>
-            {lang === "ar"
-              ? "تعليمات: أين تنعكس تعديلات هذا القسم في الموقع؟"
-              : "Guide: Where do changes in this tab apply?"}
-          </span>
-        </div>
-        <ul className="mt-2.5 space-y-1.5 text-xs text-white/70">
-          {points.map((pt, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400" />
-              <span>{pt}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
-
-  const SaveButton = ({
-    tab,
-    onClick,
-  }: {
-    tab: AdminTab;
-    onClick: () => void;
-  }) => {
+  const SaveButton = ({ tab, onClick }: { tab: AdminTab; onClick: () => void }) => {
     const isSaved = savedSection === tab;
     return (
       <button
         type="button"
         onClick={onClick}
         className={`inline-flex h-10 items-center gap-2 rounded-full px-6 text-xs font-bold uppercase tracking-wider transition-all ${
-          isSaved
-            ? "bg-emerald-500 text-black"
-            : "bg-white text-black hover:opacity-90"
+          isSaved ? "bg-emerald-500 text-black" : "bg-white text-black hover:opacity-90"
         }`}
       >
         {isSaved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
@@ -1146,22 +1204,30 @@ export function AdminPortalClient() {
       dir={lang === "ar" ? "rtl" : "ltr"}
       className="flex min-h-screen bg-[#040308] text-white"
     >
-      {/* Sleek Glass Sidebar */}
+      {/* Sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-e border-white/10 bg-[#070510]/95 p-5 md:flex">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/20 bg-white/10">
-              <ShieldCheck className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-serif text-sm font-semibold tracking-[0.14em]">
-              {t.brand}
-            </span>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/20 bg-white/10">
+            <ShieldCheck className="h-4 w-4 text-white" />
           </div>
+          <span className="font-serif text-sm font-semibold tracking-[0.14em]">
+            {storeName || t.brand}
+          </span>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
-          <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400" />
-          <span>{t.supabaseLive}</span>
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400" />
+            <span>{t.supabaseLive}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadPortalData()}
+            title="Refresh"
+            className="text-emerald-200 hover:text-white"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
         </div>
 
         <nav className="mt-6 flex-1 space-y-1">
@@ -1178,6 +1244,11 @@ export function AdminPortalClient() {
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.id === "orders" && pendingOrdersCount > 0 ? (
+                <span className="ms-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-black">
+                  {pendingOrdersCount}
+                </span>
+              ) : null}
             </button>
           ))}
         </nav>
@@ -1206,73 +1277,67 @@ export function AdminPortalClient() {
         </div>
       </aside>
 
-      {/* Main Command Workspace */}
+      {/* Main Workspace */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top Command Header */}
-        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#070510]/85 px-6 py-3.5 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <h1 className="font-serif text-lg font-semibold text-white">
-              {navItems.find((n) => n.id === activeTab)?.label}
-            </h1>
-          </div>
+        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#070510]/85 px-5 py-3.5 backdrop-blur-xl">
+          <h1 className="font-serif text-lg font-semibold text-white">
+            {navItems.find((n) => n.id === activeTab)?.label}
+          </h1>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative hidden sm:block">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* LIVE QUICK SEARCH WITH RESULTS DROPDOWN */}
+            <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.searchPlaceholder}
-                className="h-9 w-48 rounded-full border border-white/15 bg-black/60 pl-9 pr-3 text-xs text-white placeholder:text-white/40 focus:border-white/45 focus:outline-none"
+                className="h-9 w-52 rounded-full border border-white/15 bg-black/60 pl-9 pr-3 text-xs text-white placeholder:text-white/40 focus:border-cyan-400/50 focus:outline-none"
               />
+              {quickSearchResults.length > 0 ? (
+                <div className="absolute right-0 top-11 z-50 w-72 space-y-1 rounded-2xl border border-white/15 bg-[#0d0a1a] p-2 shadow-2xl">
+                  {quickSearchResults.map((res) => (
+                    <button
+                      key={res.id}
+                      type="button"
+                      onClick={res.onSelect}
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-start text-xs hover:bg-white/10"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-white">{res.title}</p>
+                        <p className="truncate text-[10px] text-white/55">{res.sub}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold text-cyan-200">
+                        {res.kindLabel}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <LangToggleButton />
 
             <Link
-              href="/admin/packages/"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3.5 text-xs font-bold text-amber-200 hover:bg-amber-500/25"
+              href="/admin/checkout/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-3 text-xs font-bold text-emerald-200 hover:bg-emerald-500/25"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{lang === "ar" ? "تنظيم الباكدجات" : "Packages"}</span>
-            </Link>
-
-            <Link
-              href="/admin/products/"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-indigo-400/40 bg-indigo-500/15 px-3.5 text-xs font-bold text-indigo-200 hover:bg-indigo-500/25"
-            >
-              <Package className="h-3.5 w-3.5" />
-              <span>{lang === "ar" ? "تنظيم المنتجات" : "Product Organizer"}</span>
-            </Link>
-
-            <Link
-              href="/admin/universes/"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-3.5 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25"
-            >
-              <Layers className="h-3.5 w-3.5" />
-              <span>{lang === "ar" ? "تنظيم اليونيفيرسز" : "Universe Organizer"}</span>
-            </Link>
-
-            <Link
-              href="/admin/elements/"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-pink-400/40 bg-pink-500/15 px-3.5 text-xs font-bold text-pink-200 hover:bg-pink-500/25"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{lang === "ar" ? "النصوص والأزرار" : "Text & Buttons"}</span>
+              <CreditCard className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "السلة والدفع" : "Checkout"}</span>
             </Link>
 
             <Link
               href="/admin/home/"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3.5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-3 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
             >
               <Layers className="h-3.5 w-3.5" />
-              <span>{lang === "ar" ? "منسّق الرئيسية" : "Home Composer"}</span>
+              <span>{lang === "ar" ? "الرئيسية" : "Home"}</span>
             </Link>
 
             <Link
               href="/schema/"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 text-xs font-semibold text-white/85 hover:bg-white/10"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/85 hover:bg-white/10"
             >
               <Database className="h-3.5 w-3.5 text-cyan-300" />
               <span className="hidden sm:inline">{t.viewSchema}</span>
@@ -1287,7 +1352,7 @@ export function AdminPortalClient() {
             </Link>
           </div>
 
-          {/* Mobile Tab Strip */}
+          {/* Mobile Tabs */}
           <div className="flex w-full gap-1.5 overflow-x-auto pb-1 md:hidden">
             {navItems.map((item) => (
               <button
@@ -1306,85 +1371,143 @@ export function AdminPortalClient() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          {/* OVERVIEW */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-8">
+          {/* ==================== TAB 1: COMMAND OVERVIEW ==================== */}
           {activeTab === "overview" ? (
             <div className="space-y-6">
-              {/* KPI Grid */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Live KPIs */}
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
                 {[
-                  { label: t.stats.universes, value: universes.filter((u) => u.isActive).length, accent: "#c94b99" },
-                  { label: t.stats.products, value: products.length, accent: "#6366f1" },
-                  { label: t.stats.orders, value: orders.length, accent: "#22c55e" },
-                  { label: t.stats.team, value: accounts.length, accent: "#f59e0b" },
+                  {
+                    label: lang === "ar" ? "الأقسام النشطة" : "Universes",
+                    value: universes.filter((u) => u.isActive).length,
+                    accent: "#c94b99",
+                  },
+                  {
+                    label: lang === "ar" ? "المنتجات" : "Products",
+                    value: products.length,
+                    accent: "#6366f1",
+                  },
+                  {
+                    label: lang === "ar" ? "الكوليكشنز" : "Packages",
+                    value: packagesCount,
+                    accent: "#f59e0b",
+                  },
+                  {
+                    label: lang === "ar" ? "الطلبات" : "Orders",
+                    value: orders.length,
+                    accent: "#10b981",
+                  },
+                  {
+                    label: lang === "ar" ? "إجمالي المبيعات" : "Revenue",
+                    value: formatEgp(totalRevenue),
+                    accent: "#06b6d4",
+                  },
+                  {
+                    label: lang === "ar" ? "أحداث التتبع" : "Tracked Events",
+                    value: analyticsRegistry.events.length,
+                    accent: "#a855f7",
+                  },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0b0815] p-5"
+                    className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0b0815] p-4"
                   >
                     <div
                       className="absolute inset-x-0 top-0 h-0.5"
                       style={{ backgroundColor: stat.accent }}
                     />
-                    <p className="text-xs text-white/55">{stat.label}</p>
-                    <p className="mt-2 font-serif text-3xl font-semibold text-white">
+                    <p className="text-[11px] text-white/55">{stat.label}</p>
+                    <p className="mt-1.5 font-serif text-xl font-semibold text-white">
                       {stat.value}
                     </p>
                   </div>
                 ))}
               </div>
 
+              {/* Isolated Studios Hub */}
+              <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
+                <h2 className="font-serif text-lg font-semibold text-white">
+                  {t.studiosHubTitle}
+                </h2>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    {
+                      href: "/admin/home/",
+                      title: lang === "ar" ? "منسّق الرئيسية المعزول" : "Home Composer",
+                      desc: lang === "ar" ? "بناء بلوكات وأعمدة الرئيسية بالكامل" : "Blocks, mobile/desktop grids, vaults",
+                      icon: <Layers className="h-4 w-4 text-cyan-300" />,
+                      border: "border-cyan-400/30",
+                    },
+                    {
+                      href: "/admin/elements/",
+                      title: lang === "ar" ? "استوديو النصوص والأزرار" : "Text & Buttons",
+                      desc: lang === "ar" ? "بطاقات القراءة (3 مقاسات) + الأزرار" : "Reading Cards & CTA Buttons",
+                      icon: <Type className="h-4 w-4 text-fuchsia-300" />,
+                      border: "border-fuchsia-400/30",
+                    },
+                    {
+                      href: "/admin/universes/",
+                      title: lang === "ar" ? "تنظيم اليونيفيرسز" : "Universe Organizer",
+                      desc: lang === "ar" ? "اليونيفيرسز وأيقونات PNG وربط المنتجات" : "Universes, PNG symbols & links",
+                      icon: <Sparkles className="h-4 w-4 text-pink-300" />,
+                      border: "border-pink-400/30",
+                    },
+                    {
+                      href: "/admin/products/",
+                      title: lang === "ar" ? "تنظيم المنتجات والمخزون" : "Product Organizer",
+                      desc: lang === "ar" ? "إضافة/تعديل المنتجات، المخزون والصور" : "Catalog, stock & product pages",
+                      icon: <Package className="h-4 w-4 text-indigo-300" />,
+                      border: "border-indigo-400/30",
+                    },
+                    {
+                      href: "/admin/packages/",
+                      title: lang === "ar" ? "الباكدجات والكوليكشنز" : "Packages & Collections",
+                      desc: lang === "ar" ? "الباقات المجمعة والكوليكشنز وتسعيرها" : "Curated loadouts & collections",
+                      icon: <ShoppingBag className="h-4 w-4 text-amber-300" />,
+                      border: "border-amber-400/30",
+                    },
+                    {
+                      href: "/admin/checkout/",
+                      title: lang === "ar" ? "استوديو السلة والدفع المعزول" : "Cart & Checkout Studio",
+                      desc: lang === "ar" ? "وسائل الدفع، الكوبونات، قواعد الطلب" : "Payment methods, promos, checkout rules",
+                      icon: <CreditCard className="h-4 w-4 text-emerald-300" />,
+                      border: "border-emerald-400/30",
+                    },
+                  ].map((s) => (
+                    <Link
+                      key={s.href}
+                      href={s.href}
+                      className={`flex items-start gap-3 rounded-2xl border ${s.border} bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.06]`}
+                    >
+                      <div className="mt-0.5 rounded-xl border border-white/10 bg-black/50 p-2">
+                        {s.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white">{s.title}</p>
+                        <p className="mt-0.5 text-[11px] text-white/60">{s.desc}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Low Stock Alerts + Recent Orders Snapshot */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* Quick Actions */}
                 <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
-                  <h2 className="font-serif text-lg font-semibold">{t.quickActions}</h2>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-400" />
+                      <h2 className="font-serif text-lg font-semibold">
+                        {t.lowStockTitle}
+                      </h2>
+                    </div>
                     <Link
                       href="/admin/products/"
-                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
+                      className="text-xs font-semibold text-cyan-300 hover:underline"
                     >
-                      <Plus className="h-4 w-4 text-cyan-300" />
-                      <span>{t.addProductTitle}</span>
+                      /admin/products/ →
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("store")}
-                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
-                    >
-                      <Palette className="h-4 w-4 text-pink-300" />
-                      <span>{t.tabs.store}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("team")}
-                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
-                    >
-                      <UserPlus className="h-4 w-4 text-emerald-300" />
-                      <span>{t.genInvite}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("orders")}
-                      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-xs font-semibold hover:border-white/30"
-                    >
-                      <ShoppingBag className="h-4 w-4 text-amber-300" />
-                      <span>{t.tabs.orders}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Stock & Vaulted Alerts */}
-                <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
-                    <h2 className="font-serif text-lg font-semibold">
-                      {t.vaultedAlerts}
-                      <InfoHint
-                        id="overview-restock"
-                        ar="أي منتج مخزونه 5 قطع أو أقل يظهر هنا. الضغط على +10 يزيد المخزون في Supabase فوراً ويزيل علامة Vaulted من المتجر."
-                        en="Products with 5 or fewer units appear here. Clicking +10 updates Supabase stock immediately and removes the Vaulted badge."
-                      />
-                    </h2>
                   </div>
                   <div className="mt-4 space-y-2.5">
                     {lowStockProducts.length === 0 ? (
@@ -1397,57 +1520,726 @@ export function AdminPortalClient() {
                         >
                           <div>
                             <p className="text-xs font-semibold">{p.name}</p>
-                            <p className="text-[11px] text-white/50">
-                              {t.stock}: {p.stock} {p.stock <= 0 ? `(${t.vaulted})` : ""}
+                            <p className="text-[11px] text-amber-300/80">
+                              Stock: {p.stock} {p.stock <= 0 ? "(Vaulted)" : ""}
                             </p>
                           </div>
                           <Link
                             href="/admin/products/"
                             className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3 py-1 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/25"
                           >
-                            {lang === "ar" ? "تعديل المخزون" : "Edit Stock"}
+                            {lang === "ar" ? "تعديل في المنظم" : "Edit Stock"}
                           </Link>
                         </div>
                       ))
                     )}
                   </div>
                 </div>
-              </div>
 
-              <TabGuideBanner
-                arPoints={[
-                  "نظرة عامة تعرض ملخصاً حياً لبيانات Supabase (الأقسام، المنتجات، الطلبات، الفريق).",
-                  "زر (+10 للمخزون) يرفع المخزون في قاعدة البيانات مباشرة ويعيد تفعيل المنتج على المتجر.",
-                  "أزرار الإجراءات السريعة تنقلك مباشرة لتعديل الثيمات أو إضافة منتج أو دعوة أدمن."
-                ]}
-                enPoints={[
-                  "Overview displays live KPIs fetched directly from Supabase.",
-                  "One-click (+10 Restock) updates Supabase inventory immediately and un-vaults sold-out products.",
-                  "Quick Actions jump directly to Themes, Add Product, Orders, or 48h Invites."
-                ]}
-              />
+                <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-6">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-serif text-lg font-semibold">
+                      {lang === "ar" ? "أحدث الطلبات" : "Latest Orders"}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("orders")}
+                      className="text-xs font-semibold text-cyan-300 hover:underline"
+                    >
+                      {lang === "ar" ? "إدارة الطلبات ←" : "Manage Orders →"}
+                    </button>
+                  </div>
+                  <div className="mt-4 space-y-2.5">
+                    {orders.length === 0 ? (
+                      <p className="text-xs text-white/55">{t.noOrders}</p>
+                    ) : (
+                      orders.slice(0, 5).map((ord) => (
+                        <div
+                          key={ord.id}
+                          className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-xs"
+                        >
+                          <div>
+                            <p className="font-mono font-bold text-white">
+                              #{ord.orderNumber} — {ord.customerName}
+                            </p>
+                            <p className="text-[11px] text-white/50">
+                              {ord.city} • {ord.paymentMethod}
+                            </p>
+                          </div>
+                          <div className="text-end">
+                            <p className="font-bold text-emerald-300">
+                              {formatEgp(ord.total)}
+                            </p>
+                            <p className="text-[10px] text-white/60">{ord.status}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           ) : null}
 
-          {/* STORE, LIVE PREVIEW & EVENT THEMES */}
-          {activeTab === "store" ? (
+          {/* ==================== TAB 2: ORDERS & CRM ==================== */}
+          {activeTab === "orders" ? (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="font-serif text-2xl font-semibold">
+                  {lang === "ar" ? "إدارة الطلبات وبنود المشتريات" : "Orders & Line Items CRM"}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    placeholder={
+                      lang === "ar"
+                        ? "بحث برقم الطلب، الاسم، الهاتف..."
+                        : "Search order #, name, phone..."
+                    }
+                    className="h-9 w-56 rounded-full border border-white/15 bg-black/60 px-4 text-xs text-white"
+                  />
+                  <select
+                    value={orderStatusFilter}
+                    onChange={(e) => setOrderStatusFilter(e.target.value)}
+                    className="h-9 rounded-full border border-white/15 bg-black/60 px-3 text-xs text-white"
+                  >
+                    <option value="ALL">{lang === "ar" ? "كل الحالات" : "All Statuses"}</option>
+                    {ORDER_STATUSES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {filteredOrders.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-8 text-center text-xs text-white/55">
+                  {t.noOrders}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredOrders.map((ord) => {
+                    const itemsList = orderItemsByOrder[ord.id] ?? [];
+                    const isExpanded = expandedOrderId === ord.id;
+                    const zoneName =
+                      zones.find((z) => z.id === ord.shippingZoneId)?.name ??
+                      ord.city;
+                    const waPhone = (ord.customerWhatsapp || ord.customerPhone).replace(
+                      /[^0-9]/g,
+                      ""
+                    );
+                    const waMsg = encodeURIComponent(
+                      `مرحباً ${ord.customerName}، تحديث طلبك #${ord.orderNumber} (${formatEgp(ord.total)}): الحالة الآن ${ord.status}`
+                    );
+
+                    return (
+                      <div
+                        key={ord.id}
+                        className="rounded-2xl border border-white/10 bg-[#0b0815] p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono text-sm font-bold text-white">
+                                #{ord.orderNumber}
+                              </span>
+                              <span className="text-sm font-semibold text-white/90">
+                                {ord.customerName}
+                              </span>
+                              <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-200">
+                                {ord.paymentMethod} • {ord.paymentStatus}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-white/60">
+                              {ord.customerPhone} • {zoneName} •{" "}
+                              <strong className="text-emerald-300">
+                                {formatEgp(ord.total)}
+                              </strong>{" "}
+                              ({itemsList.length} {lang === "ar" ? "بنود" : "items"})
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedOrderId(isExpanded ? null : ord.id)
+                              }
+                              className="inline-flex h-9 items-center gap-1 rounded-full border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/80 hover:bg-white/15"
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              )}
+                              <span>{lang === "ar" ? "التفاصيل" : "Details"}</span>
+                            </button>
+
+                            <a
+                              href={`https://wa.me/${waPhone}?text=${waMsg}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              <span>{t.whatsappBtn}</span>
+                            </a>
+
+                            <select
+                              value={ord.status}
+                              onChange={(e) =>
+                                void handleUpdateOrderField(ord.id, {
+                                  status: e.target.value,
+                                })
+                              }
+                              className="h-9 rounded-xl border border-white/15 bg-black/60 px-2.5 text-xs font-semibold text-white"
+                            >
+                              {ORDER_STATUSES.map((st) => (
+                                <option key={st} value={st}>
+                                  {st}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {isExpanded ? (
+                          <div className="mt-4 space-y-3 border-t border-white/10 pt-4 text-xs">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                              <div className="rounded-xl border border-white/10 bg-black/40 p-3">
+                                <p className="text-[10px] font-bold text-white/50">
+                                  {lang === "ar" ? "عنوان التوصيل" : "Shipping Address"}
+                                </p>
+                                <p className="mt-1 text-white/90">{ord.shippingAddress}</p>
+                                <p className="mt-1 text-[11px] text-white/60">
+                                  {zoneName} ({ord.city})
+                                </p>
+                                {ord.notes ? (
+                                  <p className="mt-1 text-[11px] text-amber-300">
+                                    Notes: {ord.notes}
+                                  </p>
+                                ) : null}
+                              </div>
+
+                              <div className="rounded-xl border border-white/10 bg-black/40 p-3">
+                                <p className="text-[10px] font-bold text-white/50">
+                                  {lang === "ar" ? "حالة الدفع والمرجع" : "Payment Tracking"}
+                                </p>
+                                <select
+                                  value={ord.paymentStatus}
+                                  onChange={(e) =>
+                                    void handleUpdateOrderField(ord.id, {
+                                      paymentStatus: e.target.value,
+                                    })
+                                  }
+                                  className="mt-1.5 h-8 w-full rounded-lg border border-white/15 bg-black/60 px-2 text-xs text-white"
+                                >
+                                  {PAYMENT_STATUSES.map((ps) => (
+                                    <option key={ps} value={ps}>
+                                      {ps}
+                                    </option>
+                                  ))}
+                                </select>
+                                {ord.paymentReference ? (
+                                  <p className="mt-1.5 font-mono text-[11px] text-cyan-200" dir="ltr">
+                                    Ref: {ord.paymentReference}
+                                  </p>
+                                ) : null}
+                              </div>
+
+                              <div className="rounded-xl border border-white/10 bg-black/40 p-3 space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-white/55">Subtotal:</span>
+                                  <span>{formatEgp(ord.subtotal)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-white/55">Discount:</span>
+                                  <span className="text-emerald-300">
+                                    -{formatEgp(ord.discountAmount)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-white/55">Shipping:</span>
+                                  <span>{formatEgp(ord.shippingFee)}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-white/10 pt-1 font-bold text-white">
+                                  <span>Total:</span>
+                                  <span>{formatEgp(ord.total)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-black/40 p-3">
+                              <p className="mb-2 text-[10px] font-bold text-white/50">
+                                {lang === "ar"
+                                  ? "المنتجات والباقات داخل الطلب (order_items)"
+                                  : "Order Items"}
+                              </p>
+                              {itemsList.length === 0 ? (
+                                <p className="text-white/45">No items snapshot found.</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {itemsList.map((it) => (
+                                    <div
+                                      key={it.id}
+                                      className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-1.5 last:border-0"
+                                    >
+                                      <div>
+                                        <span className="font-semibold text-white">
+                                          {it.titleSnapshot}
+                                        </span>{" "}
+                                        <span className="text-[10px] text-white/45">
+                                          ({it.itemType})
+                                        </span>
+                                      </div>
+                                      <div className="font-mono text-[11px] text-white/80" dir="ltr">
+                                        {it.quantity} × {formatEgp(it.unitPrice)} ={" "}
+                                        <strong className="text-emerald-300">
+                                          {formatEgp(it.lineTotal)}
+                                        </strong>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* ==================== TAB 3: SHIPPING ZONES ==================== */}
+          {activeTab === "shipping" ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">{t.storeTitle}</h2>
+                <h2 className="font-serif text-2xl font-semibold">
+                  {lang === "ar" ? "إدارة مناطق الشحن بالكامل" : "Shipping Zones CRUD"}
+                </h2>
+                <SaveButton tab="shipping" onClick={() => void handleSaveZones()} />
+              </div>
+
+              <form
+                onSubmit={handleAddZone}
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-4 sm:grid-cols-6 sm:items-end"
+              >
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-xs text-white/65">
+                    {lang === "ar" ? "اسم المنطقة" : "Zone Name"}
+                  </label>
+                  <input
+                    required
+                    value={newZoneName}
+                    onChange={(e) => setNewZoneName(e.target.value)}
+                    placeholder="e.g. Sheikh Zayed"
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-white/65">
+                    {lang === "ar" ? "المدينة" : "City"}
+                  </label>
+                  <input
+                    required
+                    value={newZoneCity}
+                    onChange={(e) => setNewZoneCity(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-white/65">
+                    {lang === "ar" ? "التكلفة" : "Fee"}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newZoneFee}
+                    onChange={(e) => setNewZoneFee(Number(e.target.value))}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-white/65">
+                    {lang === "ar" ? "مجاني فوق" : "Free Above"}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newZoneThreshold}
+                    onChange={(e) => setNewZoneThreshold(Number(e.target.value))}
+                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="mb-1 block text-xs text-white/65">
+                      {lang === "ar" ? "المدة" : "Days"}
+                    </label>
+                    <input
+                      value={newZoneDays}
+                      onChange={(e) => setNewZoneDays(e.target.value)}
+                      className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-2 text-xs"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="inline-flex h-9 shrink-0 items-center gap-1 self-end rounded-full bg-white px-4 text-xs font-bold text-black"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>{lang === "ar" ? "إضافة" : "Add"}</span>
+                  </button>
+                </div>
+              </form>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {zones.map((z) => (
+                  <div
+                    key={z.id}
+                    className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-1 items-center gap-2">
+                        <MapPin className="h-4 w-4 shrink-0 text-cyan-300" />
+                        <input
+                          value={z.name}
+                          onChange={(e) =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id ? { ...x, name: e.target.value } : x
+                              )
+                            )
+                          }
+                          className="h-8 flex-1 rounded-lg border border-white/10 bg-black/40 px-2.5 text-sm font-semibold text-white"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id ? { ...x, active: !x.active } : x
+                              )
+                            )
+                          }
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            z.active
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : "bg-white/10 text-white/45"
+                          }`}
+                        >
+                          {z.active ? "ON" : "OFF"}
+                        </button>
+                        {confirmDeleteZoneId === z.id ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteZone(z.id)}
+                            className="rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-bold text-white"
+                          >
+                            {lang === "ar" ? "تأكيد؟" : "Confirm"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteZoneId(z.id)}
+                            className="rounded-full border border-white/15 p-1.5 text-white/55 hover:text-red-400"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+                      <label className="text-white/60">
+                        {lang === "ar" ? "المدينة" : "City"}
+                        <input
+                          value={z.city}
+                          onChange={(e) =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id ? { ...x, city: e.target.value } : x
+                              )
+                            )
+                          }
+                          className="mt-1 h-8 w-full rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        />
+                      </label>
+                      <label className="text-white/60">
+                        {lang === "ar" ? "التكلفة" : "Fee"}
+                        <input
+                          type="number"
+                          value={z.fee}
+                          onChange={(e) =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id
+                                  ? { ...x, fee: Number(e.target.value) }
+                                  : x
+                              )
+                            )
+                          }
+                          className="mt-1 h-8 w-full rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        />
+                      </label>
+                      <label className="text-white/60">
+                        {lang === "ar" ? "مجاني فوق" : "Free Above"}
+                        <input
+                          type="number"
+                          value={z.freeThreshold}
+                          onChange={(e) =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id
+                                  ? { ...x, freeThreshold: Number(e.target.value) }
+                                  : x
+                              )
+                            )
+                          }
+                          className="mt-1 h-8 w-full rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        />
+                      </label>
+                      <label className="text-white/60">
+                        {lang === "ar" ? "المدة" : "Days"}
+                        <input
+                          value={z.days}
+                          onChange={(e) =>
+                            setZones((prev) =>
+                              prev.map((x) =>
+                                x.id === z.id ? { ...x, days: e.target.value } : x
+                              )
+                            )
+                          }
+                          className="mt-1 h-8 w-full rounded-lg border border-white/15 bg-black/50 px-2 text-white"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* ==================== TAB 4: ANALYTICS PREP & FUTURE OPS ==================== */}
+          {activeTab === "analytics" ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-serif text-2xl font-semibold">
+                    {lang === "ar"
+                      ? "تهيئة الإحصائيات وقمع التحويل والعمليات المستقبلية"
+                      : "Analytics Foundation & Future Ops Ledger"}
+                  </h2>
+                  <p className="mt-1 text-xs text-white/55">
+                    {lang === "ar"
+                      ? "بيانات حية مربوطة بجداول Orders وProducts وUniverses وShipping و(__isolated_analytics_v1__ / __isolated_future_ops_v1__)."
+                      : "Live telemetry connected across Orders, Products, Universes, Shipping, and Future Ops tables."}
+                  </p>
+                </div>
+                <SaveButton
+                  tab="analytics"
+                  onClick={() => void handleSaveAnalyticsConfig()}
+                />
+              </div>
+
+              {/* Conversion Funnel Live Readout */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {[
+                  { k: "PAGE_VIEW", label: lang === "ar" ? "زيارات" : "Page Views", val: funnelCounts.PAGE_VIEW },
+                  { k: "VIEW_UNIVERSE", label: lang === "ar" ? "أقسام" : "Universe Views", val: funnelCounts.VIEW_UNIVERSE },
+                  { k: "VIEW_PRODUCT", label: lang === "ar" ? "منتجات" : "Product Views", val: funnelCounts.VIEW_PRODUCT },
+                  { k: "ADD_TO_BAG", label: lang === "ar" ? "إضافة للسلة" : "Add to Bag", val: funnelCounts.ADD_TO_BAG },
+                  { k: "BEGIN_CHECKOUT", label: lang === "ar" ? "بدء دفع" : "Begin Checkout", val: funnelCounts.BEGIN_CHECKOUT },
+                  { k: "PURCHASE", label: lang === "ar" ? "شراء مكتمل" : "Purchases", val: funnelCounts.PURCHASE },
+                ].map((f) => (
+                  <div
+                    key={f.k}
+                    className="rounded-2xl border border-cyan-400/25 bg-[#0b0815] p-4"
+                  >
+                    <p className="text-[11px] text-white/60">{f.label}</p>
+                    <p className="mt-1 font-serif text-2xl font-bold text-cyan-300">
+                      {f.val}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Analytics Config + Future Ops Sink Counts */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-6 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-cyan-300" />
+                    <h3 className="font-serif text-base font-semibold">
+                      {lang === "ar" ? "إعدادات التتبع والأهداف (Zero Static)" : "Tracking & Goals Config"}
+                    </h3>
+                  </div>
+
+                  <label className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5">
+                    <span>{lang === "ar" ? "تتبع زيارات الصفحات (PAGE_VIEW)" : "Track Page Views"}</span>
+                    <input
+                      type="checkbox"
+                      checked={analyticsRegistry.config.trackPageViews}
+                      onChange={(e) =>
+                        setAnalyticsRegistry((prev) => ({
+                          ...prev,
+                          config: { ...prev.config, trackPageViews: e.target.checked },
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5">
+                    <span>{lang === "ar" ? "تتبع قمع الشراء (Funnel Events)" : "Track Funnel Events"}</span>
+                    <input
+                      type="checkbox"
+                      checked={analyticsRegistry.config.trackFunnelEvents}
+                      onChange={(e) =>
+                        setAnalyticsRegistry((prev) => ({
+                          ...prev,
+                          config: { ...prev.config, trackFunnelEvents: e.target.checked },
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-white/60">GA4 Measurement ID</span>
+                      <input
+                        dir="ltr"
+                        value={analyticsRegistry.config.ga4MeasurementId}
+                        onChange={(e) =>
+                          setAnalyticsRegistry((prev) => ({
+                            ...prev,
+                            config: { ...prev.config, ga4MeasurementId: e.target.value },
+                          }))
+                        }
+                        placeholder="G-XXXXXXXXXX"
+                        className="h-9 w-full rounded-xl border border-white/15 bg-black/60 px-3 font-mono text-xs"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-white/60">Meta Pixel ID</span>
+                      <input
+                        dir="ltr"
+                        value={analyticsRegistry.config.metaPixelId}
+                        onChange={(e) =>
+                          setAnalyticsRegistry((prev) => ({
+                            ...prev,
+                            config: { ...prev.config, metaPixelId: e.target.value },
+                          }))
+                        }
+                        placeholder="1234567890"
+                        className="h-9 w-full rounded-xl border border-white/15 bg-black/60 px-3 font-mono text-xs"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-white/60">
+                        {lang === "ar" ? "هدف المبيعات اليومي (EGP)" : "Daily Revenue Goal"}
+                      </span>
+                      <input
+                        type="number"
+                        value={analyticsRegistry.config.dailyRevenueGoal}
+                        onChange={(e) =>
+                          setAnalyticsRegistry((prev) => ({
+                            ...prev,
+                            config: {
+                              ...prev.config,
+                              dailyRevenueGoal: Math.max(0, Number(e.target.value)),
+                            },
+                          }))
+                        }
+                        className="h-9 w-full rounded-xl border border-white/15 bg-black/60 px-3 text-xs"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-white/60">
+                        {lang === "ar" ? "هدف الطلبات اليومي" : "Daily Order Goal"}
+                      </span>
+                      <input
+                        type="number"
+                        value={analyticsRegistry.config.dailyOrderGoal}
+                        onChange={(e) =>
+                          setAnalyticsRegistry((prev) => ({
+                            ...prev,
+                            config: {
+                              ...prev.config,
+                              dailyOrderGoal: Math.max(0, Number(e.target.value)),
+                            },
+                          }))
+                        }
+                        className="h-9 w-full rounded-xl border border-white/15 bg-black/60 px-3 text-xs"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Future Ops Prepared Tables Status */}
+                <div className="space-y-3 rounded-2xl border border-amber-400/25 bg-[#0b0815] p-6 text-xs">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-serif text-base font-semibold text-amber-200">
+                      {lang === "ar"
+                        ? "الجداول المهيأة للأنظمة المستقبلية (__isolated_future_ops_v1__)"
+                        : "Prepared Future Ops Ledger"}
+                    </h3>
+                    <Link
+                      href="/schema/"
+                      className="text-[11px] font-bold text-cyan-300 hover:underline"
+                    >
+                      /schema/ →
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Payment Transactions", count: futureOps.paymentTransactions.length },
+                      { label: "Shipment Dispatches", count: futureOps.shipmentDispatches.length },
+                      { label: "Notification Queue", count: futureOps.notificationQueue.length },
+                      { label: "Customer Directory", count: futureOps.customerDirectory.length },
+                      { label: "Support Tickets", count: futureOps.supportTickets.length },
+                    ].map((row) => (
+                      <div
+                        key={row.label}
+                        className="rounded-xl border border-white/10 bg-black/45 p-3"
+                      >
+                        <p className="text-[11px] text-white/60">{row.label}</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-amber-300">
+                          {row.count}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-white/60">
+                    {lang === "ar"
+                      ? "كل عملية شراء جديدة تسجّل تلقائياً نية دفع وتجهيز شحنة وإشعار تاجر وتحديث سجل العميل هنا لتكون جاهزة لأي لوحة دعم أو شركة شحن لاحقاً."
+                      : "Every checkout automatically populates PaymentTx, ShipmentDispatch, MerchantNotification, and CustomerCRM records here."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* ==================== TAB 5: STORE & THEMES (Non-Staff) ==================== */}
+          {activeTab === "store" && !isStaffOnly ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-serif text-2xl font-semibold">
+                  {lang === "ar" ? "الهوية البصرية والتذييل وثيمات الإيفنتات" : "Store Identity, Footer & Presets"}
+                </h2>
                 <SaveButton tab="store" onClick={() => void handleSaveStore()} />
               </div>
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {/* Color & Identity Inputs */}
                 <div className="grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6 sm:grid-cols-2 lg:col-span-2">
                   <div>
                     <label className="mb-1 block text-xs text-white/65">
-                      {t.storeName}
-                      <InfoHint
-                        id="store-name"
-                        ar="اسم البراند المحفوظ في جدول store_configs ويظهر في المتجر والهوية العامة."
-                        en="Brand name stored in store_configs across the storefront."
-                      />
+                      {lang === "ar" ? "اسم المتجر" : "Store Name"}
                     </label>
                     <input
                       value={storeName}
@@ -1457,12 +2249,7 @@ export function AdminPortalClient() {
                   </div>
                   <div>
                     <label className="mb-1 block text-xs text-white/65">
-                      {t.whatsapp}
-                      <InfoHint
-                        id="store-wa"
-                        ar="رقم واتساب المتجر المستخدم في إشعارات الطلبات والتواصل المباشر مع العملاء."
-                        en="Store WhatsApp number used for order confirmations and customer support."
-                      />
+                      {lang === "ar" ? "رقم واتساب الطلبات" : "WhatsApp Order Number"}
                     </label>
                     <input
                       dir="ltr"
@@ -1471,41 +2258,36 @@ export function AdminPortalClient() {
                       className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
                     />
                   </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-white/65">
+                      {lang === "ar" ? "بريد الدعم (supportEmail)" : "Support Email"}
+                    </label>
+                    <input
+                      dir="ltr"
+                      value={supportEmail}
+                      onChange={(e) => setSupportEmail(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-white/65">
+                      {lang === "ar" ? "نص التذييل الديناميكي (Footer Tagline)" : "Dynamic Footer Tagline"}
+                    </label>
+                    <input
+                      value={footerTagline}
+                      onChange={(e) => setFooterTagline(e.target.value)}
+                      placeholder="Cairo & New Cairo Express Delivery..."
+                      className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
+                    />
+                  </div>
                   {[
-                    {
-                      label: t.homeAccent,
-                      val: defaultAccent,
-                      set: setDefaultAccent,
-                      ar: "يغيّر لون النصوص التمييزية (New Arrivals / Room Bundles) ولون نجمة MY ROOM في الصفحة الرئيسية فقط.",
-                      en: "Changes accent text (New Arrivals / Room Bundles) and the MY ROOM star icon on the Home page.",
-                    },
-                    {
-                      label: t.bgPrimary,
-                      val: bgPrimary,
-                      set: setBgPrimary,
-                      ar: "يتحكم في لون أعلى خلفية الموقع بالكامل (أول تدرج في الخلفية).",
-                      en: "Controls the top background color of the entire site canvas.",
-                    },
-                    {
-                      label: t.bgSecondary,
-                      val: bgSecondary,
-                      set: setBgSecondary,
-                      ar: "يتحكم في لون منتصف خلفية الموقع بالكامل.",
-                      en: "Controls the middle gradient stop of the site canvas.",
-                    },
-                    {
-                      label: t.bgElevated,
-                      val: bgElevated,
-                      set: setBgElevated,
-                      ar: "يتحكم في لون أسفل خلفية الموقع بالكامل.",
-                      en: "Controls the bottom gradient stop of the site canvas.",
-                    },
+                    { label: lang === "ar" ? "لون الرئيسية" : "Home Accent", val: defaultAccent, set: setDefaultAccent },
+                    { label: lang === "ar" ? "خلفية علوي" : "Canvas Top", val: bgPrimary, set: setBgPrimary },
+                    { label: lang === "ar" ? "خلفية أوسط" : "Canvas Mid", val: bgSecondary, set: setBgSecondary },
+                    { label: lang === "ar" ? "خلفية سفلي" : "Canvas Bottom", val: bgElevated, set: setBgElevated },
                   ].map((c) => (
                     <div key={c.label}>
-                      <label className="mb-1 block text-xs text-white/65">
-                        {c.label}
-                        <InfoHint id={`color-${c.label}`} ar={c.ar} en={c.en} />
-                      </label>
+                      <label className="mb-1 block text-xs text-white/65">{c.label}</label>
                       <div className="flex items-center gap-3">
                         <input
                           type="color"
@@ -1521,7 +2303,7 @@ export function AdminPortalClient() {
                   ))}
                 </div>
 
-                {/* Live Theme Preview Mini-Card */}
+                {/* Live Theme Preview */}
                 <div
                   className="flex flex-col justify-between rounded-2xl border border-white/15 p-5"
                   style={{
@@ -1530,13 +2312,13 @@ export function AdminPortalClient() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-white/70">
-                      {t.livePreview}
+                      Preview
                     </span>
                     <span
                       className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[10px] font-bold"
                       style={{ color: defaultAccent }}
                     >
-                      ✦ MY ROOM
+                      ✦ {storeName || "STORE"}
                     </span>
                   </div>
                   <div className="my-6 text-center">
@@ -1555,8 +2337,8 @@ export function AdminPortalClient() {
                       ))}
                     </div>
                   </div>
-                  <p className="text-center text-[10px] text-white/50">
-                    {bgPrimary} → {bgElevated}
+                  <p className="text-center text-[10px] text-white/55">
+                    {footerTagline || `${bgPrimary} → ${bgElevated}`}
                   </p>
                 </div>
               </div>
@@ -1565,28 +2347,31 @@ export function AdminPortalClient() {
               <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="font-serif text-lg font-semibold">
-                    {t.presetsTitle}
-                    <InfoHint
-                      id="presets-info"
-                      ar="احفظ ألوان الإيفنت (مثل رمضان أو البلاك فرايداي) في Supabase لتبديل ثيم الموقع بالكامل بضغطة واحدة، ويمكنك استرجاع ثيم ROOM الأساسي في أي وقت."
-                      en="Save full event palettes to Supabase and switch the entire site theme in 1 click, or restore ROOM Default anytime."
-                    />
+                    {lang === "ar"
+                      ? "ثيمات الإيفنتات (تحفظ تلقائياً في __isolated_universe_organizer_v1__)"
+                      : "Event Theme Presets"}
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() => void handleApplyPreset(ROOM_DEFAULT_PRESET)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    {t.restoreDefault}
-                  </button>
+                  {presets[0] ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleApplyPreset(presets[0]!)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>{lang === "ar" ? "استرجاع الأساسي" : "Restore Baseline"}</span>
+                    </button>
+                  ) : null}
                 </div>
 
                 <form onSubmit={handleSavePreset} className="flex flex-wrap gap-3">
                   <input
                     value={newPresetName}
                     onChange={(e) => setNewPresetName(e.target.value)}
-                    placeholder={t.presetPlaceholder}
+                    placeholder={
+                      lang === "ar"
+                        ? "اسم الإيفنت (مثال: رمضان، بلاك فرايداي)"
+                        : "Event preset name"
+                    }
                     required
                     className="h-10 min-w-[220px] flex-1 rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
                   />
@@ -1595,7 +2380,7 @@ export function AdminPortalClient() {
                     className="inline-flex h-10 items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25"
                   >
                     <BookmarkPlus className="h-4 w-4" />
-                    {t.savePresetBtn}
+                    <span>{lang === "ar" ? "حفظ كقالب" : "Save Preset"}</span>
                   </button>
                 </form>
 
@@ -1627,266 +2412,22 @@ export function AdminPortalClient() {
                         onClick={() => void handleApplyPreset(preset)}
                         className="rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-black hover:opacity-90"
                       >
-                        {t.applyTheme}
+                        {lang === "ar" ? "تطبيق" : "Apply"}
                       </button>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <TabGuideBanner
-                arPoints={[
-                  "ألوان الخلفية (علوي / أوسط / سفلي) تغيّر تدرج خلفية الموقع بالكامل فوراً عند الحفظ.",
-                  "لون الرئيسية يغيّر لون النصوص التمييزية ونجمة MY ROOM في الصفحة الرئيسية فقط.",
-                  "قوالب الإيفنتات تحفظ الخلفية + ألوان الأقسام الثلاثة معاً في Supabase، وزر (استرجاع ثيم ROOM الأساسي) يعيد كل الألوان الأصلية."
-                ]}
-                enPoints={[
-                  "Canvas colors (Top / Mid / Bottom) update the full site background gradient immediately on save.",
-                  "Home Accent changes the highlight text and MY ROOM star icon on the Home page only.",
-                  "Event Theme Presets save both the canvas and all 3 Universe colors in Supabase; Restore Default resets back to ROOM's original palette."
-                ]}
-              />
             </div>
           ) : null}
 
-          {/* UNIVERSES */}
-          {/* ORDERS & WHATSAPP */}
-          {activeTab === "orders" ? (
-            <div className="space-y-5">
-              <h2 className="font-serif text-2xl font-semibold">{t.ordersTitle}</h2>
-              {orders.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-[#0b0815] p-8 text-center text-xs text-white/55">
-                  {t.noOrders}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {orders.map((ord) => {
-                    const waPhone = ord.customerPhone.replace(/[^0-9]/g, "");
-                    const waMsg = encodeURIComponent(
-                      `Hi ${ord.customerName}, your ROOM order #${ord.orderNumber} (${formatEgp(ord.total)}) is now: ${ord.status}`
-                    );
-                    return (
-                      <div
-                        key={ord.id}
-                        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
-                      >
-                        <div>
-                          <p className="font-mono text-sm font-bold text-white">
-                            #{ord.orderNumber} — {ord.customerName}
-                          </p>
-                          <p className="text-xs text-white/55">
-                            {ord.customerPhone} • {ord.paymentMethod} • {formatEgp(ord.total)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={`https://wa.me/${waPhone}?text=${waMsg}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" />
-                            <span>{t.whatsappBtn}</span>
-                          </a>
-                          <select
-                            value={ord.status}
-                            onChange={(e) => void handleUpdateOrderStatus(ord.id, e.target.value)}
-                            className="h-9 rounded-xl border border-white/15 bg-black/60 px-3 text-xs font-semibold text-white"
-                          >
-                            {[
-                              "PENDING",
-                              "CONFIRMED",
-                              "PACKING",
-                              "OUT_FOR_DELIVERY",
-                              "DELIVERED",
-                              "CANCELLED",
-                            ].map((st) => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <TabGuideBanner
-                arPoints={[
-                  "تغيير حالة الطلب (PENDING / CONFIRMED / PACKING / OUT_FOR_DELIVERY / DELIVERED) يُحفظ فوراً في جدول orders بـ Supabase.",
-                  "زر (تحديث واتساب) يفتح محادثة واتساب مع العميل برسالة جاهزة تحتوي على رقم الطلب والإجمالي والحالة."
-                ]}
-                enPoints={[
-                  "Changing order status updates the orders table in Supabase immediately.",
-                  "WhatsApp Update opens a pre-filled WhatsApp message to the customer with order number, total, and status."
-                ]}
-              />
-            </div>
-          ) : null}
-
-          {/* HOME COMPOSER REDIRECT */}
-          {activeTab === "sections" ? (
-            <div className="max-w-2xl space-y-5 rounded-3xl border border-cyan-400/25 bg-[#0b0815] p-6">
-              <h2 className="font-serif text-2xl font-semibold text-white">
-                {lang === "ar"
-                  ? "منسّق الصفحة الرئيسية المعزول الجديد"
-                  : "New Isolated Homepage Composer"}
-              </h2>
-              <p className="text-xs leading-relaxed text-white/70">
-                {lang === "ar"
-                  ? "تم استبدال نظام أقسام الرئيسية القديم بمنسّق الصفحة الرئيسية المعزول (/admin/home/) + منظّم بطاقات القراءة والأزرار (/admin/elements/) للتحكم الكامل في البلوكات والأعمدة والموبايل والعناصر."
-                  : "The legacy Homepage builder has been replaced by the Isolated Homepage Composer (/admin/home/) and Text & Buttons Studio (/admin/elements/)."}
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/admin/home/"
-                  className="inline-flex items-center gap-2 rounded-full bg-cyan-400 px-5 py-2.5 text-xs font-bold text-black hover:opacity-90"
-                >
-                  <Layers className="h-4 w-4" />
-                  <span>
-                    {lang === "ar" ? "فتح منسّق الرئيسية" : "Open Home Composer"}
-                  </span>
-                </Link>
-                <Link
-                  href="/admin/elements/"
-                  className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-5 py-2.5 text-xs font-bold text-fuchsia-200 hover:bg-fuchsia-500/25"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span>
-                    {lang === "ar" ? "فتح منظّم النصوص والأزرار" : "Open Text & Buttons"}
-                  </span>
-                </Link>
-              </div>
-            </div>
-          ) : null}
-
-          {/* CAIRO SHIPPING */}
-          {activeTab === "shipping" ? (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <h2 className="font-serif text-2xl font-semibold">{t.shippingTitle}</h2>
-                <SaveButton tab="shipping" onClick={() => void handleSaveZones()} />
-              </div>
-
-              <form
-                onSubmit={handleAddZone}
-                className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
-              >
-                <div className="min-w-[220px] flex-1">
-                  <label className="mb-1 block text-xs text-white/65">{t.addZoneTitle}</label>
-                  <input
-                    required
-                    value={newZoneName}
-                    onChange={(e) => setNewZoneName(e.target.value)}
-                    placeholder={t.zoneNamePlaceholder}
-                    className="h-9 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-white/65">{t.fee}</label>
-                  <input
-                    type="number"
-                    value={newZoneFee}
-                    onChange={(e) => setNewZoneFee(Number(e.target.value))}
-                    className="h-9 w-24 rounded-xl border border-white/15 bg-black/50 px-3 text-xs"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-bold text-black"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t.addZoneBtn}
-                </button>
-              </form>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {zones.map((z) => (
-                  <div
-                    key={z.id}
-                    className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0815] p-5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-cyan-300" />
-                        <h3 className="text-sm font-semibold">{z.name}</h3>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setZones((prev) =>
-                            prev.map((x) =>
-                              x.id === z.id ? { ...x, active: !x.active } : x
-                            )
-                          )
-                        }
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                          z.active
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : "bg-white/10 text-white/45"
-                        }`}
-                      >
-                        {z.active ? t.active : t.hidden}
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-3 text-xs">
-                      <label className="text-white/60">
-                        {t.fee}
-                        <input
-                          type="number"
-                          value={z.fee}
-                          onChange={(e) =>
-                            setZones((prev) =>
-                              prev.map((x) =>
-                                x.id === z.id ? { ...x, fee: Number(e.target.value) } : x
-                              )
-                            )
-                          }
-                          className="mx-2 h-8 w-20 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
-                        />
-                      </label>
-                      <label className="text-white/60">
-                        {t.freeAbove}
-                        <input
-                          type="number"
-                          value={z.freeThreshold}
-                          onChange={(e) =>
-                            setZones((prev) =>
-                              prev.map((x) =>
-                                x.id === z.id
-                                  ? { ...x, freeThreshold: Number(e.target.value) }
-                                  : x
-                              )
-                            )
-                          }
-                          className="mx-2 h-8 w-24 rounded-lg border border-white/15 bg-black/50 px-2 text-white"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <TabGuideBanner
-                arPoints={[
-                  "مناطق الشحن المفعّلة تظهر للعملاء داخل سلة MY ROOM لحساب تكلفة التوصيل في القاهرة والقاهرة الجديدة.",
-                  "إذا وصل إجمالي طلب العميل إلى رقم (مجاني فوق) يصبح الشحن مجانياً (FREE) تلقائياً."
-                ]}
-                enPoints={[
-                  "Active Cairo/New Cairo zones appear inside the My Room bag drawer for live shipping calculation.",
-                  "Orders reaching the Free Above threshold automatically receive FREE shipping."
-                ]}
-              />
-            </div>
-          ) : null}
-
-          {/* TEAM & INVITES */}
-          {activeTab === "team" ? (
+          {/* ==================== TAB 6: TEAM & RBAC (Non-Staff) ==================== */}
+          {activeTab === "team" && !isStaffOnly ? (
             <div className="space-y-8">
               <div>
-                <h2 className="font-serif text-2xl font-semibold">{t.teamTitle}</h2>
+                <h2 className="font-serif text-2xl font-semibold">
+                  {lang === "ar" ? "فريق الإدارة والدعوات (RBAC)" : "Team & Access Control"}
+                </h2>
                 <p className="mt-1 text-xs text-white/55">{t.teamSub}</p>
               </div>
 
@@ -1896,7 +2437,7 @@ export function AdminPortalClient() {
               >
                 <div className="min-w-[220px] flex-1">
                   <label className="mb-1.5 block text-xs font-semibold text-white/70">
-                    {t.adminEmail}
+                    {lang === "ar" ? "البريد الإلكتروني" : "Admin Email"}
                   </label>
                   <input
                     type="email"
@@ -1904,14 +2445,13 @@ export function AdminPortalClient() {
                     required
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="new-admin@example.com"
+                    placeholder="member@example.com"
                     className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm text-white"
                   />
                 </div>
-
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-white/70">
-                    {t.role}
+                    Role
                   </label>
                   <select
                     value={inviteRole}
@@ -1922,21 +2462,17 @@ export function AdminPortalClient() {
                     <option value="STAFF">STAFF</option>
                   </select>
                 </div>
-
                 <button
                   type="submit"
                   className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-xs font-bold uppercase tracking-wider text-black hover:opacity-90"
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>{t.genInvite}</span>
+                  <span>{lang === "ar" ? "توليد دعوة (48س)" : "Generate 48h Invite"}</span>
                 </button>
               </form>
 
               {invites.length > 0 ? (
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">
-                    {t.inviteLinksTitle}
-                  </h3>
                   {invites.map((inv) => {
                     const expired = new Date(inv.expiresAt).getTime() < Date.now();
                     return (
@@ -1949,32 +2485,31 @@ export function AdminPortalClient() {
                             {inv.email}
                           </p>
                           <p className="text-xs text-white/50">
-                            {t.role}: {inv.role} • {t.expires}:{" "}
-                            {new Date(inv.expiresAt).toLocaleString()}
+                            {inv.role} • {new Date(inv.expiresAt).toLocaleString()}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div>
                           {inv.usedAt ? (
                             <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
-                              {t.used}
+                              Used
                             </span>
                           ) : expired ? (
                             <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300">
-                              {t.expired}
+                              Expired
                             </span>
                           ) : (
                             <button
                               type="button"
                               onClick={() => handleCopyInvite(inv.token)}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-4 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/25"
+                              className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-500/15 px-4 py-1.5 text-xs font-semibold text-cyan-200"
                             >
                               {copiedToken === inv.token ? (
                                 <>
-                                  <Check className="h-3.5 w-3.5" /> {t.copied}
+                                  <Check className="h-3.5 w-3.5" /> Copied
                                 </>
                               ) : (
                                 <>
-                                  <Copy className="h-3.5 w-3.5" /> {t.copyLink}
+                                  <Copy className="h-3.5 w-3.5" /> Copy Link
                                 </>
                               )}
                             </button>
@@ -1986,60 +2521,79 @@ export function AdminPortalClient() {
                 </div>
               ) : null}
 
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-white/60">
-                  {t.activeAccounts} ({accounts.length})
-                </h3>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {accounts.map((acc) => (
-                    <div
-                      key={acc.id}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0b0815] p-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <UserCheck className="h-5 w-5 text-white/70" />
-                        <div>
-                          <p className="text-sm font-semibold">{acc.name}</p>
-                          <p className="font-mono text-xs text-white/55" dir="ltr">
-                            @{acc.username} • {acc.email}
-                          </p>
-                        </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {accounts.map((acc) => (
+                  <div
+                    key={acc.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0b0815] p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <UserCheck className="h-5 w-5 text-white/70" />
+                      <div>
+                        <p className="text-sm font-semibold">{acc.name}</p>
+                        <p className="font-mono text-xs text-white/55" dir="ltr">
+                          @{acc.username} • {acc.email}
+                        </p>
                       </div>
-                      <span className="rounded-full border border-amber-400/35 bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-300">
-                        {acc.role}
-                      </span>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-2">
+                      {isOwner && acc.id !== currentUser.id ? (
+                        <>
+                          <select
+                            value={acc.role}
+                            onChange={(e) =>
+                              void handleChangeAccountRole(
+                                acc.id,
+                                e.target.value as "OWNER" | "ADMIN" | "STAFF"
+                              )
+                            }
+                            className="h-8 rounded-lg border border-white/15 bg-black/60 px-2 text-[11px] font-bold"
+                          >
+                            <option value="OWNER">OWNER</option>
+                            <option value="ADMIN">ADMIN</option>
+                            <option value="STAFF">STAFF</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleToggleAccountActive(acc.id, !acc.isActive)
+                            }
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                              acc.isActive
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-red-500/20 text-red-300"
+                            }`}
+                          >
+                            {acc.isActive ? "Active" : "Suspended"}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="rounded-full border border-amber-400/35 bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-300">
+                          {acc.role}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <TabGuideBanner
-                arPoints={[
-                  "رابط الدعوة صالح لمدة 48 ساعة فقط ويُستخدم مرة واحدة: بمجرد أن يسجل الأدمن الجديد اسمه وباسورده يتعطل الرابط تلقائياً.",
-                  "جميع حسابات الـ Owners والأدمن محفوظة في جدول users وروابط الدعوة في admin_invites على Supabase."
-                ]}
-                enPoints={[
-                  "Invite links expire after 48 hours and are strictly single-use: once redeemed, the token is marked used.",
-                  "All Owner/Admin accounts and invites are stored in Supabase users & admin_invites tables."
-                ]}
-              />
             </div>
           ) : null}
 
-          {/* MY PROFILE */}
+          {/* ==================== TAB 7: MY PROFILE ==================== */}
           {activeTab === "profile" ? (
             <div className="max-w-xl space-y-5">
-              <div>
-                <h2 className="font-serif text-2xl font-semibold">{t.profileTitle}</h2>
-                <p className="mt-1 text-xs text-white/55">{t.profileSub}</p>
-              </div>
+              <h2 className="font-serif text-2xl font-semibold">
+                {lang === "ar" ? "الملف الشخصي وكلمة المرور" : "My Profile"}
+              </h2>
 
               <form
                 onSubmit={handleSaveProfile}
                 className="space-y-4 rounded-2xl border border-white/10 bg-[#0b0815] p-6"
               >
                 <div>
-                  <label className="mb-1 block text-xs text-white/65">{t.displayName}</label>
+                  <label className="mb-1 block text-xs text-white/65">
+                    {lang === "ar" ? "الاسم الظاهر" : "Display Name"}
+                  </label>
                   <input
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
@@ -2047,11 +2601,8 @@ export function AdminPortalClient() {
                     className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
                   />
                 </div>
-
                 <div>
-                  <label className="mb-1 block text-xs text-white/65">
-                    {t.usernameLabel}
-                  </label>
+                  <label className="mb-1 block text-xs text-white/65">Username</label>
                   <input
                     dir="ltr"
                     value={profileUsername}
@@ -2061,9 +2612,8 @@ export function AdminPortalClient() {
                     className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 font-mono text-sm"
                   />
                 </div>
-
                 <div>
-                  <label className="mb-1 block text-xs text-white/65">{t.emailLabel}</label>
+                  <label className="mb-1 block text-xs text-white/65">Email</label>
                   <input
                     type="email"
                     dir="ltr"
@@ -2073,21 +2623,30 @@ export function AdminPortalClient() {
                     className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
                   />
                 </div>
-
                 <div>
                   <label className="mb-1 flex items-center gap-1.5 text-xs text-white/65">
                     <KeyRound className="h-3.5 w-3.5" />
-                    <span>{t.newPasswordLabel}</span>
+                    <span>
+                      {lang === "ar"
+                        ? "كلمة مرور جديدة (8 أحرف على الأقل — اختياري)"
+                        : "New Password (min 8 chars — optional)"}
+                    </span>
                   </label>
                   <input
                     type="password"
                     dir="ltr"
                     value={profileNewPassword}
                     onChange={(e) => setProfileNewPassword(e.target.value)}
-                    placeholder="Min 6 characters"
+                    placeholder="Min 8 characters"
                     className="h-10 w-full rounded-xl border border-white/15 bg-black/50 px-3 text-sm"
                   />
                 </div>
+
+                {profileError ? (
+                  <p className="rounded-xl border border-red-400/35 bg-red-500/15 px-3 py-2 text-xs text-red-200">
+                    {profileError}
+                  </p>
+                ) : null}
 
                 <SaveButton
                   tab="profile"
@@ -2097,17 +2656,6 @@ export function AdminPortalClient() {
                   }}
                 />
               </form>
-
-              <TabGuideBanner
-                arPoints={[
-                  "تعديل اسم المستخدم (Username) يتيح لك تسجيل الدخول للوحة التحكم باستخدامه مع كلمة المرور بدون كتابة الإيميل.",
-                  "تعديل كلمة المرور يشفرها فوراً ويحفظها في جدول users على Supabase."
-                ]}
-                enPoints={[
-                  "Updating your Username lets you sign in to Admin with Username + Password without needing your email.",
-                  "Updating your password hashes and stores it securely in Supabase users."
-                ]}
-              />
             </div>
           ) : null}
         </div>

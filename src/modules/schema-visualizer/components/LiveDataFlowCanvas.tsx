@@ -41,6 +41,8 @@ type DomainKey =
   | "core"
   | "builder"
   | "orders"
+  | "analytics"
+  | "future_ops"
   | "loyalty";
 
 interface DataSourceDef {
@@ -50,7 +52,15 @@ interface DataSourceDef {
   modelName: string;
   tableName: string;
   isolatedPageKey?: string;
-  isolatedArrayKey?: "universes" | "products" | "packages" | "elements" | "blocks";
+  isolatedArrayKey?:
+    | "universes"
+    | "products"
+    | "packages"
+    | "elements"
+    | "blocks"
+    | "checkout"
+    | "analytics"
+    | "future_ops";
   labelAr: string;
   labelEn: string;
   descAr: string;
@@ -101,6 +111,18 @@ const DOMAIN_GROUPS: DomainGroupMeta[] = [
     labelAr: "الطلبات وشحن القاهرة",
     labelEn: "Orders & Cairo Shipping",
     color: "#ef4444",
+  },
+  {
+    key: "analytics",
+    labelAr: "الإحصائيات وتتبع الزوار",
+    labelEn: "Analytics & Telemetry",
+    color: "#06b6d4",
+  },
+  {
+    key: "future_ops",
+    labelAr: "العمليات المستقبلية (دفع/شحن/دعم)",
+    labelEn: "Future Ops Ledger",
+    color: "#f59e0b",
   },
   {
     key: "loyalty",
@@ -264,6 +286,103 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
       "page_sections",
     ],
     previewColumns: ["internalName", "title", "desktopCols", "mobileCols", "isVisible"],
+  },
+
+  {
+    id: "isolated_checkout",
+    kind: "isolated",
+    domainKey: "isolated",
+    modelName: "IsolatedCartCheckout",
+    tableName: "page_sections",
+    isolatedPageKey: "__isolated_cart_checkout_v1__",
+    isolatedArrayKey: "checkout",
+    labelAr: "السلة والدفع المعزولة",
+    labelEn: "Isolated Cart & Checkout",
+    descAr: "مخزن معزول لوسائل الدفع، أكواد الخصم، وقواعد السلة (/admin/checkout/) ولا يُعدّل من أي صفحة أخرى.",
+    descEn: "Isolated registry governing payment methods, promo codes, checkout rules, and drawer labels.",
+    accentColor: "#14b8a6",
+    writers: [
+      { label: "Cart & Checkout Studio", route: "/admin/checkout/", detail: "saveIsolatedCheckoutRegistry()" },
+      { label: "Checkout Order Engine", route: "/", detail: "submitCheckoutOrder() promo usage++" },
+    ],
+    storageSummary:
+      "page_sections[id=ckorg_isolated_registry_v1, pageKey=__isolated_cart_checkout_v1__] + localStorage",
+    readerApis: [
+      { mod: "@modules/cart-checkout", fn: "fetchCheckoutOrganizerSnapshot()" },
+    ],
+    consumers: [
+      { label: "My Room Bag & Checkout Drawer", href: "/" },
+      { label: "Checkout Studio", href: "/admin/checkout/" },
+    ],
+    relatedSourceIds: ["orders", "order_items", "shipping_zones", "isolated_analytics"],
+    previewColumns: ["_kind", "code", "labelAr", "value", "isEnabled"],
+  },
+  {
+    id: "isolated_analytics",
+    kind: "isolated",
+    domainKey: "analytics",
+    modelName: "IsolatedAnalytics",
+    tableName: "page_sections",
+    isolatedPageKey: "__isolated_analytics_v1__",
+    isolatedArrayKey: "analytics",
+    labelAr: "تتبع الإحصائيات والتحويل",
+    labelEn: "Isolated Analytics Telemetry",
+    descAr: "يربط أحداث الزوار والمشاهدات والسلة والشراء بجميع جداول المنتجات واليونيفيرسز والطلبات والشحن.",
+    descEn: "Live funnel telemetry connecting Page Views, Universe/Product Views, Add-to-Bag, and Purchases across all modules.",
+    accentColor: "#06b6d4",
+    writers: [
+      { label: "Storefront Telemetry", route: "/", detail: "trackStorefrontEvent()" },
+      { label: "Admin Analytics Prep Tab", route: "/admin/", detail: "saveAnalyticsRegistry()" },
+    ],
+    storageSummary:
+      "page_sections[id=anorg_isolated_registry_v1, pageKey=__isolated_analytics_v1__] + AnalyticsEvent model",
+    readerApis: [
+      { mod: "@modules/analytics", fn: "fetchAnalyticsRegistry()" },
+    ],
+    consumers: [
+      { label: "Admin Overview & Analytics Prep", href: "/admin/" },
+      { label: "Schema Inspector", href: "/schema/" },
+    ],
+    relatedSourceIds: [
+      "store_configs",
+      "orders",
+      "order_items",
+      "shipping_zones",
+      "isolated_products",
+      "isolated_universes",
+      "isolated_packages",
+      "isolated_checkout",
+      "isolated_future_ops",
+    ],
+    previewColumns: ["eventType", "entitySlug", "revenue", "utmSource", "createdAt"],
+  },
+  {
+    id: "isolated_future_ops",
+    kind: "isolated",
+    domainKey: "future_ops",
+    modelName: "IsolatedFutureOps",
+    tableName: "page_sections",
+    isolatedPageKey: "__isolated_future_ops_v1__",
+    isolatedArrayKey: "future_ops",
+    labelAr: "سجل العمليات المستقبلية",
+    labelEn: "Future Ops Ledger (Pay/Ship/Support)",
+    descAr: "يستقبل تلقائياً من التشيك آوت سجلات المعاملات المالية وتجهيز الشحن وإشعارات التاجر وملف العميل وتذاكر الدعم.",
+    descEn: "Pre-wired sink populated on every Checkout with PaymentTx, ShipmentDispatch, NotificationQueue, CustomerCRM, and SupportTickets.",
+    accentColor: "#f59e0b",
+    writers: [
+      { label: "Checkout Order Engine", route: "/", detail: "recordFutureOrderOpsEnvelope()" },
+    ],
+    storageSummary:
+      "page_sections[id=fops_isolated_registry_v1, pageKey=__isolated_future_ops_v1__]",
+    readerApis: [
+      { mod: "@modules/analytics", fn: "fetchFutureOpsRegistry()" },
+    ],
+    consumers: [
+      { label: "Admin Analytics & Prep Tab", href: "/admin/" },
+      { label: "Future Shipping/Payment/Support UIs", href: "/schema/" },
+    ],
+    relatedSourceIds: ["orders", "shipping_zones", "isolated_analytics", "isolated_checkout"],
+    previewColumns: ["_kind", "orderNumber", "customerName", "status", "dispatchStatus"],
   },
 
   // 2. CORE & MULTI-TENANT
@@ -644,14 +763,14 @@ export function LiveDataFlowCanvas({
         })
       );
 
-      // Also guarantee fetching all 5 isolated registry rows even if page_sections grows > 100 rows
+      // Also guarantee fetching all isolated registry rows even if page_sections grows > 100 rows
       const isolatedRows = await sbSelect<{
         id: string;
         pageKey: string;
         config: Record<string, unknown>;
       }>(
         "page_sections",
-        "select=id,pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__)"
+        "select=id,pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__,__isolated_cart_checkout_v1__,__isolated_analytics_v1__,__isolated_future_ops_v1__)"
       ).catch(() => []);
 
       const byTable = Object.fromEntries(tableEntries);
@@ -667,6 +786,53 @@ export function LiveDataFlowCanvas({
               rows: [
                 ...(Array.isArray(tb) ? (tb as Record<string, unknown>[]) : []),
                 ...(Array.isArray(bt) ? (bt as Record<string, unknown>[]) : []),
+              ],
+              ok: true,
+            };
+          } else if (def.isolatedArrayKey === "checkout") {
+            const pms = found?.config?.paymentMethods;
+            const prs = found?.config?.promoCodes;
+            nextStates[def.id] = {
+              rows: [
+                ...(Array.isArray(pms)
+                  ? (pms as Record<string, unknown>[]).map((x) => ({
+                      _kind: "PAYMENT_METHOD",
+                      ...x,
+                    }))
+                  : []),
+                ...(Array.isArray(prs)
+                  ? (prs as Record<string, unknown>[]).map((x) => ({
+                      _kind: "PROMO_CODE",
+                      ...x,
+                    }))
+                  : []),
+              ],
+              ok: true,
+            };
+          } else if (def.isolatedArrayKey === "analytics") {
+            const evs = found?.config?.events;
+            nextStates[def.id] = {
+              rows: Array.isArray(evs)
+                ? (evs as Record<string, unknown>[])
+                : [],
+              ok: true,
+            };
+          } else if (def.isolatedArrayKey === "future_ops") {
+            const c = found?.config ?? {};
+            const tag = (kind: string, arr: unknown) =>
+              Array.isArray(arr)
+                ? (arr as Record<string, unknown>[]).map((x) => ({
+                    _kind: kind,
+                    ...x,
+                  }))
+                : [];
+            nextStates[def.id] = {
+              rows: [
+                ...tag("PAYMENT_TX", c.paymentTransactions),
+                ...tag("SHIPMENT", c.shipmentDispatches),
+                ...tag("NOTIFICATION", c.notificationQueue),
+                ...tag("CUSTOMER", c.customerDirectory),
+                ...tag("SUPPORT_TICKET", c.supportTickets),
               ],
               ok: true,
             };

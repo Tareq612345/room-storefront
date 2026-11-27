@@ -46,10 +46,13 @@ export function ProductCard({
     if (product.isVaulted) return;
     addItem({
       id: product.defaultVariantId ?? product.id,
+      entityId: product.id,
+      slug: product.slug,
       itemType: "PRODUCT",
       title: product.name,
       subtitle: product.subtitle,
       unitPrice: product.basePrice,
+      maxStock: product.totalStock,
       accentColor: product.universeAccentColor,
       imageUrl: product.thumbnailUrl,
     });

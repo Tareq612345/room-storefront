@@ -9,6 +9,7 @@ import {
   extractSlugFromLocation,
   fetchResolvedUniversesForStorefront,
 } from "@modules/universe-organizer";
+import { trackStorefrontEvent } from "@modules/analytics";
 import { sbSelect } from "@shared/db/supabase-rest";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -18,6 +19,7 @@ interface StoreThemeJson {
   bgSecondary?: string;
   bgElevated?: string;
   defaultAccent?: string;
+  footerTagline?: string;
 }
 
 export function UniverseThemeSync() {
@@ -31,9 +33,13 @@ export function UniverseThemeSync() {
     (async () => {
       try {
         const [stores, organizedUniverses] = await Promise.all([
-          sbSelect<{ defaultAccentColor: string; themeTokens: StoreThemeJson }>(
+          sbSelect<{
+            name: string;
+            defaultAccentColor: string;
+            themeTokens: StoreThemeJson;
+          }>(
             "store_configs",
-            "select=defaultAccentColor,themeTokens&slug=eq.room-egypt"
+            "select=name,defaultAccentColor,themeTokens&slug=eq.room-egypt"
           ),
           fetchResolvedUniversesForStorefront(),
         ]);
@@ -48,6 +54,8 @@ export function UniverseThemeSync() {
         const bgSecondary = tokens.bgSecondary ?? "#0b0617";
         const bgElevated = tokens.bgElevated ?? "#140b29";
         const defaultAccent = store?.defaultAccentColor ?? "#ffffff";
+        const storeName = store?.name ?? "";
+        const footerTagline = tokens.footerTagline ?? "";
 
         root.style.setProperty("--color-bg-primary", bgPrimary);
         root.style.setProperty("--color-bg-secondary", bgSecondary);
@@ -70,9 +78,15 @@ export function UniverseThemeSync() {
           root.style.setProperty("--color-accent", defaultAccent);
         }
 
+        if (storeName && typeof document !== "undefined" && !pathname?.includes("/admin") && !pathname?.includes("/schema")) {
+          document.title = storeName;
+        }
+
         localStorage.setItem(
           "room_theme_snapshot_v1",
           JSON.stringify({
+            storeName,
+            footerTagline,
             bgPrimary,
             bgSecondary,
             bgElevated,
@@ -80,6 +94,19 @@ export function UniverseThemeSync() {
             universes: universeMap,
           })
         );
+
+        if (
+          pathname &&
+          !pathname.includes("/admin") &&
+          !pathname.includes("/schema")
+        ) {
+          void trackStorefrontEvent({
+            eventType: slug ? "VIEW_UNIVERSE" : "PAGE_VIEW",
+            path: pathname,
+            entityType: slug ? "UNIVERSE" : "PAGE",
+            entitySlug: slug ?? null,
+          });
+        }
       } catch {
         // Keep pre-paint snapshot or CSS defaults
       }

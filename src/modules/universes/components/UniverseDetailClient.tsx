@@ -395,6 +395,8 @@ export function UniverseDetailClient({
                           onClick={() =>
                             addItem({
                               id: offer.id,
+                              entityId: offer.id,
+                              slug: offer.slug,
                               itemType: "BUNDLE",
                               title: offer.title,
                               subtitle: offer.subtitle,

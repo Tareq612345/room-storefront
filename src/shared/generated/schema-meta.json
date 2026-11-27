@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-26T04:46:57.157Z",
+  "generatedAt": "2026-11-27T13:36:18.710Z",
   "provider": "PostgreSQL (Supabase)",
   "stats": {
-    "modelsCount": 14,
-    "enumsCount": 9,
-    "edgesCount": 27,
-    "fieldsCount": 240
+    "modelsCount": 21,
+    "enumsCount": 13,
+    "edgesCount": 45,
+    "fieldsCount": 361
   },
   "enums": [
     {
@@ -94,6 +94,47 @@
         "PRO",
         "ELITE",
         "LEGEND"
+      ]
+    },
+    {
+      "name": "AnalyticsEventType",
+      "values": [
+        "PAGE_VIEW",
+        "VIEW_UNIVERSE",
+        "VIEW_PRODUCT",
+        "VIEW_PACKAGE",
+        "ADD_TO_BAG",
+        "BEGIN_CHECKOUT",
+        "APPLY_PROMO",
+        "PURCHASE"
+      ]
+    },
+    {
+      "name": "PromoDiscountType",
+      "values": [
+        "PERCENTAGE",
+        "FIXED_AMOUNT"
+      ]
+    },
+    {
+      "name": "SupportTicketStatus",
+      "values": [
+        "OPEN",
+        "IN_PROGRESS",
+        "WAITING_CUSTOMER",
+        "RESOLVED",
+        "CLOSED"
+      ]
+    },
+    {
+      "name": "DispatchStatus",
+      "values": [
+        "PENDING_DISPATCH",
+        "AWB_CREATED",
+        "IN_TRANSIT",
+        "OUT_FOR_DELIVERY",
+        "DELIVERED",
+        "RETURNED"
       ]
     }
   ],
@@ -481,6 +522,111 @@
           "relationFields": [],
           "isModelRelation": true,
           "isEnum": false
+        },
+        {
+          "name": "promoCodes",
+          "type": "PromoCode",
+          "rawType": "PromoCode[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "analyticsEvents",
+          "type": "AnalyticsEvent",
+          "rawType": "AnalyticsEvent[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "analyticsSessions",
+          "type": "AnalyticsSession",
+          "rawType": "AnalyticsSession[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "paymentTransactions",
+          "type": "PaymentTransaction",
+          "rawType": "PaymentTransaction[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "shipmentDispatches",
+          "type": "ShipmentDispatch",
+          "rawType": "ShipmentDispatch[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "supportTickets",
+          "type": "SupportTicket",
+          "rawType": "SupportTicket[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "notificationLogs",
+          "type": "NotificationLog",
+          "rawType": "NotificationLog[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
         }
       ],
       "indexes": [
@@ -728,6 +874,21 @@
           "name": "sentInvites",
           "type": "AdminInvite",
           "rawType": "AdminInvite[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "supportTickets",
+          "type": "SupportTicket",
+          "rawType": "SupportTicket[]",
           "isList": true,
           "isOptional": false,
           "isId": false,
@@ -3099,6 +3260,36 @@
           "relationFields": [],
           "isModelRelation": true,
           "isEnum": false
+        },
+        {
+          "name": "analyticsEvents",
+          "type": "AnalyticsEvent",
+          "rawType": "AnalyticsEvent[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "shipmentDispatches",
+          "type": "ShipmentDispatch",
+          "rawType": "ShipmentDispatch[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
         }
       ],
       "indexes": [
@@ -3499,9 +3690,131 @@
           "isEnum": false
         },
         {
+          "name": "promoCode",
+          "type": "PromoCode",
+          "rawType": "PromoCode?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "PromoCode",
+          "relationFields": [
+            "promoCodeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "promoCodeId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
           "name": "items",
           "type": "OrderItem",
           "rawType": "OrderItem[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "analyticsEvents",
+          "type": "AnalyticsEvent",
+          "rawType": "AnalyticsEvent[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "analyticsSessions",
+          "type": "AnalyticsSession",
+          "rawType": "AnalyticsSession[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "paymentTransactions",
+          "type": "PaymentTransaction",
+          "rawType": "PaymentTransaction[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "shipmentDispatches",
+          "type": "ShipmentDispatch",
+          "rawType": "ShipmentDispatch[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "supportTickets",
+          "type": "SupportTicket",
+          "rawType": "SupportTicket[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "notificationLogs",
+          "type": "NotificationLog",
+          "rawType": "NotificationLog[]",
           "isList": true,
           "isOptional": false,
           "isId": false,
@@ -3988,6 +4301,1699 @@
       "uniques": [
         "storeId, referralCode"
       ]
+    },
+    {
+      "name": "PromoCode",
+      "tableName": "promo_codes",
+      "domain": "Orders & Cairo Shipping",
+      "position": {
+        "x": 2620,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "code",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "discountType",
+          "type": "PromoDiscountType",
+          "rawType": "PromoDiscountType",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "PERCENTAGE",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": true
+        },
+        {
+          "name": "value",
+          "type": "Decimal",
+          "rawType": "Decimal",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "minOrderSubtotal",
+          "type": "Decimal",
+          "rawType": "Decimal",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "0",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "maxUses",
+          "type": "Int",
+          "rawType": "Int?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "usedCount",
+          "type": "Int",
+          "rawType": "Int",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "0",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "rawType": "DateTime?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "rawType": "Boolean",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "true",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "orders",
+          "type": "Order",
+          "rawType": "Order[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, isActive"
+      ],
+      "uniques": [
+        "storeId, code"
+      ]
+    },
+    {
+      "name": "AnalyticsSession",
+      "tableName": "analytics_sessions",
+      "domain": "Analytics & Telemetry",
+      "position": {
+        "x": 2800,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "sessionKey",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "landingPath",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "utmSource",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "utmMedium",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "utmCampaign",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "deviceType",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"desktop\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "hasAddedToBag",
+          "type": "Boolean",
+          "rawType": "Boolean",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "false",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "hasPurchased",
+          "type": "Boolean",
+          "rawType": "Boolean",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "false",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "convertedOrderId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "convertedOrder",
+          "type": "Order",
+          "rawType": "Order?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "Order",
+          "relationFields": [
+            "convertedOrderId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "events",
+          "type": "AnalyticsEvent",
+          "rawType": "AnalyticsEvent[]",
+          "isList": true,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, createdAt",
+        "storeId, utmSource"
+      ],
+      "uniques": [
+        "storeId, sessionKey"
+      ]
+    },
+    {
+      "name": "AnalyticsEvent",
+      "tableName": "analytics_events",
+      "domain": "Analytics & Telemetry",
+      "position": {
+        "x": 2980,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "sessionId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "eventType",
+          "type": "AnalyticsEventType",
+          "rawType": "AnalyticsEventType",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": true
+        },
+        {
+          "name": "path",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "entityType",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "entityId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "entitySlug",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "revenue",
+          "type": "Decimal",
+          "rawType": "Decimal?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "utmSource",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "shippingZoneId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "metadata",
+          "type": "Json",
+          "rawType": "Json",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"{}\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "session",
+          "type": "AnalyticsSession",
+          "rawType": "AnalyticsSession?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "AnalyticsSession",
+          "relationFields": [
+            "sessionId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "shippingZone",
+          "type": "ShippingZone",
+          "rawType": "ShippingZone?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "ShippingZone",
+          "relationFields": [
+            "shippingZoneId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "order",
+          "type": "Order",
+          "rawType": "Order?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "Order",
+          "relationFields": [
+            "orderId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, eventType, createdAt",
+        "storeId, entityId",
+        "orderId"
+      ],
+      "uniques": []
+    },
+    {
+      "name": "PaymentTransaction",
+      "tableName": "payment_transactions",
+      "domain": "Future Ops (Payments/Dispatch/Support)",
+      "position": {
+        "x": 3160,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "method",
+          "type": "PaymentMethod",
+          "rawType": "PaymentMethod",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": true
+        },
+        {
+          "name": "providerName",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"manual-or-cod\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "providerReference",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "rawType": "Decimal",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "status",
+          "type": "PaymentStatus",
+          "rawType": "PaymentStatus",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "PENDING",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": true
+        },
+        {
+          "name": "rawPayload",
+          "type": "Json",
+          "rawType": "Json",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"{}\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "order",
+          "type": "Order",
+          "rawType": "Order",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "Order",
+          "relationFields": [
+            "orderId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, orderId, status"
+      ],
+      "uniques": []
+    },
+    {
+      "name": "ShipmentDispatch",
+      "tableName": "shipment_dispatches",
+      "domain": "Future Ops (Payments/Dispatch/Support)",
+      "position": {
+        "x": 3340,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "shippingZoneId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "courierName",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"cairo-express-dispatch\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "trackingNumber",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "dispatchStatus",
+          "type": "DispatchStatus",
+          "rawType": "DispatchStatus",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "PENDING_DISPATCH",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": true
+        },
+        {
+          "name": "awbUrl",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "shippedAt",
+          "type": "DateTime",
+          "rawType": "DateTime?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "deliveredAt",
+          "type": "DateTime",
+          "rawType": "DateTime?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "order",
+          "type": "Order",
+          "rawType": "Order",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "Order",
+          "relationFields": [
+            "orderId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "shippingZone",
+          "type": "ShippingZone",
+          "rawType": "ShippingZone",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "ShippingZone",
+          "relationFields": [
+            "shippingZoneId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, orderId, dispatchStatus"
+      ],
+      "uniques": []
+    },
+    {
+      "name": "SupportTicket",
+      "tableName": "support_tickets",
+      "domain": "Future Ops (Payments/Dispatch/Support)",
+      "position": {
+        "x": 3520,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "ticketNumber",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "userId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "customerName",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "customerPhone",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "channel",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"whatsapp\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "subject",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "status",
+          "type": "SupportTicketStatus",
+          "rawType": "SupportTicketStatus",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "OPEN",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": true
+        },
+        {
+          "name": "notes",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "order",
+          "type": "Order",
+          "rawType": "Order?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "Order",
+          "relationFields": [
+            "orderId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "user",
+          "type": "User",
+          "rawType": "User?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "User",
+          "relationFields": [
+            "userId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, status, createdAt"
+      ],
+      "uniques": [
+        "storeId, ticketNumber"
+      ]
+    },
+    {
+      "name": "NotificationLog",
+      "tableName": "notification_logs",
+      "domain": "Future Ops (Payments/Dispatch/Support)",
+      "position": {
+        "x": 3700,
+        "y": 140
+      },
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": true,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "cuid(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "storeId",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "rawType": "String?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": true,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "channel",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "recipient",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "templateKey",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "rawType": "String",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"QUEUED\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "payload",
+          "type": "Json",
+          "rawType": "Json",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "\"{}\"",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "rawType": "DateTime",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": "now(",
+          "relationTo": null,
+          "relationFields": [],
+          "isModelRelation": false,
+          "isEnum": false
+        },
+        {
+          "name": "store",
+          "type": "StoreConfig",
+          "rawType": "StoreConfig",
+          "isList": false,
+          "isOptional": false,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "StoreConfig",
+          "relationFields": [
+            "storeId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        },
+        {
+          "name": "order",
+          "type": "Order",
+          "rawType": "Order?",
+          "isList": false,
+          "isOptional": true,
+          "isId": false,
+          "isUnique": false,
+          "isForeignKey": false,
+          "defaultValue": null,
+          "relationTo": "Order",
+          "relationFields": [
+            "orderId"
+          ],
+          "isModelRelation": true,
+          "isEnum": false
+        }
+      ],
+      "indexes": [
+        "storeId, orderId, createdAt"
+      ],
+      "uniques": []
     }
   ],
   "edges": [
@@ -4172,6 +6178,15 @@
       ]
     },
     {
+      "id": "Order->PromoCode:promoCode",
+      "from": "Order",
+      "to": "PromoCode",
+      "field": "promoCode",
+      "fkFields": [
+        "promoCodeId"
+      ]
+    },
+    {
       "id": "OrderItem->StoreConfig:store",
       "from": "OrderItem",
       "to": "StoreConfig",
@@ -4232,6 +6247,159 @@
       "field": "user",
       "fkFields": [
         "userId"
+      ]
+    },
+    {
+      "id": "PromoCode->StoreConfig:store",
+      "from": "PromoCode",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "AnalyticsSession->StoreConfig:store",
+      "from": "AnalyticsSession",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "AnalyticsSession->Order:convertedOrder",
+      "from": "AnalyticsSession",
+      "to": "Order",
+      "field": "convertedOrder",
+      "fkFields": [
+        "convertedOrderId"
+      ]
+    },
+    {
+      "id": "AnalyticsEvent->StoreConfig:store",
+      "from": "AnalyticsEvent",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "AnalyticsEvent->AnalyticsSession:session",
+      "from": "AnalyticsEvent",
+      "to": "AnalyticsSession",
+      "field": "session",
+      "fkFields": [
+        "sessionId"
+      ]
+    },
+    {
+      "id": "AnalyticsEvent->ShippingZone:shippingZone",
+      "from": "AnalyticsEvent",
+      "to": "ShippingZone",
+      "field": "shippingZone",
+      "fkFields": [
+        "shippingZoneId"
+      ]
+    },
+    {
+      "id": "AnalyticsEvent->Order:order",
+      "from": "AnalyticsEvent",
+      "to": "Order",
+      "field": "order",
+      "fkFields": [
+        "orderId"
+      ]
+    },
+    {
+      "id": "PaymentTransaction->StoreConfig:store",
+      "from": "PaymentTransaction",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "PaymentTransaction->Order:order",
+      "from": "PaymentTransaction",
+      "to": "Order",
+      "field": "order",
+      "fkFields": [
+        "orderId"
+      ]
+    },
+    {
+      "id": "ShipmentDispatch->StoreConfig:store",
+      "from": "ShipmentDispatch",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "ShipmentDispatch->Order:order",
+      "from": "ShipmentDispatch",
+      "to": "Order",
+      "field": "order",
+      "fkFields": [
+        "orderId"
+      ]
+    },
+    {
+      "id": "ShipmentDispatch->ShippingZone:shippingZone",
+      "from": "ShipmentDispatch",
+      "to": "ShippingZone",
+      "field": "shippingZone",
+      "fkFields": [
+        "shippingZoneId"
+      ]
+    },
+    {
+      "id": "SupportTicket->StoreConfig:store",
+      "from": "SupportTicket",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "SupportTicket->Order:order",
+      "from": "SupportTicket",
+      "to": "Order",
+      "field": "order",
+      "fkFields": [
+        "orderId"
+      ]
+    },
+    {
+      "id": "SupportTicket->User:user",
+      "from": "SupportTicket",
+      "to": "User",
+      "field": "user",
+      "fkFields": [
+        "userId"
+      ]
+    },
+    {
+      "id": "NotificationLog->StoreConfig:store",
+      "from": "NotificationLog",
+      "to": "StoreConfig",
+      "field": "store",
+      "fkFields": [
+        "storeId"
+      ]
+    },
+    {
+      "id": "NotificationLog->Order:order",
+      "from": "NotificationLog",
+      "to": "Order",
+      "field": "order",
+      "fkFields": [
+        "orderId"
       ]
     }
   ]

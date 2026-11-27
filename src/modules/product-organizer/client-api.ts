@@ -140,3 +140,41 @@ export async function fetchResolvedProductDetail(
     snapshot.registry.products.find((p) => p.slug === slug && p.isActive) ?? null
   );
 }
+
+/**
+ * Isolated Checkout Inventory Hook: decrements ordered product quantities cleanly inside __isolated_product_organizer_v1__.
+ */
+export async function decrementIsolatedProductsStock(
+  lines: Array<{ productIdOrSlug: string; quantity: number }>
+): Promise<void> {
+  if (lines.length === 0) return;
+  const snapshot = await fetchProductOrganizerSnapshot();
+  let changed = false;
+
+  const nextProducts = snapshot.registry.products.map((prod) => {
+    const matched = lines.find(
+      (l) => l.productIdOrSlug === prod.id || l.productIdOrSlug === prod.slug
+    );
+    if (!matched || matched.quantity <= 0) return prod;
+    changed = true;
+    const nextStock = Math.max(0, prod.stock - matched.quantity);
+    return {
+      ...prod,
+      stock: nextStock,
+      isVaulted: nextStock <= 0 ? true : prod.isVaulted,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  if (!changed) return;
+
+  await saveIsolatedProductRegistry({
+    storeId: snapshot.storeId,
+    recordExistsInDb: snapshot.recordExistsInDb,
+    registry: {
+      ...snapshot.registry,
+      updatedAt: new Date().toISOString(),
+      products: nextProducts,
+    },
+  });
+}

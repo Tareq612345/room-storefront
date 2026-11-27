@@ -5,6 +5,7 @@
 
 import { MyRoomTriggerAndDrawer } from "@modules/cart-checkout";
 import { AmbientBackground } from "@shared/components/AmbientBackground";
+import { StorefrontFooter } from "@shared/components/StorefrontFooter";
 import { UniverseThemeSync } from "@shared/components/UniverseThemeSync";
 import type { Metadata } from "next";
 import { Cinzel, Plus_Jakarta_Sans } from "next/font/google";
@@ -83,14 +84,7 @@ export default function RootLayout({
 
         <main className="relative z-10">{children}</main>
 
-        <footer className="relative z-10 border-t border-[var(--color-border-subtle)] bg-black/60 py-8 text-center text-xs text-[var(--color-text-muted)]">
-          <div className="mx-auto max-w-6xl px-4">
-            <p className="font-serif tracking-[0.2em] text-white/80">ROOM</p>
-            <p className="mt-2">
-              Cairo &amp; New Cairo Express Delivery • COD &amp; Online Payments
-            </p>
-          </div>
-        </footer>
+        <StorefrontFooter />
       </body>
     </html>
   );

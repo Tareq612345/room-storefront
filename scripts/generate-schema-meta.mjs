@@ -34,7 +34,14 @@ const DOMAIN_MAP = {
   ShippingZone: "Orders & Cairo Shipping",
   Order: "Orders & Cairo Shipping",
   OrderItem: "Orders & Cairo Shipping",
+  PromoCode: "Orders & Cairo Shipping",
   LoyaltyAccount: "Loyalty & Rewards",
+  AnalyticsSession: "Analytics & Telemetry",
+  AnalyticsEvent: "Analytics & Telemetry",
+  PaymentTransaction: "Future Ops (Payments/Dispatch/Support)",
+  ShipmentDispatch: "Future Ops (Payments/Dispatch/Support)",
+  SupportTicket: "Future Ops (Payments/Dispatch/Support)",
+  NotificationLog: "Future Ops (Payments/Dispatch/Support)",
 };
 
 const DEFAULT_POSITIONS = {

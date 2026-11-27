@@ -8,6 +8,7 @@
 import { sbSelect } from "@shared/db/supabase-rest";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Check,
   Database,
@@ -208,9 +209,7 @@ export function ElementOrganizerClient({
               if (u.slug) {
                 routes.push({
                   label: `Universe: ${u.name ?? u.slug}`,
-                  href: ["cars", "gaming", "anime"].includes(u.slug)
-                    ? `/universes/${u.slug}`
-                    : `/universe/?slug=${encodeURIComponent(u.slug)}`,
+                  href: `/universe/?slug=${encodeURIComponent(u.slug)}`,
                 });
               }
             }
@@ -386,6 +385,13 @@ export function ElementOrganizerClient({
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070510]/90 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            <Link
+              href="/admin/"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/80 hover:bg-white/15"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "لوحة الإدارة" : "Admin"}</span>
+            </Link>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-fuchsia-400/35 bg-fuchsia-500/10">
               <Sparkles className="h-5 w-5 text-fuchsia-300" />
             </div>

@@ -10,6 +10,9 @@ export const StoreThemeTokensSchema = z.object({
   bgSecondary: z.string().default("#0b0617"),
   bgElevated: z.string().default("#140b29"),
   defaultAccent: z.string().default("#c94b99"),
+  footerTagline: z.string().optional(),
+  ga4MeasurementId: z.string().optional(),
+  metaPixelId: z.string().optional(),
 });
 
 export const StoreConfigSchema = z.object({

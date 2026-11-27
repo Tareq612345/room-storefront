@@ -7,6 +7,7 @@ export { ProductDetailClient } from "./components/ProductDetailClient";
 export { ProductOrganizerClient } from "./components/ProductOrganizerClient";
 export { StorefrontProductBannerCard } from "./components/StorefrontProductBannerCard";
 export {
+  decrementIsolatedProductsStock,
   fetchProductOrganizerSnapshot,
   fetchResolvedProductDetail,
   fetchResolvedProductsForStorefront,

@@ -87,6 +87,39 @@ enum LoyaltyTier {
   LEGEND
 }
 
+enum AnalyticsEventType {
+  PAGE_VIEW
+  VIEW_UNIVERSE
+  VIEW_PRODUCT
+  VIEW_PACKAGE
+  ADD_TO_BAG
+  BEGIN_CHECKOUT
+  APPLY_PROMO
+  PURCHASE
+}
+
+enum PromoDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum DispatchStatus {
+  PENDING_DISPATCH
+  AWB_CREATED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RETURNED
+}
+
 // ============================================================================
 // 1. STORE CONFIG (Multi-Storefront & Zero-Code Theme Tokens)
 // ============================================================================
@@ -114,10 +147,17 @@ model StoreConfig {
   bundleItems      BundleItem[]
   pageSections     PageSection[]
   shippingZones    ShippingZone[]
-  orders           Order[]
-  orderItems       OrderItem[]
-  loyaltyAccounts  LoyaltyAccount[]
-  adminInvites     AdminInvite[]
+  orders               Order[]
+  orderItems           OrderItem[]
+  loyaltyAccounts      LoyaltyAccount[]
+  adminInvites         AdminInvite[]
+  promoCodes           PromoCode[]
+  analyticsEvents      AnalyticsEvent[]
+  analyticsSessions    AnalyticsSession[]
+  paymentTransactions  PaymentTransaction[]
+  shipmentDispatches   ShipmentDispatch[]
+  supportTickets       SupportTicket[]
+  notificationLogs     NotificationLog[]
 
   @@index([isActive])
   @@map("store_configs")
@@ -145,6 +185,7 @@ model User {
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
   sentInvites    AdminInvite[]   @relation("InvitedBy")
+  supportTickets SupportTicket[]
 
   @@unique([storeId, email])
   @@unique([storeId, username])
@@ -385,8 +426,10 @@ model ShippingZone {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  store  StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  orders Order[]
+  store              StoreConfig        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders             Order[]
+  analyticsEvents    AnalyticsEvent[]
+  shipmentDispatches ShipmentDispatch[]
 
   @@unique([storeId, name])
   @@index([storeId, isActive, sortOrder])
@@ -421,10 +464,18 @@ model Order {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  store        StoreConfig  @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  shippingZone ShippingZone @relation(fields: [shippingZoneId], references: [id], onDelete: Restrict)
-  items        OrderItem[]
+  store               StoreConfig          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shippingZone        ShippingZone         @relation(fields: [shippingZoneId], references: [id], onDelete: Restrict)
+  promoCode           PromoCode?           @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  promoCodeId         String?
+  items               OrderItem[]
+  analyticsEvents     AnalyticsEvent[]
+  analyticsSessions   AnalyticsSession[]
+  paymentTransactions PaymentTransaction[]
+  shipmentDispatches  ShipmentDispatch[]
+  supportTickets      SupportTicket[]
+  notificationLogs    NotificationLog[]
 
   @@unique([storeId, orderNumber])
   @@index([storeId, status, createdAt])
@@ -478,4 +529,174 @@ model LoyaltyAccount {
   @@unique([storeId, referralCode])
   @@index([storeId, tier])
   @@map("loyalty_accounts")
+}
+
+// ============================================================================
+// 10. PROMO CODES & CHECKOUT FOUNDATION
+// ============================================================================
+
+model PromoCode {
+  id               String            @id @default(cuid())
+  storeId          String
+  code             String
+  discountType     PromoDiscountType @default(PERCENTAGE)
+  value            Decimal           @db.Decimal(10, 2)
+  minOrderSubtotal Decimal           @default(0) @db.Decimal(10, 2)
+  maxUses          Int?
+  usedCount        Int               @default(0)
+  expiresAt        DateTime?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  store  StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([storeId, code])
+  @@index([storeId, isActive])
+  @@map("promo_codes")
+}
+
+// ============================================================================
+// 11. ANALYTICS & CONVERSION FUNNEL FOUNDATION
+// ============================================================================
+
+model AnalyticsSession {
+  id             String   @id @default(cuid())
+  storeId        String
+  sessionKey     String
+  landingPath    String
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  deviceType     String   @default("desktop")
+  hasAddedToBag  Boolean  @default(false)
+  hasPurchased   Boolean  @default(false)
+  convertedOrderId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store          StoreConfig      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  convertedOrder Order?           @relation(fields: [convertedOrderId], references: [id], onDelete: SetNull)
+  events         AnalyticsEvent[]
+
+  @@unique([storeId, sessionKey])
+  @@index([storeId, createdAt])
+  @@index([storeId, utmSource])
+  @@map("analytics_sessions")
+}
+
+model AnalyticsEvent {
+  id             String             @id @default(cuid())
+  storeId        String
+  sessionId      String?
+  eventType      AnalyticsEventType
+  path           String
+  entityType     String?
+  entityId       String?
+  entitySlug     String?
+  revenue        Decimal?           @db.Decimal(10, 2)
+  utmSource      String?
+  shippingZoneId String?
+  orderId        String?
+  metadata       Json               @default("{}")
+  createdAt      DateTime           @default(now())
+
+  store        StoreConfig       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  session      AnalyticsSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  shippingZone ShippingZone?     @relation(fields: [shippingZoneId], references: [id], onDelete: SetNull)
+  order        Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, eventType, createdAt])
+  @@index([storeId, entityId])
+  @@index([orderId])
+  @@map("analytics_events")
+}
+
+// ============================================================================
+// 12. FUTURE OPERATIONS: PAYMENTS, DISPATCH, NOTIFICATIONS & SUPPORT
+// ============================================================================
+
+model PaymentTransaction {
+  id                String        @id @default(cuid())
+  storeId           String
+  orderId           String
+  method            PaymentMethod
+  providerName      String        @default("manual-or-cod")
+  providerReference String?
+  amount            Decimal       @db.Decimal(10, 2)
+  status            PaymentStatus @default(PENDING)
+  rawPayload        Json          @default("{}")
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, orderId, status])
+  @@map("payment_transactions")
+}
+
+model ShipmentDispatch {
+  id             String         @id @default(cuid())
+  storeId        String
+  orderId        String
+  shippingZoneId String
+  courierName    String         @default("cairo-express-dispatch")
+  trackingNumber String?
+  dispatchStatus DispatchStatus @default(PENDING_DISPATCH)
+  awbUrl         String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  store        StoreConfig  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shippingZone ShippingZone @relation(fields: [shippingZoneId], references: [id], onDelete: Restrict)
+
+  @@index([storeId, orderId, dispatchStatus])
+  @@map("shipment_dispatches")
+}
+
+model SupportTicket {
+  id            String              @id @default(cuid())
+  storeId       String
+  ticketNumber  String
+  orderId       String?
+  userId        String?
+  customerName  String
+  customerPhone String
+  channel       String              @default("whatsapp")
+  subject       String
+  status        SupportTicketStatus @default(OPEN)
+  notes         String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([storeId, ticketNumber])
+  @@index([storeId, status, createdAt])
+  @@map("support_tickets")
+}
+
+model NotificationLog {
+  id          String   @id @default(cuid())
+  storeId     String
+  orderId     String?
+  channel     String
+  recipient   String
+  templateKey String
+  status      String   @default("QUEUED")
+  payload     Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, orderId, createdAt])
+  @@map("notification_logs")
 }

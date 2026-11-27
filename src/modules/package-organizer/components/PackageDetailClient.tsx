@@ -5,6 +5,7 @@
 
 "use client";
 
+import { trackStorefrontEvent } from "@modules/analytics";
 import { useRoomBagStore } from "@modules/cart-checkout";
 import { ProductCard, type ProductSummaryDTO } from "@modules/catalog";
 import {
@@ -91,6 +92,13 @@ export function PackageDetailClient({ slug }: PackageDetailClientProps) {
 
         setPkg(foundPkg);
         if (foundPkg) {
+          void trackStorefrontEvent({
+            eventType: "VIEW_PACKAGE",
+            path: `/package/?slug=${encodeURIComponent(slug)}`,
+            entityType: foundPkg.kind,
+            entityId: foundPkg.id,
+            entitySlug: foundPkg.slug,
+          });
           const members = allProducts
             .filter((p) => foundPkg.productIds.includes(p.id))
             .map(toMemberProduct);
@@ -275,6 +283,8 @@ export function PackageDetailClient({ slug }: PackageDetailClientProps) {
                       onClick={() =>
                         addItem({
                           id: pkg.id,
+                          entityId: pkg.id,
+                          slug: pkg.slug,
                           itemType: "BUNDLE",
                           title: pkg.name,
                           subtitle: pkg.tagline,

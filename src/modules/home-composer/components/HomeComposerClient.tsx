@@ -15,6 +15,7 @@ import { StorefrontUniverseCard } from "@modules/universe-organizer";
 import { UniverseStarHeader } from "@modules/universes";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Check,
   Copy,
@@ -419,6 +420,13 @@ export function HomeComposerClient({
       <header className="shrink-0 border-b border-white/10 bg-[#070510]/95 px-4 py-2.5 backdrop-blur-xl">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5">
+            <Link
+              href="/admin/"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 text-[11px] font-semibold text-white/80 hover:bg-white/15"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "لوحة الإدارة" : "Admin"}</span>
+            </Link>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/35 bg-emerald-500/10">
               <Layers className="h-4 w-4 text-emerald-300" />
             </div>
