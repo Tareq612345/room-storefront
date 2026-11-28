@@ -145,21 +145,54 @@ export async function fetchResolvedProductDetail(
  * Isolated Checkout Inventory Hook: decrements ordered product quantities cleanly inside __isolated_product_organizer_v1__.
  */
 export async function decrementIsolatedProductsStock(
-  lines: Array<{ productIdOrSlug: string; quantity: number }>
+  lines: Array<{
+    productIdOrSlug: string;
+    variantId?: string | null;
+    quantity: number;
+  }>
 ): Promise<void> {
   if (lines.length === 0) return;
   const snapshot = await fetchProductOrganizerSnapshot();
   let changed = false;
 
   const nextProducts = snapshot.registry.products.map((prod) => {
-    const matched = lines.find(
-      (l) => l.productIdOrSlug === prod.id || l.productIdOrSlug === prod.slug
+    const prodLines = lines.filter(
+      (l) =>
+        (l.productIdOrSlug === prod.id || l.productIdOrSlug === prod.slug) &&
+        l.quantity > 0
     );
-    if (!matched || matched.quantity <= 0) return prod;
+    if (prodLines.length === 0) return prod;
     changed = true;
-    const nextStock = Math.max(0, prod.stock - matched.quantity);
+
+    let nextVariants = [...prod.variants];
+    let totalOrdered = 0;
+
+    for (const line of prodLines) {
+      totalOrdered += line.quantity;
+      if (line.variantId && nextVariants.length > 0) {
+        nextVariants = nextVariants.map((v) =>
+          v.id === line.variantId
+            ? { ...v, stock: Math.max(0, v.stock - line.quantity) }
+            : v
+        );
+      }
+    }
+
+    const activeVariantsStock =
+      nextVariants.length > 0
+        ? nextVariants
+            .filter((v) => v.isActive)
+            .reduce((s, v) => s + v.stock, 0)
+        : null;
+
+    const nextStock =
+      activeVariantsStock !== null
+        ? activeVariantsStock
+        : Math.max(0, prod.stock - totalOrdered);
+
     return {
       ...prod,
+      variants: nextVariants,
       stock: nextStock,
       isVaulted: nextStock <= 0 ? true : prod.isVaulted,
       updatedAt: new Date().toISOString(),

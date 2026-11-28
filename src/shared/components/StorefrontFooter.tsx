@@ -1,19 +1,31 @@
 /**
  * @file src/shared/components/StorefrontFooter.tsx
- * @purpose Dynamic Storefront Footer backed by live store_configs, shipping_zones, and cart-checkout config (zero static text hardcoded in layout.tsx).
+ * @purpose Dynamic Storefront Footer backed by live store_configs, shipping_zones, and separated links to Policies, FAQ & Contact.
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
 import { sbSelect } from "@shared/db/supabase-rest";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface FooterData {
   storeName: string;
   tagline: string;
 }
 
+const FOOTER_LINKS = [
+  { href: "/policies/returns/", label: "الاستبدال والاسترجاع" },
+  { href: "/policies/shipping/", label: "سياسة الشحن" },
+  { href: "/policies/privacy/", label: "الخصوصية" },
+  { href: "/policies/terms/", label: "الشروط والأحكام" },
+  { href: "/faq/", label: "الأسئلة الشائعة" },
+  { href: "/contact/", label: "من نحن وتواصل معنا" },
+];
+
 export function StorefrontFooter() {
+  const pathname = usePathname();
   const [data, setData] = useState<FooterData>({
     storeName: "",
     tagline: "",
@@ -52,7 +64,9 @@ export function StorefrontFooter() {
           ).catch(() => []),
         ]);
         if (!active || !stores[0]) return;
-        const cities = Array.from(new Set(zones.map((z) => z.city).filter(Boolean))).join(" • ");
+        const cities = Array.from(
+          new Set(zones.map((z) => z.city).filter(Boolean))
+        ).join(" • ");
         const resolvedTagline =
           stores[0].themeTokens?.footerTagline?.trim() ||
           (cities ? `${cities} Express Delivery` : "");
@@ -60,9 +74,6 @@ export function StorefrontFooter() {
           storeName: stores[0].name,
           tagline: resolvedTagline,
         });
-        if (stores[0].name && typeof document !== "undefined") {
-          document.title = `${stores[0].name} — Storefront`;
-        }
       } catch {
         // Keep cached footer
       }
@@ -73,21 +84,35 @@ export function StorefrontFooter() {
     };
   }, []);
 
-  if (!data.storeName && !data.tagline) {
-    return (
-      <footer className="relative z-10 border-t border-[var(--color-border-subtle)] bg-black/60 py-8 text-center text-xs text-[var(--color-text-muted)]" />
-    );
+  if (pathname?.includes("/admin") || pathname?.includes("/schema")) {
+    return null;
   }
 
   return (
     <footer className="relative z-10 border-t border-[var(--color-border-subtle)] bg-black/60 py-8 text-center text-xs text-[var(--color-text-muted)]">
-      <div className="mx-auto max-w-6xl px-4">
+      <div className="mx-auto max-w-6xl space-y-4 px-4">
         {data.storeName ? (
           <p className="font-serif tracking-[0.2em] text-white/80">
             {data.storeName}
           </p>
         ) : null}
-        {data.tagline ? <p className="mt-2">{data.tagline}</p> : null}
+
+        <nav
+          dir="rtl"
+          className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-white/65"
+        >
+          {FOOTER_LINKS.map((lnk) => (
+            <Link
+              key={lnk.href}
+              href={lnk.href}
+              className="transition-colors hover:text-white"
+            >
+              {lnk.label}
+            </Link>
+          ))}
+        </nav>
+
+        {data.tagline ? <p>{data.tagline}</p> : null}
       </div>
     </footer>
   );

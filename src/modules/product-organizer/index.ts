@@ -28,9 +28,11 @@ export {
   OrganizedProductSchema,
   ProductRegistrySchema,
   ProductSpecItemSchema,
+  ProductVariantItemSchema,
   type OrganizedProduct,
   type ProductOrganizerBootstrap,
   type ProductRegistry,
   type ProductSpecItem,
+  type ProductVariantItem,
 } from "./schema";
 export { getProductOrganizerBootstrap } from "./service";

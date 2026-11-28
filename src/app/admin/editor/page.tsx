@@ -7,14 +7,17 @@ import {
   HomeComposerClient,
   getHomeComposerBootstrap,
 } from "@modules/home-composer";
+import { AdminAuthGuard } from "@shared/components/AdminAuthGuard";
 
 export default async function AdminEditorHomeComposerPage() {
   const bootstrap = await getHomeComposerBootstrap();
 
   return (
-    <HomeComposerClient
-      initialStoreId={bootstrap.storeId}
-      initialRegistry={bootstrap.initialRegistry}
-    />
+    <AdminAuthGuard>
+      <HomeComposerClient
+        initialStoreId={bootstrap.storeId}
+        initialRegistry={bootstrap.initialRegistry}
+      />
+    </AdminAuthGuard>
   );
 }

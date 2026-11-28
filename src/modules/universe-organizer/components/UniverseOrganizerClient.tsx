@@ -6,6 +6,7 @@
 "use client";
 
 import { generateClientId } from "@shared/utils/client-auth";
+import { processAndUploadMedia } from "@shared/utils/media-upload";
 import {
   ArrowLeft,
   ArrowRight,
@@ -389,24 +390,14 @@ export function UniverseOrganizerClient({
     onError: (msg: string) => void
   ) => {
     if (!file) return;
-    const isPng =
-      file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
-    if (!isPng) {
-      onError(t.pngErrorType);
-      return;
-    }
-    if (file.size > 350 * 1024) {
-      onError(t.pngErrorSize);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
+    void processAndUploadMedia(file, "universes")
+      .then((res) => {
         onError("");
-        onSuccess(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+        onSuccess(res.url);
+      })
+      .catch((err) => {
+        onError(err instanceof Error ? err.message : t.pngErrorType);
+      });
   };
 
   const handleCreateUniverse = (e: React.FormEvent) => {

@@ -13,6 +13,20 @@ export const ProductSpecItemSchema = z.object({
 
 export type ProductSpecItem = z.infer<typeof ProductSpecItemSchema>;
 
+export const ProductVariantItemSchema = z.object({
+  id: z.string().min(1),
+  sku: z.string().default(""),
+  colorName: z.string().default(""),
+  colorHex: z.string().default("#ffffff"),
+  size: z.string().default(""),
+  priceOverride: z.number().nonnegative().nullable().default(null),
+  stock: z.number().int().nonnegative().default(5),
+  imageUrl: z.string().nullable().default(null),
+  isActive: z.boolean().default(true),
+});
+
+export type ProductVariantItem = z.infer<typeof ProductVariantItemSchema>;
+
 export const OrganizedProductSchema = z.object({
   id: z.string().min(1),
   slug: z.string().min(1),
@@ -40,6 +54,8 @@ export const OrganizedProductSchema = z.object({
   ),
   description: z.string().default(""),
   specs: z.array(ProductSpecItemSchema).default([]),
+  variants: z.array(ProductVariantItemSchema).default([]),
+  whatsInTheBox: z.array(z.string()).default([]),
   detailLayout: z.enum(["split-gallery", "cinema-hero"]).default("split-gallery"),
   showSpecsGrid: z.boolean().default(true),
   showBuyNowBtn: z.boolean().default(true),

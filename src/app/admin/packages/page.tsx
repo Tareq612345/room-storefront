@@ -7,15 +7,18 @@ import {
   PackageOrganizerClient,
   getPackageOrganizerBootstrap,
 } from "@modules/package-organizer";
+import { AdminAuthGuard } from "@shared/components/AdminAuthGuard";
 
 export default async function AdminPackagesOrganizerPage() {
   const bootstrap = await getPackageOrganizerBootstrap();
 
   return (
-    <PackageOrganizerClient
-      initialStoreId={bootstrap.storeId}
-      initialRegistry={bootstrap.initialRegistry}
-      initialHasPersistedRecord={bootstrap.hasPersistedRecord}
-    />
+    <AdminAuthGuard>
+      <PackageOrganizerClient
+        initialStoreId={bootstrap.storeId}
+        initialRegistry={bootstrap.initialRegistry}
+        initialHasPersistedRecord={bootstrap.hasPersistedRecord}
+      />
+    </AdminAuthGuard>
   );
 }

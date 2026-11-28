@@ -728,6 +728,11 @@ export function MyRoomTriggerAndDrawer() {
                                   <h3 className="truncate text-sm font-semibold text-white">
                                     {item.title}
                                   </h3>
+                                  {item.variantLabel ? (
+                                    <p className="mt-0.5 text-[11px] font-medium text-cyan-200">
+                                      {item.variantLabel}
+                                    </p>
+                                  ) : null}
                                   <p className="mt-0.5 text-xs font-bold text-white/90">
                                     {formatEgp(item.unitPrice)}
                                   </p>

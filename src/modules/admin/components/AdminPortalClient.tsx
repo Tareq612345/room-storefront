@@ -6,6 +6,7 @@
 "use client";
 
 import {
+  AnalyticsDashboardPanel,
   buildInitialAnalyticsRegistry,
   buildInitialFutureOpsRegistry,
   fetchAnalyticsRegistry,
@@ -33,6 +34,7 @@ import {
   CreditCard,
   Database,
   ExternalLink,
+  FileText,
   Info,
   KeyRound,
   Languages,
@@ -41,6 +43,7 @@ import {
   LogOut,
   MapPin,
   MessageCircle,
+  MessageSquare,
   Package,
   Palette,
   Plus,
@@ -363,10 +366,9 @@ export function AdminPortalClient() {
           name: string;
           role: "OWNER" | "ADMIN" | "STAFF";
           isActive: boolean;
-          passwordHash: string | null;
         }>(
           "users",
-          "select=id,email,username,name,role,isActive,passwordHash&role=in.(OWNER,ADMIN,STAFF)&order=createdAt.asc"
+          "select=id,email,username,name,role,isActive&role=in.(OWNER,ADMIN,STAFF)&order=createdAt.asc"
         ),
         sbSelect<LocalInvite>(
           "admin_invites",
@@ -483,7 +485,7 @@ export function AdminPortalClient() {
           name: u.name,
           role: u.role,
           isActive: u.isActive !== false,
-          passwordHash: u.passwordHash ?? "",
+          passwordHash: "",
         }))
       );
 
@@ -898,27 +900,60 @@ export function AdminPortalClient() {
     e.preventDefault();
     setLoginError(null);
     const idClean = identifier.trim().toLowerCase();
-    const found = accounts.find(
-      (a) =>
-        a.isActive &&
-        (a.email.toLowerCase() === idClean ||
-          a.username.toLowerCase() === idClean)
-    );
-
-    if (!found) {
+    if (!idClean || !password) {
       setLoginError(t.loginErr);
       return;
     }
 
-    const ok = await verifyPasswordWeb(password, found.passwordHash);
-    if (!ok) {
-      setLoginError(t.loginErr);
-      return;
-    }
+    try {
+      // Query ONLY the single matching active candidate at submit time (no bulk hash pre-fetch)
+      const candidates = await sbSelect<{
+        id: string;
+        email: string | null;
+        username: string | null;
+        name: string;
+        role: "OWNER" | "ADMIN" | "STAFF";
+        isActive: boolean;
+        passwordHash: string | null;
+      }>(
+        "users",
+        `select=id,email,username,name,role,isActive,passwordHash&role=in.(OWNER,ADMIN,STAFF)&isActive=eq.true&or=(email.ilike.${encodeURIComponent(idClean)},username.ilike.${encodeURIComponent(idClean)})&limit=1`
+      );
 
-    setCurrentUserId(found.id);
-    localStorage.setItem(SESSION_KEY, found.id);
-    setPassword("");
+      const found = candidates[0];
+      if (!found) {
+        setLoginError(t.loginErr);
+        return;
+      }
+
+      const ok = await verifyPasswordWeb(password, found.passwordHash);
+      if (!ok) {
+        setLoginError(t.loginErr);
+        return;
+      }
+
+      setAccounts((prev) =>
+        prev.some((a) => a.id === found.id)
+          ? prev
+          : [
+              ...prev,
+              {
+                id: found.id,
+                email: found.email ?? "",
+                username: found.username ?? "",
+                name: found.name,
+                role: found.role,
+                isActive: true,
+                passwordHash: "",
+              },
+            ]
+      );
+      setCurrentUserId(found.id);
+      localStorage.setItem(SESSION_KEY, found.id);
+      setPassword("");
+    } catch {
+      setLoginError(t.loginErr);
+    }
   };
 
   const handleLogout = () => {
@@ -1024,16 +1059,14 @@ export function AdminPortalClient() {
     const nextUsername = profileUsername.trim() || currentUser.username;
     const nextEmail = profileEmail.trim().toLowerCase() || currentUser.email;
     const nextHash =
-      pwTrimmed.length >= 8
-        ? await hashPasswordWeb(pwTrimmed)
-        : currentUser.passwordHash;
+      pwTrimmed.length >= 8 ? await hashPasswordWeb(pwTrimmed) : null;
 
     try {
       await sbPatch("users", `id=eq.${encodeURIComponent(currentUser.id)}`, {
         name: nextName,
         username: nextUsername,
         email: nextEmail,
-        ...(pwTrimmed.length >= 8 ? { passwordHash: nextHash } : {}),
+        ...(nextHash ? { passwordHash: nextHash } : {}),
         updatedAt: new Date().toISOString(),
       });
       setAccounts((prev) =>
@@ -1044,7 +1077,6 @@ export function AdminPortalClient() {
                 name: nextName,
                 username: nextUsername,
                 email: nextEmail,
-                passwordHash: nextHash,
               }
             : acc
         )
@@ -1473,6 +1505,20 @@ export function AdminPortalClient() {
                       desc: lang === "ar" ? "وسائل الدفع، الكوبونات، قواعد الطلب" : "Payment methods, promos, checkout rules",
                       icon: <CreditCard className="h-4 w-4 text-emerald-300" />,
                       border: "border-emerald-400/30",
+                    },
+                    {
+                      href: "/admin/reviews/",
+                      title: lang === "ar" ? "تقييمات وتعليقات العملاء" : "Product Reviews Studio",
+                      desc: lang === "ar" ? "مراجعة التعليقات والنجوم والرد عليها" : "Moderate ratings, replies & visibility",
+                      icon: <MessageSquare className="h-4 w-4 text-amber-300" />,
+                      border: "border-amber-400/30",
+                    },
+                    {
+                      href: "/admin/policies/",
+                      title: lang === "ar" ? "صفحات السياسات والأسئلة" : "Policies & FAQ Studio",
+                      desc: lang === "ar" ? "الاسترجاع، الشحن، الخصوصية، الأسئلة وتواصل" : "Separated policy docs, FAQ & contact",
+                      icon: <FileText className="h-4 w-4 text-cyan-300" />,
+                      border: "border-cyan-400/30",
                     },
                   ].map((s) => (
                     <Link
@@ -2070,6 +2116,15 @@ export function AdminPortalClient() {
                   </div>
                 ))}
               </div>
+
+              {/* Interactive Revenue Charts & Top Performers */}
+              <AnalyticsDashboardPanel
+                lang={lang}
+                orders={orders}
+                orderItems={Object.values(orderItemsByOrder).flat()}
+                zones={zones}
+                analyticsRegistry={analyticsRegistry}
+              />
 
               {/* Analytics Config + Future Ops Sink Counts */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

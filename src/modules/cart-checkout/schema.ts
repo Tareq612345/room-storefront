@@ -8,6 +8,7 @@ import { z } from "zod";
 export const RoomBagItemSchema = z.object({
   id: z.string(),
   entityId: z.string().optional(),
+  variantId: z.string().nullable().optional(),
   slug: z.string().optional(),
   itemType: z.enum(["PRODUCT", "BUNDLE"]),
   title: z.string(),

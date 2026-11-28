@@ -7,17 +7,20 @@ import {
   UniverseOrganizerClient,
   getUniverseOrganizerBootstrap,
 } from "@modules/universe-organizer";
+import { AdminAuthGuard } from "@shared/components/AdminAuthGuard";
 
 export default async function AdminUniversesOrganizerPage() {
   const bootstrap = await getUniverseOrganizerBootstrap();
 
   return (
-    <UniverseOrganizerClient
-      initialStoreId={bootstrap.storeId}
-      initialRegistry={bootstrap.initialRegistry}
-      initialHasPersistedRecord={bootstrap.hasPersistedRecord}
-      initialProducts={bootstrap.initialProducts}
-      initialOffers={bootstrap.initialOffers}
-    />
+    <AdminAuthGuard>
+      <UniverseOrganizerClient
+        initialStoreId={bootstrap.storeId}
+        initialRegistry={bootstrap.initialRegistry}
+        initialHasPersistedRecord={bootstrap.hasPersistedRecord}
+        initialProducts={bootstrap.initialProducts}
+        initialOffers={bootstrap.initialOffers}
+      />
+    </AdminAuthGuard>
   );
 }

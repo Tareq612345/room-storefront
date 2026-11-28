@@ -6,3 +6,5 @@
 export * from "./schema";
 export * from "./helpers";
 export * from "./client-api";
+export { TrackingScripts } from "./components/TrackingScripts";
+export { AnalyticsDashboardPanel } from "./components/AnalyticsDashboardPanel";

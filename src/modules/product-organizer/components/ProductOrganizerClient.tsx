@@ -6,6 +6,7 @@
 "use client";
 
 import { generateClientId } from "@shared/utils/client-auth";
+import { processAndUploadMedia } from "@shared/utils/media-upload";
 import {
   ArrowLeft,
   ArrowRight,
@@ -349,24 +350,14 @@ export function ProductOrganizerClient({
     onError: (msg: string) => void
   ) => {
     if (!file) return;
-    const allowed = ["image/png", "image/jpeg", "image/webp"];
-    const extOk = /\.(png|jpe?g|webp)$/i.test(file.name);
-    if (!allowed.includes(file.type) && !extOk) {
-      onError(t.imageErrType);
-      return;
-    }
-    if (file.size > 400 * 1024) {
-      onError(t.imageErrSize);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
+    void processAndUploadMedia(file, "products")
+      .then((res) => {
         onError("");
-        onSuccess(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+        onSuccess(res.url);
+      })
+      .catch((err) => {
+        onError(err instanceof Error ? err.message : t.imageErrType);
+      });
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -1391,6 +1382,233 @@ export function ProductOrganizerClient({
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Variants Builder (Colors & Sizes) */}
+                <div className="space-y-3 rounded-2xl border border-indigo-400/25 bg-black/40 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-indigo-200">
+                        {lang === "ar"
+                          ? "تعدد الألوان والمقاسات (Variants)"
+                          : "Colors & Sizes (Variants)"}
+                      </span>
+                      <p className="text-[11px] text-white/50">
+                        {lang === "ar"
+                          ? "أضف اختيارات اللون والمقاس والمخزون الخاص بكل نسخة (اختياري)."
+                          : "Optional color swatches, sizes, SKU, price override & per-variant stock."}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateSingleProduct(
+                          selectedProduct.id,
+                          {
+                            variants: [
+                              ...selectedProduct.variants,
+                              {
+                                id: generateClientId("var"),
+                                sku: "",
+                                colorName: "Obsidian",
+                                colorHex: selectedProduct.accentColor || "#ffffff",
+                                size: "King",
+                                priceOverride: null,
+                                stock: 5,
+                                imageUrl: null,
+                                isActive: true,
+                              },
+                            ],
+                          },
+                          false
+                        )
+                      }
+                      className="rounded-full border border-indigo-400/35 bg-indigo-500/15 px-3.5 py-1.5 text-xs font-bold text-indigo-200 hover:bg-indigo-500/25"
+                    >
+                      {lang === "ar" ? "+ إضافة لون / مقاس" : "+ Add Variant"}
+                    </button>
+                  </div>
+
+                  {selectedProduct.variants.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {selectedProduct.variants.map((v) => (
+                        <div
+                          key={v.id}
+                          className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-[#07050c] p-3 sm:grid-cols-6 sm:items-center"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={v.colorHex || "#ffffff"}
+                              onChange={(e) =>
+                                updateSingleProduct(selectedProduct.id, {
+                                  variants: selectedProduct.variants.map((x) =>
+                                    x.id === v.id ? { ...x, colorHex: e.target.value } : x
+                                  ),
+                                })
+                              }
+                              className="h-8 w-8 shrink-0 cursor-pointer rounded border border-white/15 bg-transparent"
+                            />
+                            <input
+                              type="text"
+                              value={v.colorName}
+                              placeholder={lang === "ar" ? "اللون" : "Color"}
+                              onChange={(e) =>
+                                updateSingleProduct(selectedProduct.id, {
+                                  variants: selectedProduct.variants.map((x) =>
+                                    x.id === v.id ? { ...x, colorName: e.target.value } : x
+                                  ),
+                                })
+                              }
+                              className="h-8 w-full rounded-lg border border-white/15 bg-black/60 px-2 text-xs text-white"
+                            />
+                          </div>
+
+                          <input
+                            type="text"
+                            value={v.size}
+                            placeholder={lang === "ar" ? "المقاس (King)" : "Size"}
+                            onChange={(e) =>
+                              updateSingleProduct(selectedProduct.id, {
+                                variants: selectedProduct.variants.map((x) =>
+                                  x.id === v.id ? { ...x, size: e.target.value } : x
+                                ),
+                              })
+                            }
+                            className="h-8 rounded-lg border border-white/15 bg-black/60 px-2 text-xs text-white"
+                          />
+
+                          <input
+                            type="number"
+                            min={0}
+                            value={v.priceOverride ?? ""}
+                            placeholder={lang === "ar" ? "سعر خاص" : "Price override"}
+                            onChange={(e) =>
+                              updateSingleProduct(selectedProduct.id, {
+                                variants: selectedProduct.variants.map((x) =>
+                                  x.id === v.id
+                                    ? {
+                                        ...x,
+                                        priceOverride:
+                                          e.target.value === ""
+                                            ? null
+                                            : Math.max(0, Number(e.target.value)),
+                                      }
+                                    : x
+                                ),
+                              })
+                            }
+                            className="h-8 rounded-lg border border-white/15 bg-black/60 px-2 text-xs text-white"
+                          />
+
+                          <input
+                            type="number"
+                            min={0}
+                            value={v.stock}
+                            placeholder="Stock"
+                            onChange={(e) =>
+                              updateSingleProduct(selectedProduct.id, {
+                                variants: selectedProduct.variants.map((x) =>
+                                  x.id === v.id
+                                    ? { ...x, stock: Math.max(0, Number(e.target.value)) }
+                                    : x
+                                ),
+                              })
+                            }
+                            className="h-8 rounded-lg border border-white/15 bg-black/60 px-2 text-xs text-white"
+                          />
+
+                          <input
+                            type="text"
+                            dir="ltr"
+                            value={v.imageUrl ?? ""}
+                            placeholder="Variant Img URL (optional)"
+                            onChange={(e) =>
+                              updateSingleProduct(selectedProduct.id, {
+                                variants: selectedProduct.variants.map((x) =>
+                                  x.id === v.id
+                                    ? { ...x, imageUrl: e.target.value || null }
+                                    : x
+                                ),
+                              })
+                            }
+                            className="h-8 rounded-lg border border-white/15 bg-black/60 px-2 font-mono text-[11px] text-white"
+                          />
+
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateSingleProduct(
+                                  selectedProduct.id,
+                                  {
+                                    variants: selectedProduct.variants.map((x) =>
+                                      x.id === v.id ? { ...x, isActive: !x.isActive } : x
+                                    ),
+                                  },
+                                  true
+                                )
+                              }
+                              className={`rounded-lg px-2 py-1 text-[10px] font-bold ${
+                                v.isActive
+                                  ? "bg-emerald-500/20 text-emerald-300"
+                                  : "bg-white/10 text-white/45"
+                              }`}
+                            >
+                              {v.isActive ? "ON" : "OFF"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateSingleProduct(
+                                  selectedProduct.id,
+                                  {
+                                    variants: selectedProduct.variants.filter(
+                                      (x) => x.id !== v.id
+                                    ),
+                                  },
+                                  true
+                                )
+                              }
+                              className="rounded-lg border border-red-500/25 bg-red-500/10 p-1.5 text-red-300"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* What's in the Box / Package Contents */}
+                <div className="space-y-2 rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-white">
+                      {lang === "ar"
+                        ? "محتويات العبوة (سطر لكل قطعة)"
+                        : "What's in the Box (one item per line)"}
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    dir="auto"
+                    value={selectedProduct.whatsInTheBox.join("\n")}
+                    placeholder={
+                      lang === "ar"
+                        ? "ملاية سرير 240×220 سم\n2 كيس مخدة\nكيس حفظ فاخر"
+                        : "Fitted/Flat Bedsheet\n2 Pillowcases\nCollector Dust Bag"
+                    }
+                    onChange={(e) =>
+                      updateSingleProduct(selectedProduct.id, {
+                        whatsInTheBox: e.target.value
+                          .split("\n")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    className="w-full rounded-xl border border-white/15 bg-black/60 p-3 text-xs text-white"
+                  />
                 </div>
 
                 {/* Inner Actions & Toggles */}

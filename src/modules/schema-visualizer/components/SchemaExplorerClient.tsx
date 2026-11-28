@@ -70,6 +70,11 @@ const ACTIVE_NODE_POSITIONS: Record<string, { x: number; y: number }> = {
   IsolatedCartCheckout: { x: 1890, y: 520 },
   IsolatedAnalytics: { x: 1890, y: 840 },
   IsolatedFutureOps: { x: 1890, y: 1140 },
+  ProductReview: { x: 2260, y: 140 },
+  PolicyDocument: { x: 2260, y: 460 },
+  FaqItem: { x: 2260, y: 780 },
+  IsolatedReviews: { x: 2260, y: 1080 },
+  IsolatedPolicies: { x: 2260, y: 1360 },
 };
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -79,6 +84,7 @@ const DOMAIN_COLORS: Record<string, string> = {
   "Loyalty & Rewards": "#22c55e",
   "Analytics & Telemetry": "#06b6d4",
   "Future Ops (Payments/Dispatch/Support)": "#f59e0b",
+  "Reviews & Trust Policies": "#ec4899",
   "Isolated Organizers": "#10b981",
 };
 
@@ -90,6 +96,7 @@ const DOMAIN_LABELS_AR: Record<string, string> = {
   "Loyalty & Rewards": "نقاط الولاء",
   "Analytics & Telemetry": "الإحصائيات وتتبع الزوار",
   "Future Ops (Payments/Dispatch/Support)": "العمليات المستقبلية (دفع/شحن/دعم)",
+  "Reviews & Trust Policies": "التقييمات والسياسات والأسئلة",
   "Isolated Organizers": "المخازن المعزولة الفعالة",
 };
 
@@ -117,6 +124,11 @@ const MODEL_PURPOSE_AR: Record<string, string> = {
   IsolatedCartCheckout: "مخزن السلة والدفع المعزول (/admin/checkout/) — pageKey=__isolated_cart_checkout_v1__",
   IsolatedAnalytics: "مخزن الإحصائيات الفعلي الحي — pageKey=__isolated_analytics_v1__",
   IsolatedFutureOps: "سجل العمليات المستقبلية الحي (مدفوعات/شحن/إشعارات/عملاء/دعم) — pageKey=__isolated_future_ops_v1__",
+  ProductReview: "تقييمات وتعليقات العملاء على المنتجات",
+  PolicyDocument: "وثائق السياسات المنفصلة (استبدال، شحن، خصوصية، شروط)",
+  FaqItem: "الأسئلة الشائعة المقسمة بالفئات",
+  IsolatedReviews: "المخزن المعزول للتقييمات والتعليقات (/admin/reviews/) — __isolated_reviews_v1__",
+  IsolatedPolicies: "المخزن المعزول للسياسات والأسئلة (/admin/policies/) — __isolated_policies_v1__",
 };
 
 const VIRTUAL_ISOLATED_MODELS: Array<
@@ -130,7 +142,9 @@ const VIRTUAL_ISOLATED_MODELS: Array<
       | "blocks"
       | "checkout"
       | "analytics"
-      | "future_ops";
+      | "future_ops"
+      | "reviews"
+      | "policies";
   }
 > = [
   {
@@ -270,6 +284,37 @@ const VIRTUAL_ISOLATED_MODELS: Array<
     ],
     indexes: ["pageKey = __isolated_future_ops_v1__"],
     uniques: ["fops_isolated_registry_v1"],
+  },
+  {
+    name: "IsolatedReviews",
+    tableName: "page_sections[rev]",
+    domain: "Reviews & Trust Policies",
+    position: { x: 2260, y: 1080 },
+    isolatedPageKey: "__isolated_reviews_v1__",
+    isolatedArrayKey: "reviews",
+    fields: [
+      { name: "id", type: "String", rawType: "String", isList: false, isOptional: false, isId: true, isUnique: true, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "pageKey", type: "String", rawType: "__isolated_reviews_v1__", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: true, defaultValue: null, relationTo: "PageSection", relationFields: ["pageKey"] },
+      { name: "config.reviews", type: "Json", rawType: "ProductReviewItem[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+    ],
+    indexes: ["pageKey = __isolated_reviews_v1__"],
+    uniques: ["rev_isolated_registry_v1"],
+  },
+  {
+    name: "IsolatedPolicies",
+    tableName: "page_sections[pol]",
+    domain: "Reviews & Trust Policies",
+    position: { x: 2260, y: 1360 },
+    isolatedPageKey: "__isolated_policies_v1__",
+    isolatedArrayKey: "policies",
+    fields: [
+      { name: "id", type: "String", rawType: "String", isList: false, isOptional: false, isId: true, isUnique: true, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "pageKey", type: "String", rawType: "__isolated_policies_v1__", isList: false, isOptional: false, isId: false, isUnique: false, isForeignKey: true, defaultValue: null, relationTo: "PageSection", relationFields: ["pageKey"] },
+      { name: "config.documents", type: "Json", rawType: "PolicyDocumentItem[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+      { name: "config.faq", type: "Json", rawType: "FaqEntry[]", isList: true, isOptional: false, isId: false, isUnique: false, isForeignKey: false, defaultValue: null, relationTo: null, relationFields: [] },
+    ],
+    indexes: ["pageKey = __isolated_policies_v1__"],
+    uniques: ["pol_isolated_registry_v1"],
   },
 ];
 
@@ -604,7 +649,7 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
         config: Record<string, unknown>;
       }>(
         "page_sections",
-        "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__,__isolated_cart_checkout_v1__,__isolated_analytics_v1__,__isolated_future_ops_v1__)"
+        "select=pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__,__isolated_cart_checkout_v1__,__isolated_analytics_v1__,__isolated_future_ops_v1__,__isolated_reviews_v1__,__isolated_policies_v1__)"
       ).catch(() => []);
 
       const countsMap: Record<string, number> = Object.fromEntries(results);
@@ -616,6 +661,10 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
           countsMap[v.name] =
             (Array.isArray(tb) ? tb.length : 0) +
             (Array.isArray(bt) ? bt.length : 0);
+        } else if (v.isolatedArrayKey === "policies") {
+          const faqObj = found?.config?.faq as { items?: unknown[] } | undefined;
+          const faqCount = Array.isArray(faqObj?.items) ? faqObj.items.length : 0;
+          countsMap[v.name] = 5 + faqCount;
         } else if (v.isolatedArrayKey === "checkout") {
           const pms = found?.config?.paymentMethods;
           const prs = found?.config?.promoCodes;
@@ -705,6 +754,21 @@ export function SchemaExplorerClient({ meta }: SchemaExplorerClientProps) {
               ...tag("NOTIFICATION", c.notificationQueue),
               ...tag("CUSTOMER", c.customerDirectory),
               ...tag("SUPPORT_TICKET", c.supportTickets),
+            ];
+          } else if (virtualMeta.isolatedArrayKey === "policies") {
+            const docs = (rows[0]?.config?.documents ?? {}) as Record<
+              string,
+              Record<string, unknown>
+            >;
+            const faqObj = (rows[0]?.config?.faq ?? {}) as { items?: unknown[] };
+            items = [
+              ...Object.values(docs).map((d) => ({ _kind: "POLICY", ...d })),
+              ...(Array.isArray(faqObj.items)
+                ? (faqObj.items as Record<string, unknown>[]).map((f) => ({
+                    _kind: "FAQ",
+                    ...f,
+                  }))
+                : []),
             ];
           } else {
             const list = rows[0]?.config?.[virtualMeta.isolatedArrayKey];

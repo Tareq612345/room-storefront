@@ -7,15 +7,18 @@ import {
   ElementOrganizerClient,
   getElementOrganizerBootstrap,
 } from "@modules/element-organizer";
+import { AdminAuthGuard } from "@shared/components/AdminAuthGuard";
 
 export default async function AdminElementsOrganizerPage() {
   const bootstrap = await getElementOrganizerBootstrap();
 
   return (
-    <ElementOrganizerClient
-      initialStoreId={bootstrap.storeId}
-      initialRegistry={bootstrap.initialRegistry}
-      initialHasPersistedRecord={bootstrap.hasPersistedRecord}
-    />
+    <AdminAuthGuard>
+      <ElementOrganizerClient
+        initialStoreId={bootstrap.storeId}
+        initialRegistry={bootstrap.initialRegistry}
+        initialHasPersistedRecord={bootstrap.hasPersistedRecord}
+      />
+    </AdminAuthGuard>
   );
 }

@@ -3,9 +3,11 @@
  * @purpose Root App Layout: Loads fonts, applies instant pre-paint theme snapshot to prevent refresh flash, and renders AmbientBackground & My Room drawer.
  */
 
+import { TrackingScripts } from "@modules/analytics";
 import { MyRoomTriggerAndDrawer } from "@modules/cart-checkout";
 import { AmbientBackground } from "@shared/components/AmbientBackground";
 import { StorefrontFooter } from "@shared/components/StorefrontFooter";
+import { StorefrontSearchBar } from "@shared/components/StorefrontSearchBar";
 import { UniverseThemeSync } from "@shared/components/UniverseThemeSync";
 import type { Metadata } from "next";
 import { Cinzel, Plus_Jakarta_Sans } from "next/font/google";
@@ -27,6 +29,16 @@ export const metadata: Metadata = {
   title: "ROOM — Build Your Universe",
   description:
     "High-craft themed bedsheets & full bedroom Loadouts for Anime, Gaming, and Car setups in Cairo & New Cairo.",
+  openGraph: {
+    title: "ROOM — Build Your Universe",
+    description:
+      "Curated dark-mode bedroom loadouts, themed drops, and express delivery.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ROOM — Build Your Universe",
+  },
   icons: {
     icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/brand/logo.jpeg`,
   },
@@ -78,8 +90,10 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: PRE_PAINT_THEME_SCRIPT }} />
       </head>
       <body className="relative min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] selection:bg-[var(--color-accent)] selection:text-[var(--color-accent-foreground)]">
+        <TrackingScripts />
         <UniverseThemeSync />
         <AmbientBackground />
+        <StorefrontSearchBar />
         <MyRoomTriggerAndDrawer />
 
         <main className="relative z-10">{children}</main>

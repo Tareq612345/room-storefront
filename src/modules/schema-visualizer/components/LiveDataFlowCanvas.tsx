@@ -60,7 +60,9 @@ interface DataSourceDef {
     | "blocks"
     | "checkout"
     | "analytics"
-    | "future_ops";
+    | "future_ops"
+    | "reviews"
+    | "policies";
   labelAr: string;
   labelEn: string;
   descAr: string;
@@ -383,6 +385,67 @@ const DATA_SOURCE_CATALOG: DataSourceDef[] = [
     ],
     relatedSourceIds: ["orders", "shipping_zones", "isolated_analytics", "isolated_checkout"],
     previewColumns: ["_kind", "orderNumber", "customerName", "status", "dispatchStatus"],
+  },
+  {
+    id: "isolated_reviews",
+    kind: "isolated",
+    domainKey: "isolated",
+    modelName: "IsolatedReviews",
+    tableName: "page_sections",
+    isolatedPageKey: "__isolated_reviews_v1__",
+    isolatedArrayKey: "reviews",
+    labelAr: "تقييمات وتعليقات العملاء",
+    labelEn: "Isolated Product Reviews",
+    descAr: "مخزن معزول لتقييمات النجوم والتعليقات وردود المتجر (/admin/reviews/).",
+    descEn: "Isolated customer ratings, comments, verified flags, and admin replies.",
+    accentColor: "#ec4899",
+    writers: [
+      { label: "Product Page Review Form", route: "/product/", detail: "submitProductReview()" },
+      { label: "Reviews Moderation Studio", route: "/admin/reviews/", detail: "saveIsolatedReviewsRegistry()" },
+    ],
+    storageSummary:
+      "page_sections[id=rev_isolated_registry_v1, pageKey=__isolated_reviews_v1__]",
+    readerApis: [
+      { mod: "@modules/reviews", fn: "fetchApprovedProductReviews(slug)" },
+    ],
+    consumers: [
+      { label: "Product Page #reviews", href: "/product/" },
+      { label: "Reviews Studio", href: "/admin/reviews/" },
+    ],
+    relatedSourceIds: ["isolated_products", "page_sections"],
+    previewColumns: ["productSlug", "authorName", "rating", "isApproved", "createdAt"],
+  },
+  {
+    id: "isolated_policies",
+    kind: "isolated",
+    domainKey: "isolated",
+    modelName: "IsolatedPolicies",
+    tableName: "page_sections",
+    isolatedPageKey: "__isolated_policies_v1__",
+    isolatedArrayKey: "policies",
+    labelAr: "صفحات السياسات والأسئلة الشائعة",
+    labelEn: "Isolated Policies & FAQ",
+    descAr: "مخزن منفصل لوثائق الاسترجاع والشحن والخصوصية والشروط والأسئلة الشائعة (/admin/policies/).",
+    descEn: "Separated policy documents, categorized FAQ items, and contact page content.",
+    accentColor: "#06b6d4",
+    writers: [
+      { label: "Policies & FAQ Studio", route: "/admin/policies/", detail: "saveIsolatedPoliciesRegistry()" },
+    ],
+    storageSummary:
+      "page_sections[id=pol_isolated_registry_v1, pageKey=__isolated_policies_v1__]",
+    readerApis: [
+      { mod: "@modules/policies", fn: "fetchPoliciesSnapshot()" },
+    ],
+    consumers: [
+      { label: "Returns Policy", href: "/policies/returns/" },
+      { label: "Shipping Policy", href: "/policies/shipping/" },
+      { label: "Privacy Policy", href: "/policies/privacy/" },
+      { label: "Terms & Conditions", href: "/policies/terms/" },
+      { label: "FAQ Page", href: "/faq/" },
+      { label: "Contact Us", href: "/contact/" },
+    ],
+    relatedSourceIds: ["store_configs", "shipping_zones", "page_sections"],
+    previewColumns: ["_kind", "slug", "titleAr", "questionAr", "isActive"],
   },
 
   // 2. CORE & MULTI-TENANT
@@ -770,7 +833,7 @@ export function LiveDataFlowCanvas({
         config: Record<string, unknown>;
       }>(
         "page_sections",
-        "select=id,pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__,__isolated_cart_checkout_v1__,__isolated_analytics_v1__,__isolated_future_ops_v1__)"
+        "select=id,pageKey,config&pageKey=in.(__isolated_universe_organizer_v1__,__isolated_product_organizer_v1__,__isolated_package_organizer_v1__,__isolated_element_organizer_v1__,__isolated_home_composer_v1__,__isolated_cart_checkout_v1__,__isolated_analytics_v1__,__isolated_future_ops_v1__,__isolated_reviews_v1__,__isolated_policies_v1__)"
       ).catch(() => []);
 
       const byTable = Object.fromEntries(tableEntries);
@@ -833,6 +896,24 @@ export function LiveDataFlowCanvas({
                 ...tag("NOTIFICATION", c.notificationQueue),
                 ...tag("CUSTOMER", c.customerDirectory),
                 ...tag("SUPPORT_TICKET", c.supportTickets),
+              ],
+              ok: true,
+            };
+          } else if (def.isolatedArrayKey === "policies") {
+            const docs = (found?.config?.documents ?? {}) as Record<
+              string,
+              Record<string, unknown>
+            >;
+            const faqObj = (found?.config?.faq ?? {}) as { items?: unknown[] };
+            nextStates[def.id] = {
+              rows: [
+                ...Object.values(docs).map((d) => ({ _kind: "POLICY", ...d })),
+                ...(Array.isArray(faqObj.items)
+                  ? (faqObj.items as Record<string, unknown>[]).map((f) => ({
+                      _kind: "FAQ",
+                      ...f,
+                    }))
+                  : []),
               ],
               ok: true,
             };

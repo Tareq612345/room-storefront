@@ -178,6 +178,37 @@ export async function trackStorefrontEvent(input: {
     const limit = snap.registry.config.retentionLimit || 400;
     const nextEvents = [record, ...snap.registry.events].slice(0, limit);
 
+    // Forward live events to Google Analytics 4 & Meta Pixel if loaded on page
+    if (typeof window !== "undefined") {
+      const w = window as unknown as {
+        gtag?: (...args: unknown[]) => void;
+        fbq?: (...args: unknown[]) => void;
+      };
+      if (typeof w.gtag === "function") {
+        w.gtag("event", input.eventType.toLowerCase(), {
+          value: input.revenue ?? undefined,
+          currency: "EGP",
+          item_id: input.entitySlug ?? input.entityId ?? undefined,
+        });
+      }
+      if (typeof w.fbq === "function") {
+        const fbMap: Record<string, string> = {
+          VIEW_PRODUCT: "ViewContent",
+          ADD_TO_BAG: "AddToCart",
+          BEGIN_CHECKOUT: "InitiateCheckout",
+          PURCHASE: "Purchase",
+        };
+        const fbEvt = fbMap[input.eventType];
+        if (fbEvt) {
+          w.fbq("track", fbEvt, {
+            value: input.revenue ?? 0,
+            currency: "EGP",
+            content_ids: input.entitySlug ? [input.entitySlug] : undefined,
+          });
+        }
+      }
+    }
+
     await saveAnalyticsRegistry({
       storeId: snap.storeId,
       registry: {

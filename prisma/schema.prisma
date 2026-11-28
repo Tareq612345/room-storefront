@@ -158,6 +158,9 @@ model StoreConfig {
   shipmentDispatches   ShipmentDispatch[]
   supportTickets       SupportTicket[]
   notificationLogs     NotificationLog[]
+  productReviews       ProductReview[]
+  policyDocuments      PolicyDocument[]
+  faqItems             FaqItem[]
 
   @@index([isActive])
   @@map("store_configs")
@@ -699,4 +702,66 @@ model NotificationLog {
 
   @@index([storeId, orderId, createdAt])
   @@map("notification_logs")
+}
+
+// ============================================================================
+// 13. PRODUCT REVIEWS & POLICIES / FAQ FOUNDATION
+// ============================================================================
+
+model ProductReview {
+  id          String   @id @default(cuid())
+  storeId     String
+  productId   String
+  productSlug String
+  authorName  String
+  city        String?
+  rating      Int      @default(5)
+  title       String?
+  comment     String
+  adminReply  String?
+  isApproved  Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, productSlug, isApproved])
+  @@map("product_reviews")
+}
+
+model PolicyDocument {
+  id          String   @id @default(cuid())
+  storeId     String
+  slug        String
+  titleAr     String
+  titleEn     String
+  subtitleAr  String?
+  subtitleEn  String?
+  sections    Json     @default("[]")
+  isPublished Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, slug])
+  @@map("policy_documents")
+}
+
+model FaqItem {
+  id         String   @id @default(cuid())
+  storeId    String
+  category   String   @default("orders")
+  questionAr String
+  answerAr   String
+  questionEn String?
+  answerEn   String?
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+
+  store StoreConfig @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, category, isActive])
+  @@map("faq_items")
 }

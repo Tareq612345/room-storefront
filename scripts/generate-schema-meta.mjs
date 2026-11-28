@@ -42,6 +42,9 @@ const DOMAIN_MAP = {
   ShipmentDispatch: "Future Ops (Payments/Dispatch/Support)",
   SupportTicket: "Future Ops (Payments/Dispatch/Support)",
   NotificationLog: "Future Ops (Payments/Dispatch/Support)",
+  ProductReview: "Reviews & Trust Policies",
+  PolicyDocument: "Reviews & Trust Policies",
+  FaqItem: "Reviews & Trust Policies",
 };
 
 const DEFAULT_POSITIONS = {

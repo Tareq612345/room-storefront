@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /schema/
+
+Sitemap: https://tareq612345.github.io/room-storefront/sitemap.xml

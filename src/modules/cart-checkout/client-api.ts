@@ -338,6 +338,7 @@ export async function submitCheckoutOrder(
       .filter((i) => i.itemType === "PRODUCT")
       .map((i) => ({
         productIdOrSlug: i.entityId ?? i.slug ?? i.id,
+        variantId: i.variantId ?? null,
         quantity: i.quantity,
       }));
     await decrementIsolatedProductsStock(productLines).catch(() => {});

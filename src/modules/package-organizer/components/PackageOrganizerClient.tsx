@@ -12,6 +12,7 @@ import {
 import { formatEgp } from "@shared/types/common";
 import { getAssetPath } from "@shared/utils/asset-path";
 import { generateClientId } from "@shared/utils/client-auth";
+import { processAndUploadMedia } from "@shared/utils/media-upload";
 import {
   ArrowLeft,
   ArrowRight,
@@ -405,24 +406,14 @@ export function PackageOrganizerClient({
     onSuccess: (dataUrl: string) => void
   ) => {
     if (!file) return;
-    const allowed = ["image/png", "image/jpeg", "image/webp"];
-    const extOk = /\.(png|jpe?g|webp)$/i.test(file.name);
-    if (!allowed.includes(file.type) && !extOk) {
-      setImgErr(t.imgErrType);
-      return;
-    }
-    if (file.size > 400 * 1024) {
-      setImgErr(t.imgErrSize);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
+    void processAndUploadMedia(file, "packages")
+      .then((res) => {
         setImgErr(null);
-        onSuccess(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+        onSuccess(res.url);
+      })
+      .catch((err) => {
+        setImgErr(err instanceof Error ? err.message : t.imgErrType);
+      });
   };
 
   const handleDelete = (pkgId: string) => {

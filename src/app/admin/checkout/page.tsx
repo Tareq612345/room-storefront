@@ -4,7 +4,12 @@
  */
 
 import { CheckoutOrganizerClient } from "@modules/cart-checkout";
+import { AdminAuthGuard } from "@shared/components/AdminAuthGuard";
 
 export default function AdminCheckoutOrganizerPage() {
-  return <CheckoutOrganizerClient />;
+  return (
+    <AdminAuthGuard>
+      <CheckoutOrganizerClient />
+    </AdminAuthGuard>
+  );
 }
